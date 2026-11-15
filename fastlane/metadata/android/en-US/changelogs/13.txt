@@ -1,0 +1,10 @@
+🌌 v1.4.0 — Quantum Horizon & Telemetry Matrix
+
+Lightspeed ∞ ($1.99 one-time via Buy Me a Coffee · Google Pay) unlocks all signature themes & unlimited Cockpit Gear sets, helping keep Lightspeed free, offline & source-available on GitHub.
+
+• Category Cruise HUD, Custom Icon Lists & 85 Searchable Vectors: Pin live Android widgets alongside 12-Theme Lightspeed cards with HUD Visibility (Cruise & Category vs Inside Category Only), zero-blur pins, per-category Icon Pack pickers, Category "Change icon", 85 zero-RAM searchable Lightspeed Vectors, and + Custom Lists (long-press any icon to save to Favorites).
+• System Vitals, 4-Tab Culprit Hunter & Storage Matrix: Rolling 1H–30D CPU/wakelock/RAM logs, 1-tap Force Stop, thermals (°C/°F), battery health (mAh), Peak/Min watts, plus instant Storage scanning with `[SYS]` System Apps filter, smart SD detection, Quick-Jump tier rail, cache age badge, and live single-app update refreshes.
+• Timelines, Smart Privacy Score & Firewall: Track Day/Week/Month/Year remaining + custom countdowns, 24H–1Y notification & toast logs, live granted-permission Privacy Scores with `[!]` breakdowns, and Shizuku per-app internet blocking.
+• Vista Deck, Adaptive Hz, Telemetry HUD & Multi-Window: True minimum & overdrive refresh rate (up to 185Hz+), draggable per-app FPS/CPU/TEMP/RAM/BAT/WATT micro-HUD, Master Cloak reset toggle, and native floating multi-window popups.
+• 7 New Action Styles & HUD Polish: Sonic EQ, Solar Lux, Chrono Dial, Kinetic Thruster, Modern Symbol Pill/Orb, Glass Slider, and Timeline card (13 total) with instant finger-lift dismiss, smooth glass blur, and 2.4s live previews.
+• Onboarding, Typography, Build Check & Reliability: Welcome Aboard setup guide, offline Build Signature & Official Sources checker in About, on-demand device fonts & 80%–135% scaling, Warm-Up gate, halved idle RAM, Refueling Bay opposite-pane studio & telemetry graph, unified 12-Theme Space Pod Editor & framed Icon Browser, volume haptics, preserved Airlock timers, and Android 9 notch fixes.

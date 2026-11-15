@@ -1,38 +1,97 @@
-▶️ **[Watch the Lightspeed showcase on YouTube](https://www.youtube.com/@SBFlabs)**
+<div align="center">
+
+<img src="fastlane/metadata/android/en-US/images/icon.png" alt="Lightspeed App Icon" width="112" />
 
 # 🚀 Lightspeed
 
-**A control layer, launcher, and workstation for Android.**
+**A meta-launcher, Android control layer, and workstation.**
 
-Android's foundation is Linux.
+![100% Offline](https://img.shields.io/badge/100%25_Offline-Zero_Internet_Permission-10B981?style=flat-square)
+![Zero Telemetry](https://img.shields.io/badge/Zero_Telemetry-No_Ads_or_Trackers-0EA5E9?style=flat-square)
+![Android 8.0 to 16](https://img.shields.io/badge/Android-8.0%E2%80%9316-3DDC84?style=flat-square&logo=android&logoColor=white)
+![Source Available](https://img.shields.io/badge/Source_Available-Non--Commercial-6366F1?style=flat-square)
 
-Moving between different devices or changing your Android device shouldn't mean losing capabilities because of artificial rules or restrictions imposed by the software layer built on top.
+</div>
 
-Lightspeed is about taking back control and enhancing the way you interact with your device without making you choose between Lightspeed's implementations and your OEM's own implementations.
+> **Android's foundation is Linux.**  
+> Moving between different devices or changing your Android device shouldn't mean losing capabilities because of artificial rules or restrictions imposed by the software layer built on top.
+>
+> Lightspeed is about taking back control and enhancing the way you interact with your device without making you choose between Lightspeed's implementations and your OEM's own implementations.
+>
+> Lightspeed's Central Command provides a polished portal for configuring navigation, hardware interaction, setting up information beacons, and utilizing built-in system controls, aka System Override, the way that suits you and your Android.
 
-Lightspeed's Central Command provides a polished portal for configuring navigation, hardware interaction, setting up information beacons, and utilizing built-in system controls, aka System Override, the way that suits you and your Android.
+<a id="download"></a>
 
----
-
-## 📥 Download
+<div align="center">
 
 [![Download Latest APK](https://img.shields.io/github/downloads/SBFlabs/Lightspeed/total?style=for-the-badge&logo=github&logoColor=white&label=Download%20APK&color=238636)](https://github.com/SBFlabs/Lightspeed/releases/latest)
 [![Add to Obtainium](https://img.shields.io/badge/Obtainium-Add_to_App-4A90E2?style=for-the-badge&logo=android&logoColor=white)](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.sbf.lightspeed%22%2C%22url%22%3A%22https%3A//github.com/SBFlabs/Lightspeed%22%2C%22author%22%3A%22SBF%20Labs%22%2C%22name%22%3A%22Lightspeed%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3A%20false%2C%20%5C%22fallbackToOlderReleases%5C%22%3A%20true%7D%22%7D)
+[![Watch on YouTube](https://img.shields.io/badge/YouTube-Showcases-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/@SBFlabs)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-Lightspeed_∞-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/sbflabs/e/579114)
 
+</div>
+
 > [!TIP]
-> **Obtainium users:** Tapping **Add to Obtainium** on your device automatically imports Lightspeed pre-configured with **pre-releases disabled** (stable releases only). Every release published includes an official SHA-256 checksum in the release notes for cryptographic verification.
+> **Download &amp; SHA-256 Verification:** Tap **Download APK** above for the latest GitHub release, or **Add to Obtainium** to import Lightspeed pre-configured with **pre-releases disabled** (stable releases only). Every release includes an official **SHA-256 checksum** in its release notes for cryptographic verification.
 
-> **Also available on:** [ShizuStore](https://shizustore.com/apps/lightspeed) · [Orion Store](https://rookieenough.github.io/Orion-Data/redirect.html?id=lightspeed) (the Orion link opens inside the Orion Store app, so the app must be installed).
+> **Other Stores:** Also available on [**ShizuStore**](https://shizustore.com/apps/lightspeed) and [**Orion Store**](https://rookieenough.github.io/Orion-Data/redirect.html?id=lightspeed) *(the Orion link opens inside the Orion Store app, so the app must be installed)*.
 
+<p align="center">
+  <a href="#1-category-cruise"><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01_Category_Cruise_1st_jump.jpg" alt="Category Cruise" width="26%" /></a>
+  &nbsp;&nbsp;
+  <a href="#2-cockpit"><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05_Cockpit_Hangar_main.jpg" alt="Cockpit Hangar" width="26%" /></a>
+  &nbsp;&nbsp;
+  <a href="#3-central-command"><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/07_Central_Command_HUD_STRIP.jpg" alt="Central Command" width="26%" /></a>
+</p>
 
+<a id="index"></a>
+<details>
+<summary><strong>🧭 Table of Contents (Tap to Expand)</strong></summary>
+
+- [📥 Download &amp; Verification](#download)
+- [🚀 One Launch Pad, Three Workstations](#one-launch-pad-three-workstations)
+  - [🛰️ The Launch Pad](#the-launch-pad)
+  - [1. 🌌 Category Cruise](#1-category-cruise)
+  - [2. ⚙️ Cockpit](#2-cockpit)
+  - [3. 🛰️ Central Command](#3-central-command)
+- [📡 Gesture Sensor Areas (HUD STRIP & DEFLECTORS)](#gesture-sensor-areas)
+  - [🪢 The Rope](#the-rope)
+- [🌌 Advanced Flight Avionics](#advanced-flight-avionics)
+  - [1. Sensor Area](#1-sensor-area)
+  - [2. Info Beacons](#2-info-beacons)
+  - [3. Hull & Ship Maneuvers](#3-hull-ship-maneuvers)
+  - [4. System Overrides](#4-system-overrides)
+  - [5. Config Vault](#5-config-vault)
+  - [6. Experimental Labs](#6-experimental-labs)
+  - [7. 🆕 Decks, Trackpad, Sensor Areas & Master Cloak (v1.4.0)](#7-v140-highlights)
+- [🔐 Permissions & Elevated Capabilities](#permissions-elevated-capabilities)
+- [⚡ External Automation](#external-automation)
+- [🆘 If your phone is left in a bad state](#bad-state-recovery)
+- [🛠️ Architecture & AI Development Notice](#architecture-ai-notice)
+- [💬 Community, Issues & Support Policy](#community-support-policy)
+- [💙 Free & Supporter Longevity Model](#free-supporter-model)
+- [📄 License & Credits](#license-credits)
+
+</details>
+
+---
+
+<a id="one-launch-pad-three-workstations"></a>
 # 🚀 One Launch Pad, Three Workstations
 
+<sup><a href="#index">[↑ Return to Index]</a></sup>
+
+<a id="the-launch-pad"></a>
 ## 🛰️ The Launch Pad
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 The **Astrogation Core** — or simply the sidebar — is your way into the three main areas of Lightspeed.
 
+<a id="1-category-cruise"></a>
 ### 1. 🌌 Category Cruise
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 The categorized app drawer.
 
@@ -41,6 +100,8 @@ To browse the categories, move your finger up and down the **Astrogation Core**.
 Your position within the **Category Cruise**, or the focused item within the chosen category, is calculated relative to where your finger is on your specific screen dimensions. No matter where you're planning to make the jump from or back to the **Category Cruise**, you will always find it easy to navigate the whole app drawer with your thumb without lifting it.
 
 To cancel the gesture at any point, swipe your finger back to the **Astrogation Core** or the edge of the screen.
+
+At the top of Category Cruise sits a customizable **HUD Deck** (up to 3 slots in a row or swipeable stack) featuring the **Focused App Inspector**, **Screen Time & 24h Hourly Timeline**, **System Vitals & Task Hunter** (`BATTERY`, `SYSTEM`, `VITALS`, and `CHART` sub-views with a built-in `[HUNT ▸]` CPU/wakelock task manager and `1H`–`30D` history), **Alerts & Toast Firewall**, and an interactive **Android App Widget Slot**.
 
 <br>
 
@@ -66,7 +127,10 @@ To cancel the gesture at any point, swipe your finger back to the **Astrogation 
 
 <p align="center"><sub>🌠 <em>Category Cruise — app launching</em></sub></p>
 
+<a id="2-cockpit"></a>
 ### 2. ⚙️ Cockpit
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 A configurable workspace built around **Cockpit Gear Sets** and the **Action Selection Menu**.
 
@@ -106,7 +170,10 @@ The Action Selection Menu also features Lightspeed's distinctive take on an inde
 
 <p align="center"><sub>⚙️ <em>Cockpit Hangar — editing hangar items</em></sub></p>
 
+<a id="3-central-command"></a>
 ### 3. 🛰️ Central Command
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 Central Command can be accessed directly by tapping the **Lightspeed app icon**, or from the **Astrogation Core**. While cruising the categories by swiping down the Astrogation Core, Central Command remains hidden behind the bottom-most category. Swipe a little further toward the bottom to reveal it, accompanied by a subtle **haptic cue**.
 
@@ -182,13 +249,19 @@ The **third card** provides another way to toggle Lightspeed as a whole or in pa
 
 ---
 
+<a id="gesture-sensor-areas"></a>
 ## 📡 Gesture Sensor Areas (HUD STRIP & DEFLECTORS)
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 The **HUD STRIP** tab contains the **Sensor Area** accordion for the status-bar gesture area. The **Left DEFLECTOR** and **Right DEFLECTOR** tabs contain the settings for the left and right edges of your screen, respectively. These are sensor areas for the gestures you perform along the edges of your screen.
 
 There is a lot of customization and plenty to explore here, especially with the **Action Selection Menu**.
 
+<a id="the-rope"></a>
 ### 🪢 The Rope
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 Each DEFLECTOR has a **Unified Deflectors** accordion, reflecting how each side of the screen can be treated as either one unified gesture area or two separate controls.
 
@@ -200,15 +273,24 @@ Long-pressing the Rope sends the current gesture mapping to the opposite DEFLECT
 
 ---
 
+<a id="advanced-flight-avionics"></a>
 ## 🌌 Advanced Flight Avionics
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 The **HUD STRIP** comes with a set of configurable accordions for additional flight controls, information, and system tools. Their default arrangement is:
 
+<a id="1-sensor-area"></a>
 ### 1. Sensor Area
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 The **Sensor Area** is the status-bar gesture area described above. Its gestures are fully customizable through the **Action Selection Menu**.
 
+<a id="2-info-beacons"></a>
 ### 2. Info Beacons
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 **Info Beacons** lets you route telemetry to the **Horizon Rail**, the **Orbital Capsule**, or both.
 
@@ -216,7 +298,10 @@ The **Horizon Rail** is a progress line for downloads and currently playing medi
 
 The **Orbital Capsule** is a lightweight implementation of an interactive capsule around the camera punch-hole. It offers several interactive features, but development has been deliberately deprioritized as many Android devices now provide their own implementations. It remains available for experimentation and may receive further development in the future. **Orbital Capsule is disabled by default, and its own settings live in Experimental Labs.**
 
+<a id="3-hull-ship-maneuvers"></a>
 ### 3. Hull & Ship Maneuvers
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 **Hull & Ship Maneuvers** provides the **Volume Key Matrix** and **Hull Tap Sensors** (back-tap) mappings.
 
@@ -224,7 +309,10 @@ It also includes safeguards intended to preserve Android's native volume- and po
 
 **Back-Tap battery behavior:** Back-Tap only holds a CPU wake lock when its scope is set to *Screen Off* or *Always* (both labeled High Drain). With *Screen On Only* (the default) no wake lock is used. The wake lock has a safety time cap and is automatically disabled at 20% battery or in battery saver.
 
+<a id="4-system-overrides"></a>
 ### 4. System Overrides
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 **System Overrides** contains **Native Edge Gesture Sovereignty**, which can neutralize Android's native edge gestures so that the **DEFLECTORS** have full control over those gesture areas.
 
@@ -236,11 +324,17 @@ The sliders also support fine adjustment. Moving a finger across the slider norm
 
 Tapping the value box itself restores that setting to its default value.
 
+<a id="5-config-vault"></a>
 ### 5. Config Vault
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 **Config Vault** contains Lightspeed's backup, export, and factory-reset controls, allowing the configuration to be preserved, exported, or restored to its defaults.
 
+<a id="6-experimental-labs"></a>
 ### 6. Experimental Labs
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 **Experimental Labs** contains features that are **disabled by default** and should be used at the user's own discretion.
 
@@ -256,36 +350,42 @@ The remaining experimental features are unfinished or currently non-functional a
 
 Experimental features are best treated as exactly that: experiments. The **HUD STRIP swipe-down gesture** may require making the Sensor Area thicker and keeping the swipe-down distance roughly equal to its thickness, so that Android's native status-bar pull-down gesture is not triggered unintentionally.
 
-### 7. 🆕 Decks, Trackpad, Sensor Areas & Master Cloak (v1.3.2)
+<a id="7-v140-highlights"></a>
+### 7. 🆕 Decks, Trackpad, Sensor Areas & Master Cloak (v1.4.0)
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 - **3-Way Color Engine (`12-Theme`, `Material 3`, `Hybrid`)**: Choose between 12-Theme, Material 3 (Dynamic Wallpaper), and Hybrid color modes independently across Category Cruise (in the HUD edit tab), Cockpit Gear Sets, Cybernetic Trackpad & Cursor, and each individual Scrubber HUD (Brightness, Volume, Screen Timeout, Media Seek, Scroll Scrub), with a **Hold to Apply to All** (`HOLD ↗`) universal mode latch.
+- **Category Cruise HUD Deck & Vitals Task Hunter**: Modular 3-slot HUD deck (`Focused App Inspector`, `Screen Time & 24h Hourly Timeline`, `System Vitals` with `BATTERY` / `SYSTEM` / `VITALS` / `CHART` sub-views, `Alerts & Toast Firewall`, and `App Widget Slot`) with a built-in **Vitals Task Hunter** (`[HUNT ▸]`) to inspect and force-stop background CPU/wakelock culprits, resident RAM vs. cold zRAM Swap separation, and `1H`–`30D` history charts.
+- **13 Scrubber HUD Styles & Action Signature HUDs**: Categorized HUD style selector (`Action Signature HUD`, `Modern Minimal HUDs`, `Circular Orbital HUDs`, `Rectangular & Bar HUDs`, plus `Interactive Timeline Scrubber Card`) with long-press live preview (`HOLD ↗`) and 1:1 hardware screenshot blur.
 - **Cybernetic Trackpad**: Floating cursor navigation with customizable acceleration and haptics, robot-arm macro buttons, and polished chassis geometry (including the **Glass** style). Macro repeat modes (`1x`, `2x`, `5x`, `∞ Loop`) in the Bot Macro Editor are completely unlocked for all users, with seamless dual-flank cursor handoff and universal hardware key emergency cancel.
-- **Master Cloak Quick Settings Tile**: Lightspeed's single Quick Settings tile. Tap to cloak or re-arm everything; long-press to choose other accessibility services to switch off alongside it. Expanded 7-item checklist now supports stopping/restarting `Shizuku-Next` and `Shevery` (with auth token support), pausing Shizuku-Next Watchdog, and suspending Sonic Deck audio loopback while cloaked for conflict-free banking app stealth.
-- **Vista Deck**: Unified brightness and display optics with 3 collapsible accordions (`Brightness and Beyond`, `Optics & Eye Care`, and `Astrogation Airlock & 20-20-20`). Built into the 12-Theme Command Domain with interactive Blueprint wireframe reordering.
+- **Master Cloak Quick Settings Tile**: Lightspeed's single Quick Settings tile. Tap to cloak or re-arm everything; long-press to choose other accessibility services to switch off alongside it. Expanded 8-item checklist supports stopping/restarting `Shizuku-Next` and `Shevery` (with auth token support), pausing Shizuku-Next Watchdog, suspending Sonic Deck audio loopback, and optionally resetting Overdrive Refresh Rate while cloaked for conflict-free banking app stealth.
+- **Vista Deck**: Unified brightness, display optics, and hardware telemetry with 4 collapsible accordions (`Brightness and Beyond`, `Optics & Eye Care`, `Astrogation Airlock & 20-20-20`, and `Overdrive Hz & Telemetry HUD`). Includes hardware-adaptive refresh rate targeting (`Adaptive` floor unlocking down to 10–24Hz video vs. `Locked` peak Hz, plus Transsion/XOS 144Hz uncap) and a per-app draggable `FPS · CPU · TEMP · RAM · BAT · WATT` micro-visor. Built into the 12-Theme Command Domain with interactive Blueprint wireframe reordering.
 - **Sonic Deck**: Per-app volume mixer, multi-channel hardware routing, and neural voice isolation & background muffler with customizable acoustic presets and user profiles. Built into the 12-Theme Command Domain with interactive Blueprint wireframe reordering.
 - **Bottom Sensor Area**: Secondary edge gesture zone mirrored at the bottom edge with configurable span, thickness, offset, sensitivity, stealth idle glow, and full gesture action matrix.
 - **Circle to Search / Screen Assist**: Direct gesture mapping to trigger Google Circle to Search or your default Assistant / Screen context tool.
-- **Astrogation Airlock**: The 5-second mindful pause shows both App Time and Sector Time (total time today in that app's category).
+- **Astrogation Airlock & Target Apps Pickers**: The 5-second mindful pause shows both App Time and Sector Time (total time today in that app's category), and both target-app pickers include a top collapsible `▸ SELECTED APPS (N)` summary accordion and an interactive `A–Z` alphabet fast-scroll rail.
 
 ---
 
+<a id="permissions-elevated-capabilities"></a>
 ## 🔐 Permissions & Elevated Capabilities
 
-Lightspeed can technically operate using **Android's Accessibility Service alone**, without Shizuku. However, from day one, Lightspeed has been designed with **Shizuku in mind**.
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
-Without Shizuku, Lightspeed may still provide its core accessibility-based gesture functionality, but a significant portion of its intended system-level capabilities becomes unavailable. In practical terms, the result can border on a **semi-functional version of Lightspeed** rather than the complete experience the application was designed to provide.
+Lightspeed is designed to work as a **complete, first-class gesture launcher and overlay workspace using Android's Accessibility Service alone** (alongside standard user-granted permissions like **Modify System Settings**). Core navigation, **Category Cruise**, **Cockpit Gear Sets**, **HUD Strip**, **Deflectors**, **Cybernetic Trackpad & Bot Macros**, **Vista Deck** (brightness, extra dim, smart pixels, display refresh rate, and per-app telemetry HUD), **Astrogation Airlock**, and **Space Pods** all work without Shizuku.
+
+For users who want deeper OS-level integration, **Shizuku** acts as an optional power-user multiplier—and many system toggles (such as **Master Cloak**, **Eye Care**, **Edge Back Gesture Suppression**, and **Face Auto-Rotate**) also work permanently without Shizuku running if `WRITE_SECURE_SETTINGS` is granted once via ADB or Shizuku.
 
 ### Accessibility Service
 
-The Accessibility Service is the foundation of Lightspeed's gesture system. It allows Lightspeed to detect gestures across the screen, perform global navigation actions such as **Back, Home, and Recents**, and provide the gesture sensor areas used by the **HUD STRIP** and **DEFLECTORS**.
+The Accessibility Service is the foundation of Lightspeed's gesture and overlay architecture. It allows Lightspeed to detect gestures across the screen, perform global navigation actions (**Back, Home, Recents, Notifications, Quick Settings, Split Screen, Screenshots, Lock Screen**), render zero-latency overlay workspaces (**Category Cruise, Cockpit, Vista Deck, Telemetry HUD, Cybernetic Trackpad**), and maintain gesture responsiveness while other applications are in the foreground.
 
-It also allows Lightspeed to interact with supported system controls and maintain its gesture-driven interface while other applications are in the foreground.
+### Shizuku (Optional Power-User Multiplier)
 
-### Shizuku
+**Shizuku** is optional but recommended for users who want elevated Android shell capabilities without root.
 
-**Shizuku** is therefore highly recommended. It provides Lightspeed with elevated Android capabilities without requiring root and is an integral part of the application's design.
-
-Among other things, Shizuku enables:
+When active, Shizuku unlocks additional system-level features:
 
 - **Previous App Switching** — Switch directly between recent applications without passing through the launcher's **recent apps menu**.
 - **Graceful Task Closer** — Close the active application through a graceful task-removal mechanism rather than relying on the OEM's recent-apps gesture. This distinction matters on heavily customized Android systems where swiping an application away from the recent apps menu may be interpreted as a **force stop**. Graceful Task Closer is intended to avoid that behavior where possible, which can be particularly useful for applications such as Termux that may otherwise be disrupted by aggressive OEM task-management behavior. The implementation is still **not 100% bulletproof against OEM task killing or other system-level process management**.
@@ -315,7 +415,10 @@ The following permissions are declared by Lightspeed but do not require a separa
 
 ---
 
+<a id="external-automation"></a>
 ## ⚡ External Automation
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 Lightspeed supports external automation via broadcast intents (Tasker, MacroDroid and similar apps, via broadcast intents).
 
@@ -336,7 +439,10 @@ External automation is disabled by default. To allow external apps and ADB to se
 
 ---
 
+<a id="bad-state-recovery"></a>
 ## 🆘 If your phone is left in a bad state
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 Only run the commands for settings you changed. The wm density and font_scale ones are the most common fix.
 
@@ -362,6 +468,14 @@ If Lightspeed crashes or is uninstalled while active system overrides remain in 
 - **Hardware Display Blanking (Display Panel Power)**:
   ```bash
   adb shell cmd display power-on 0
+  ```
+- **Display Refresh Rate Overdrive & Transsion 144Hz Uncap**:
+  ```bash
+  adb shell settings delete system peak_refresh_rate
+  adb shell settings delete system min_refresh_rate
+  adb shell settings delete system user_refresh_rate
+  adb shell settings put system tran_refresh_mode 0
+  adb shell device_config delete display_manager peak_refresh_rate_default
   ```
 
 ### Gestures & Input Touch Latency
@@ -409,7 +523,20 @@ If Lightspeed crashes or is uninstalled while active system overrides remain in 
   adb shell settings put global force_resizable_activities 0
   ```
 
-### Accessibility & App Focus Sovereignty
+### Accessibility, Power & App Focus Sovereignty
+- **Developer Options & USB / Wireless Debugging (Master Cloak)**:
+  ```bash
+  adb shell settings put global development_settings_enabled 1
+  adb shell settings put global adb_enabled 1
+  ```
+- **Battery Saver Constants (Core Cooling Tuner)**:
+  ```bash
+  adb shell settings delete global battery_saver_constants
+  ```
+- **Do Not Disturb Mode (Sonic Deck)**:
+  ```bash
+  adb shell settings put global zen_mode 0
+  ```
 - **Transsion Hardware Zero-Sound App List**:
   ```bash
   adb shell settings delete global audio.zerosound.applist
@@ -424,7 +551,10 @@ If Lightspeed crashes or is uninstalled while active system overrides remain in 
 
 ---
 
+<a id="architecture-ai-notice"></a>
 ## 🛠️ Architecture & AI Development Notice
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 Lightspeed is built as a modular Android application, with its gesture system, configuration interface, action mapping, watchdogs, and experimental features separated into distinct components.
 
@@ -437,7 +567,7 @@ Lightspeed has been developed with substantial assistance from modern AI tools. 
 Different models are used for different parts of the development process:
 
 - **Gemini Argon 4** and **Claude Sonnet 4.6/5.5** — primarily used for **refactoring plans, feature planning, and architectural planning**, helping analyze the structure of the project and determine how larger changes should be approached.
-- **Gemini Flash 3.6 through 3.8** — primarily used for **execution**, including implementing planned features, modifying code, and carrying out development tasks based on the architectural direction. It is also frequently used on its own for **small bug fixes and straightforward feature implementations** that do not require the larger planning models.
+- **Gemini Flash 3.6 through 3.8** and **Gemini Hydrogen** — primarily used for **execution**, including implementing planned features, modifying code, and carrying out development tasks based on the architectural direction. They are also frequently used on their own for **small bug fixes and straightforward feature implementations** that do not require the larger planning models.
 - **Gemini Pro 3.1** — used occasionally, and generally as a fallback, for **feature planning, refactoring plans, and architectural planning** when the primary planning-model quota is unavailable or exhausted.
 
 This is not intended to suggest that AI independently designed or developed Lightspeed. The architecture, requirements, priorities, testing decisions, and final direction remain driven by the project's creator.
@@ -452,18 +582,26 @@ The project continues to go through regular refactoring cycles as features are a
 
 ### Tested Devices
 
-Real-device testing is done on the following hardware:
+**Primary Test Fleet** (daily real-device testing across updates):
 
 - **Infinix Note 50s 5G+ (Global)** — a highly modified mid-range Chinese OEM with aggressive battery management. Dimensity 7300 Ultimate, 8 GB RAM, Android 16.
 - **Samsung Galaxy A24** — a mid-range device running One UI 8.5. Helio G99, 6 GB RAM, Android 16.
 - **Lenovo Tab One (aka Lenovo Tab K9)** — an entry-level, near-stock OEM tablet. Helio G85, 4 GB RAM, Android 15.
 - **TCL NXTPAPER 11 Plus** — a budget or low-midrange, near-stock OEM tablet. Helio G100, 8 GB RAM, Android 15.
 
+**Lightly / Smoke-Tested Devices** (verified install and core gestures; not tested on every daily build):
+
+- **Huawei Nova 3i** — legacy device running **EMUI 9** (Android 9).
+- **Tecno Spark Go 1** — entry-level **32-bit** device (`armeabi-v7a`) running Android 14.
+
 ---
 
+<a id="community-support-policy"></a>
 ## 💬 Community, Issues & Support Policy
 
-Because of a demanding offline profession, **there is no real-time chat support (Discord/Telegram) and Reddit comments/DMs are not monitored for ongoing technical triage.**
+<sup><a href="#index">[↑ Return to Index]</a></sup>
+
+Because of a demanding offline profession, **there is no real-time chat support (Discord/Telegram). Official discussion lives on [XDA Forums](https://xdaforums.com/t/4804419/) (with secondary community posts on Reddit & YouTube); Reddit comments/DMs are not monitored for ongoing technical triage.**
 
 All communication, bug reporting, and regression tracking are handled strictly asynchronously via **GitHub Issues**:
 - Tracking reproducible **bugs and hardware edge cases**.
@@ -474,17 +612,23 @@ Feature suggestions will be cataloged into the development backlog for future mi
 
 ---
 
+<a id="free-supporter-model"></a>
 ## 💙 Free & Supporter Longevity Model
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-Lightspeed_∞-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/sbflabs/e/579114)
 
 The vast majority of Lightspeed is and will remain free forever. Core gesture navigation, app launching, deflectors, system overrides, and backup reliability have zero paywalls.
 
-The **Lightspeed Infinity** tier is designed not as a restrictive constraint, but as a voluntary thank-you incentive for supporters who want to fuel ongoing development and longevity through [Buy Me a Coffee](https://buymeacoffee.com/sbflabs/e/579114). Supporter contributions unlock cosmetic perks, specialized cockpit themes, custom reticle collimators, and unlimited Cockpit Gear sets (free users get 2).
+The **Lightspeed Infinity** tier is a **$1.99** one-time unlock on [Buy Me a Coffee](https://buymeacoffee.com/sbflabs/e/579114) (which also supports **Google Pay**) designed as a voluntary thank-you incentive for supporters. Every dollar goes a long way toward development, maintenance, and **GitHub & XDA Forums** (plus Reddit & YouTube) community support—while unlocking cosmetic perks, signature cockpit themes, custom reticle collimators, and unlimited Cockpit Gear sets (free users get 2). If Lightspeed helps your workflow, starring the repo and sharing/upvoting the original posts on XDA, Reddit, or YouTube helps just as much.
 
 ---
 
+<a id="license-credits"></a>
 ## 📄 License & Credits
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
 
 - **License**: Source-available for personal, non-commercial use. See [LICENSE](LICENSE).
 - **Credits & Inspirations**: Detailed acknowledgments of third-party inspirations, open-source community ethos, and required notices (including Shizuku API MIT) can be found in [CREDITS.md](CREDITS.md).

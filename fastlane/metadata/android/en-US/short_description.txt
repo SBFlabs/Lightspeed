@@ -1,1 +1,1 @@
-100% offline one-thumb gesture overlay, app drawer, trackpad & Shizuku toolkit.
+100% offline gesture overlay, Category Cruise HUD, trackpad & Shizuku toolkit.

@@ -1,12 +1,10 @@
-Lightspeed is an ultra-fast offline gesture launcher and cruise overlay workspace for Android.
+Lightspeed is a free, ad-free, 100% offline Android gesture & system control layer (no Internet, Storage, or Overlay permissions; works alongside your favorite launcher with optional Shizuku).
 
 Key Features:
-• Zero-Latency Cruise Overlay: Fluid accessibility overlay with tactile edge deflectors, dynamic telemetry HUD, and rapid app launching.
-• Cockpit Hangar: Dual-gear app selector with dynamic collimator reticles, tactile physics, and customizable gear sets.
-• Tactical App Drawer: Velocity-based cruise flyout, 3D cylinder navigation, and instant category scrubbing.
-• Cybernetic Trackpad: Precision floating cursor navigation with customizable robot arm buttons, smart screen condition matching, and automated macro replay.
-• Sonic Deck: Per-app floating volume mixer, real-time voice isolation, and dynamic device audio routing.
-• Vista Deck & Display Wellness: Safe hardware system brightness scrub, boost-zone video override, extra dim floor, and screen timeout controls.
-• Master Stealth Cloak: One-tap Quick Settings emergency cutoff to dismiss overlays, restore native back gestures, reset volume, and disable accessibility for banking apps.
-• 100% Offline & Private: Zero network permissions, zero telemetry, zero analytics, zero external network dependencies.
-• Rule of Two & Infinity License: Core features, dual sets, themes, and reticles free forever. Founder Infinity tier unlockable offline via cryptographic license key.
+• Category Cruise & HUD Deck: Kinetic categorized app drawer with live 3rd-party Android widgets, 12-Theme Tune panels, Focused App Inspector, Screen Time & Timelines (Day/Week/Month/Year + custom countdowns), Alerts & Toast Logger with duplicate squashing + live Privacy Score + Shizuku Firewall, and System Vitals & 4-Tab Task Hunter (CPU & Heat, Wakelocks, Resident RAM vs. Swap, Storage Analyzer, thermal & Wattage telemetry across 1H–30D logs, 1-tap Force Stop).
+• Zero-Latency Deflectors & Action Signatures: Edge deflectors, Sensor Strip & Rope tethering with 13 Action Signature, Modern Symbol & Tactical HUD styles, pre-warmed 0ms screenshot blur, and 2.4s live previews.
+• Cockpit Hangar: Dual-gear quick launcher with 12 glass themes, dynamic collimator reticles, custom icon packs, and customizable gear sets.
+• Cybernetic Trackpad: Precision floating cursor with robot arm buttons, smart screen condition matching, and macro replay.
+• Sonic Deck & Vista Deck: Per-app volume mixer, real-time voice isolation, audio routing, safe brightness scrubbing, boost-zone video overdrive, extra-dim floor, and true physical minimum adaptive refresh rate control.
+• Independent Central Command Typography, Onboarding & Build Check: Live 80%–135% UI scale and device font picker (`Format Size`), Welcome Aboard onboarding flow, offline SHA-256 Build Verification & Official Sources check, plus one-tap Master Stealth Cloak for banking apps.
+• 100% Offline & Free Forever: Zero network permissions, telemetry, or ads. Core features & 2 Gear Sets free forever; optional $1.99 Lightspeed ∞ (Google Pay on Buy Me a Coffee) unlocks unlimited Gear Sets & all signature themes.

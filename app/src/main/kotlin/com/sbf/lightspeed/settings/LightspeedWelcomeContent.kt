@@ -43,6 +43,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 /**
@@ -59,42 +61,42 @@ internal fun WelcomeIntroCardsContent(
     val lsColors = LightspeedStyle.colors
 
     WelcomeRevealStep(visible = revealedSteps >= 1) {
-        WelcomeSectionCard(title = "What Is Lightspeed?") {
+        WelcomeSectionCard(title = lsString(R.string.wel_what_is_title)) {
             Text(
-                text = "Lightspeed is a meta-launcher & Android control layer built on Linux's open foundation — keep your current home screen launcher and OEM features while commanding apps, gestures, and system controls from anywhere.",
+                text = lsString(R.string.wel_what_is_body),
                 fontSize = 13.5.sp,
                 lineHeight = 19.sp,
                 color = lsColors.textPrimary.copy(alpha = 0.90f)
             )
             Spacer(modifier = Modifier.height(10.dp))
             WelcomeLaunchPadBanner(
-                description = "The Astrogation Core — or the edge pill on the right (or left) side of your screen — is the first thing you see when Lightspeed is active. From here, you reach all three workstations without leaving any app or video:"
+                description = lsString(R.string.wel_launchpad_desc)
             )
             Spacer(modifier = Modifier.height(7.dp))
             WelcomeStationRow(
                 stepLabel = "1",
                 name = "Category Cruise",
-                description = "Rest your finger or slide up and down on the Astrogation Core pill to open Category Cruise — and experience one-thumb cruising through your categorized app drawers over any screen or video."
+                description = lsString(R.string.wel_station_cruise_desc)
             )
             Spacer(modifier = Modifier.height(5.dp))
             WelcomeStationRow(
                 stepLabel = "2",
-                name = "Cockpit",
-                description = "Slide your finger horizontally from the pill to open Cockpit — your favorite apps arranged in Cockpit Gear Sets inside Cockpit Hangar's spinning dial customizer."
+                name = lsString(R.string.vocab_vessel_cockpit),
+                description = lsString(R.string.wel_station_cockpit_desc)
             )
             Spacer(modifier = Modifier.height(5.dp))
             WelcomeStationRow(
                 stepLabel = "3",
-                name = "Central Command",
-                description = "Your Android control layer & main settings. Open from the Lightspeed icon, or keep sliding slightly past the bottom Category Cruise category until you feel haptic feedback."
+                name = lsString(R.string.vocab_vessel_central_command),
+                description = lsString(R.string.wel_station_command_desc)
             )
         }
     }
 
     WelcomeRevealStep(visible = revealedSteps >= 2) {
-        WelcomeSectionCard(title = "See It in Action (Videos & Screenshots)") {
+        WelcomeSectionCard(title = lsString(R.string.wel_action_title)) {
             Text(
-                text = "No wall of text — the GitHub README opens with short demo videos and step-by-step screenshots, plus an expandable Table of Contents index with back links so you jump straight to what you need.",
+                text = lsString(R.string.wel_action_body),
                 fontSize = 13.5.sp,
                 lineHeight = 19.sp,
                 color = lsColors.textPrimary.copy(alpha = 0.90f)
@@ -106,27 +108,27 @@ internal fun WelcomeIntroCardsContent(
             ) {
                 WelcomeMediaPill(
                     icon = Icons.Default.PlayArrow,
-                    label = "7 Videos",
-                    modifier = Modifier.weight(0.88f)
+                    label = lsString(R.string.wel_pill_videos),
+                    modifier = Modifier.weight(0.96f)
                 )
                 WelcomeMediaPill(
                     icon = Icons.Default.Image,
-                    label = "Screenshots",
-                    modifier = Modifier.weight(1.16f)
+                    label = lsString(R.string.wel_pill_screenshots),
+                    modifier = Modifier.weight(1.12f)
                 )
                 WelcomeMediaPill(
                     icon = Icons.Default.Bookmarks,
-                    label = "Jump Index",
-                    modifier = Modifier.weight(0.96f)
+                    label = lsString(R.string.wel_pill_index),
+                    modifier = Modifier.weight(0.92f)
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
             WelcomeExternalLinkRow(
                 icon = Icons.AutoMirrored.Outlined.MenuBook,
-                title = "Watch Demos & Open Guidebook",
-                subtitle = "Showcase videos, screenshots & expandable index",
+                title = lsString(R.string.wel_watch_demos_title),
+                subtitle = lsString(R.string.wel_watch_demos_sub),
                 highlighted = true,
-                onClick = { openExternalUrl(context, "https://github.com/SBFlabs/Lightspeed#readme") }
+                onClick = { openExternalUrl(context, com.sbf.lightspeed.system.LightspeedLocaleEngine.readmeUrl()) }
             )
             Spacer(modifier = Modifier.height(8.dp))
             Box(
@@ -138,7 +140,7 @@ internal fun WelcomeIntroCardsContent(
                     .padding(horizontal = 10.dp, vertical = 7.dp)
             ) {
                 Text(
-                    text = "Prefer starting on a lighter note inside the app first? Tap the book icon in the top-right corner of Central Command anytime for a quick offline guide.",
+                    text = lsString(R.string.wel_offline_guide_tip),
                     fontSize = 12.sp,
                     lineHeight = 16.5.sp,
                     color = lsColors.textPrimary.copy(alpha = 0.84f)
@@ -148,9 +150,9 @@ internal fun WelcomeIntroCardsContent(
     }
 
     WelcomeRevealStep(visible = revealedSteps >= 3) {
-        WelcomeSectionCard(title = "Community, Issues & Q&A") {
+        WelcomeSectionCard(title = lsString(R.string.wel_community_title)) {
             Text(
-                text = "Pick the right spot below — or follow along on YouTube and Reddit for convenience:",
+                text = lsString(R.string.wel_community_body),
                 fontSize = 13.sp,
                 lineHeight = 18.sp,
                 color = lsColors.textPrimary.copy(alpha = 0.88f)
@@ -158,24 +160,24 @@ internal fun WelcomeIntroCardsContent(
             Spacer(modifier = Modifier.height(8.dp))
             WelcomeExternalLinkRow(
                 icon = Icons.Rounded.BugReport,
-                title = "GitHub Issues",
-                subtitle = "Bug tracking, language requests, feature feedback & Q&A",
+                title = lsString(R.string.wel_link_issues_title),
+                subtitle = lsString(R.string.wel_link_issues_sub),
                 highlighted = false,
                 onClick = { openExternalUrl(context, "https://github.com/SBFlabs/Lightspeed/issues") }
             )
             Spacer(modifier = Modifier.height(6.dp))
             WelcomeExternalLinkRow(
                 icon = Icons.Rounded.Forum,
-                title = "XDA Forums Thread",
-                subtitle = "Discussions, setup tips & sharing with users",
+                title = lsString(R.string.wel_link_xda_title),
+                subtitle = lsString(R.string.wel_link_xda_sub),
                 highlighted = false,
                 onClick = { openExternalUrl(context, "https://xdaforums.com/t/4804419/") }
             )
             Spacer(modifier = Modifier.height(6.dp))
             WelcomeExternalLinkRow(
                 icon = Icons.Default.PlayArrow,
-                title = "YouTube (@SBFlabs) & Reddit",
-                subtitle = "Video clips & updates for convenience",
+                title = lsString(R.string.wel_link_yt_title),
+                subtitle = lsString(R.string.wel_link_yt_sub),
                 highlighted = false,
                 onClick = { openExternalUrl(context, "https://www.youtube.com/@SBFlabs") }
             )
@@ -200,7 +202,7 @@ internal fun WelcomeActionRow(
             colors = ButtonDefaults.buttonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.08f))
         ) {
             Text(
-                text = "Skip",
+                text = lsString(R.string.wel_skip),
                 color = lsColors.textPrimary,
                 fontSize = 12.5.sp,
                 maxLines = 1,
@@ -221,7 +223,7 @@ internal fun WelcomeActionRow(
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Text(
-                    text = "Next: What's New",
+                    text = lsString(R.string.wel_next_whats_new),
                     color = lsColors.accent,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.5.sp,
@@ -252,65 +254,41 @@ internal fun WhatsNewActionRow(
     val lsColors = LightspeedStyle.colors
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Button(
-            onClick = onDismiss,
-            modifier = Modifier.weight(if (isUnlocked) 1f else 0.78f),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.08f))
+            onClick = {
+                onBeforeAction()
+                onOpenInfinityUnlock()
+            },
+            modifier = Modifier.weight(0.95f),
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 9.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.08f)),
+            border = BorderStroke(0.8.dp, lsColors.accentGold.copy(alpha = 0.40f))
         ) {
             Text(
-                text = if (isUpdateBanner) "Got it" else "Later",
-                color = lsColors.textPrimary,
-                fontSize = 12.sp,
+                text = "Lightspeed ∞",
+                color = lsColors.accentGold.copy(alpha = 0.92f),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.5.sp,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        if (!isUnlocked) {
-            Button(
-                onClick = {
-                    onBeforeAction()
-                    onOpenInfinityUnlock()
-                },
-                modifier = Modifier.weight(0.95f),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.10f))
-            ) {
-                Text(
-                    text = "Enter Key",
-                    color = lsColors.textPrimary,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-
         Button(
-            onClick = {
-                onBeforeAction()
-                val targetUrl = if (isUnlocked) {
-                    "https://buymeacoffee.com/sbflabs"
-                } else {
-                    "https://buymeacoffee.com/sbflabs/e/579114"
-                }
-                openExternalUrl(context, targetUrl)
-            },
-            modifier = Modifier.weight(1.38f),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = lsColors.accentGold.copy(alpha = 0.22f)),
-            border = BorderStroke(1.dp, lsColors.accentGold.copy(alpha = 0.65f))
+            onClick = onDismiss,
+            modifier = Modifier.weight(1.35f),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = lsColors.accent.copy(alpha = 0.22f)),
+            border = BorderStroke(1.dp, lsColors.accent.copy(alpha = 0.65f))
         ) {
             Text(
-                text = if (isUnlocked) "☕ Support" else "☕ Unlock ∞ ($1.99)",
-                color = lsColors.accentGold,
+                text = if (isUpdateBanner) lsString(R.string.wel_got_it) else lsString(R.string.wel_later),
+                color = lsColors.accent,
                 fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
+                fontSize = 12.5.sp,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis
@@ -326,24 +304,24 @@ internal fun CommunityLinksRow(context: Context) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         CommunityLinkTile(
-            title = "📖 Main Guidebook (GitHub README)",
-            subtitle = "Indexed Table of Contents, screenshots & showcase videos",
+            title = lsString(R.string.wel_comm_readme_title),
+            subtitle = lsString(R.string.wel_comm_readme_sub),
             modifier = Modifier.fillMaxWidth(),
-            onClick = { openExternalUrl(context, "https://github.com/SBFlabs/Lightspeed#readme") }
+            onClick = { openExternalUrl(context, com.sbf.lightspeed.system.LightspeedLocaleEngine.readmeUrl()) }
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             CommunityLinkTile(
-                title = "🐛 GitHub Issues",
-                subtitle = "Bugs, features & Q&A",
+                title = lsString(R.string.wel_comm_issues_title),
+                subtitle = lsString(R.string.wel_comm_issues_sub),
                 modifier = Modifier.weight(1f),
                 onClick = { openExternalUrl(context, "https://github.com/SBFlabs/Lightspeed/issues") }
             )
             CommunityLinkTile(
-                title = "💬 XDA Thread",
-                subtitle = "Discussions & setup tips",
+                title = lsString(R.string.wel_comm_xda_title),
+                subtitle = lsString(R.string.wel_comm_xda_sub),
                 modifier = Modifier.weight(1f),
                 onClick = { openExternalUrl(context, "https://xdaforums.com/t/4804419/") }
             )
@@ -396,8 +374,8 @@ private fun WelcomeSectionCard(
             .border(0.8.dp, lsColors.textPrimary.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
             .padding(horizontal = 13.dp, vertical = 11.dp)
     ) {
-        Text(
-            text = title,
+        BilingualTitleText(
+            title = title,
             fontSize = 14.5.sp,
             fontWeight = FontWeight.Bold,
             color = lsColors.textPrimary
@@ -432,7 +410,7 @@ private fun WelcomeLaunchPadBanner(
                 modifier = Modifier.size(15.dp)
             )
             Text(
-                text = "Your Launch Pad",
+                text = lsString(R.string.wel_launchpad_title),
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.Bold,
                 color = lsColors.accent
@@ -570,7 +548,7 @@ private fun WelcomeExternalLinkRow(
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.Launch,
-            contentDescription = "Open link",
+            contentDescription = lsString(R.string.wel_cd_open_link),
             tint = tint,
             modifier = Modifier.size(15.dp)
         )

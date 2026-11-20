@@ -662,6 +662,11 @@ private fun RefuelingGraphBottomLegend(
     val lsColors = LightspeedStyle.colors
     val isFahrenheit = remember(context) { LightspeedCruiseHudPods.isTempFahrenheit(context) }
     val maxWatt = samples.maxOfOrNull { it.wattage }?.coerceAtLeast(currentWattage) ?: currentWattage
+    val minActiveWatt = samples.asSequence()
+        .filter { it.wattage >= 0.5f }
+        .minOfOrNull { it.wattage }
+        ?.let { if (currentWattage >= 0.5f) minOf(it, currentWattage) else it }
+        ?: if (currentWattage >= 0.5f) currentWattage else null
     val minTemp = samples.minOfOrNull { it.tempC }?.coerceAtMost(currentTempC) ?: currentTempC
     val maxTemp = samples.maxOfOrNull { it.tempC }?.coerceAtLeast(currentTempC) ?: currentTempC
 
@@ -672,8 +677,14 @@ private fun RefuelingGraphBottomLegend(
     }
 
     val powerLabel = when {
+        currentWattage > 0.1f && minActiveWatt != null && maxWatt >= 0.5f && (maxWatt - minActiveWatt) >= 1.5f ->
+            String.format(Locale.US, "PWR %.1fW (%.0f–%.0f)", currentWattage, minActiveWatt, maxWatt)
+        currentWattage > 0.1f && maxWatt >= currentWattage + 0.8f && maxWatt >= 0.5f ->
+            String.format(Locale.US, "PWR %.1fW (PK %.0f)", currentWattage, maxWatt)
         currentWattage > 0.1f -> String.format(Locale.US, "PWR %.1fW", currentWattage)
-        maxWatt > 0.2f -> String.format(Locale.US, "PWR 0W (PK %.0f)", maxWatt)
+        maxWatt >= 0.5f && minActiveWatt != null && (maxWatt - minActiveWatt) >= 1.5f ->
+            String.format(Locale.US, "PWR 0W (%.0f–%.0f)", minActiveWatt, maxWatt)
+        maxWatt >= 0.5f -> String.format(Locale.US, "PWR 0W (PK %.0f)", maxWatt)
         else -> "PWR 0.0W"
     }
 

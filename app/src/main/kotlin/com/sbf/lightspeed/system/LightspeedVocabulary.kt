@@ -1,5 +1,7 @@
 package com.sbf.lightspeed.system
 
+import com.sbf.lightspeed.R
+
 /**
  * LightspeedVocabulary — the master terminology dictionary for the Lightspeed app.
  *
@@ -93,158 +95,146 @@ object LightspeedVocabulary {
         CALL_DEFLECTOR_MODE_HIDE,
     }
 
-    // ─── Vessel Lore dictionary ─────────────────────────────────────────────
+    // ─── Vessel Lore strings (res/values*/strings.xml) ───
 
-    private val vesselMap: Map<Key, String> = mapOf(
-        Key.CENTRAL_COMMAND         to "Central Command",
-        Key.CRUISE                  to "Cruise",
-        Key.COCKPIT                 to "Cockpit",
-        Key.HUD_STRIP               to "HUD Strip",
-        Key.TAB_LEFT                to "◀ DEFLECTOR",
-        Key.TAB_CENTER              to "HUD STRIP",
-        Key.TAB_RIGHT               to "DEFLECTOR ▶",
-
-        Key.DEFLECTORS              to "Left & Right Deflectors",
-        Key.LEFT_DEFLECTOR          to "Left Deflector",
-        Key.RIGHT_DEFLECTOR         to "Right Deflector",
-        Key.SENSOR_AREA             to "Sensor Area",
-        Key.UNIFIED_DEFLECTORS      to "Unified Deflectors",
-        Key.CORE_ZONE               to "Core Astrogation",
-        Key.UPPER_FLANK             to "Upper Flank",
-        Key.LOWER_FLANK             to "Lower Flank",
-
-        Key.HORIZON_RAIL            to "Horizon Rail",
-        Key.ORBITAL_CAPSULE         to "Orbital Capsule",
-        Key.SCREEN_ORIENTATION      to "Synthetic Gravity",
-        Key.SYSTEM_ACTIONS          to "System Actions",
-        Key.HARDWARE_CONTROLS       to "Hardware & System Controls",
-        Key.GESTURE_SCRUBBERS       to "Scrubbers",
-        Key.NAVIGATION              to "Navigation",
-        Key.MEDIA_CONTROLS          to "Media Controls",
-        Key.SHIP_MAINTENANCE        to "Ship Maintenance",
-
-        Key.SUB_LIGHT_THRUSTERS     to "Sub-Light Impulse Thrusters",
-        Key.HULL_RESONATOR          to "Hull Kinetic Acoustic Resonator",
-        Key.IGNITION_OVERRIDE       to "Ignition Override",
-
-        Key.REFUELING_BAY           to "Refueling Bay & Cryo Stasis",
-        Key.SHIP_DATA_VAULT         to "Config Vault",
-        Key.SHIZUKU_JETTISON        to "Sub-Space Cloaked Egress",
-        Key.WATCHDOG_SENTINELS      to "Watchdog Sentinels",
-        Key.PERIMETER_DEFENSE       to "Perimeter Watchdog",
-        Key.CORE_WATCHDOG           to "Core Watchdog",
-        Key.GRAVITY_ENGINE          to "Synthetic Gravity Engine",
-        Key.CORE_COOLING            to "System Reboot",
-        Key.BATTERY_EXEMPTION       to "Battery Exemption Control",
-        Key.SONIC_DECK              to "Sonic Deck",
-        Key.VISTA_DECK              to "Vista Deck",
-
-        Key.SYSTEM_OVERRIDES        to "System Override",
-
-        Key.MASTER_FLIGHT           to "Master Flight",
-        Key.FLIGHT_DECK             to "Flight Control Deck",
-        Key.EXPERIMENTAL_LABS       to "Experimental Labs",
-
-        Key.GUIDEBOOK               to "The Stranded in Space Guidebook",
-        Key.TELEMETRY_AND_INDICATORS to "Info Beacons",
-        Key.TACTICAL_HARDWARE       to "Hull & Ship Maneuvers",
-        Key.POWER_GRAB_WARNING      to "Experimental module: with grab active, power key may fail to wake dormant display on certain hardware. If encountered, disengage grab or wake via biometric sensor or power supply.",
-        Key.VAULT_IMPORT_WARNING    to "Only import files you exported yourself. Lightspeed has powerful access to your phone, and a settings file from someone else could change what it does.",
-        Key.FLIGHT_BLACKBOX         to "Flight Blackbox",
-
-        Key.CALL_DEFLECTOR_MODE_TITLE       to "Comms Channel Deflector Protocol",
-        Key.CALL_DEFLECTOR_MODE_KEEP_ACTIVE to "Maintain Active Deflectors During Comms",
-        Key.CALL_DEFLECTOR_MODE_HIDE        to "Cloak Deflectors During Comms",
+    private val vesselRes: Map<Key, Int> = mapOf(
+        Key.CENTRAL_COMMAND to R.string.vocab_vessel_central_command,
+        Key.CRUISE to R.string.vocab_vessel_cruise,
+        Key.COCKPIT to R.string.vocab_vessel_cockpit,
+        Key.HUD_STRIP to R.string.vocab_vessel_hud_strip,
+        Key.TAB_LEFT to R.string.vocab_vessel_tab_left,
+        Key.TAB_CENTER to R.string.vocab_vessel_tab_center,
+        Key.TAB_RIGHT to R.string.vocab_vessel_tab_right,
+        Key.DEFLECTORS to R.string.vocab_vessel_deflectors,
+        Key.LEFT_DEFLECTOR to R.string.vocab_vessel_left_deflector,
+        Key.RIGHT_DEFLECTOR to R.string.vocab_vessel_right_deflector,
+        Key.SENSOR_AREA to R.string.vocab_vessel_sensor_area,
+        Key.UNIFIED_DEFLECTORS to R.string.vocab_vessel_unified_deflectors,
+        Key.CORE_ZONE to R.string.vocab_vessel_core_zone,
+        Key.UPPER_FLANK to R.string.vocab_vessel_upper_flank,
+        Key.LOWER_FLANK to R.string.vocab_vessel_lower_flank,
+        Key.HORIZON_RAIL to R.string.vocab_vessel_horizon_rail,
+        Key.ORBITAL_CAPSULE to R.string.vocab_vessel_orbital_capsule,
+        Key.SCREEN_ORIENTATION to R.string.vocab_vessel_screen_orientation,
+        Key.SYSTEM_ACTIONS to R.string.vocab_vessel_system_actions,
+        Key.HARDWARE_CONTROLS to R.string.vocab_vessel_hardware_controls,
+        Key.GESTURE_SCRUBBERS to R.string.vocab_vessel_gesture_scrubbers,
+        Key.NAVIGATION to R.string.vocab_vessel_navigation,
+        Key.MEDIA_CONTROLS to R.string.vocab_vessel_media_controls,
+        Key.SHIP_MAINTENANCE to R.string.vocab_vessel_ship_maintenance,
+        Key.SUB_LIGHT_THRUSTERS to R.string.vocab_vessel_sub_light_thrusters,
+        Key.HULL_RESONATOR to R.string.vocab_vessel_hull_resonator,
+        Key.IGNITION_OVERRIDE to R.string.vocab_vessel_ignition_override,
+        Key.REFUELING_BAY to R.string.vocab_vessel_refueling_bay,
+        Key.SHIP_DATA_VAULT to R.string.vocab_vessel_ship_data_vault,
+        Key.SHIZUKU_JETTISON to R.string.vocab_vessel_shizuku_jettison,
+        Key.WATCHDOG_SENTINELS to R.string.vocab_vessel_watchdog_sentinels,
+        Key.PERIMETER_DEFENSE to R.string.vocab_vessel_perimeter_defense,
+        Key.CORE_WATCHDOG to R.string.vocab_vessel_core_watchdog,
+        Key.GRAVITY_ENGINE to R.string.vocab_vessel_gravity_engine,
+        Key.CORE_COOLING to R.string.vocab_vessel_core_cooling,
+        Key.BATTERY_EXEMPTION to R.string.vocab_vessel_battery_exemption,
+        Key.SONIC_DECK to R.string.vocab_vessel_sonic_deck,
+        Key.VISTA_DECK to R.string.vocab_vessel_vista_deck,
+        Key.SYSTEM_OVERRIDES to R.string.vocab_vessel_system_overrides,
+        Key.MASTER_FLIGHT to R.string.vocab_vessel_master_flight,
+        Key.FLIGHT_DECK to R.string.vocab_vessel_flight_deck,
+        Key.EXPERIMENTAL_LABS to R.string.vocab_vessel_experimental_labs,
+        Key.GUIDEBOOK to R.string.vocab_vessel_guidebook,
+        Key.TELEMETRY_AND_INDICATORS to R.string.vocab_vessel_telemetry_and_indicators,
+        Key.TACTICAL_HARDWARE to R.string.vocab_vessel_tactical_hardware,
+        Key.POWER_GRAB_WARNING to R.string.vocab_vessel_power_grab_warning,
+        Key.VAULT_IMPORT_WARNING to R.string.vocab_vessel_vault_import_warning,
+        Key.FLIGHT_BLACKBOX to R.string.vocab_vessel_flight_blackbox,
+        Key.CALL_DEFLECTOR_MODE_TITLE to R.string.vocab_vessel_call_deflector_mode_title,
+        Key.CALL_DEFLECTOR_MODE_KEEP_ACTIVE to R.string.vocab_vessel_call_deflector_mode_keep_active,
+        Key.CALL_DEFLECTOR_MODE_HIDE to R.string.vocab_vessel_call_deflector_mode_hide,
     )
 
-    // ─── Clear Comms dictionary ──────────────────────────────────────────────
+    // ─── Clear Comms strings ───
 
-    private val clearMap: Map<Key, String> = mapOf(
-        Key.CENTRAL_COMMAND         to "Central Command",
-        Key.CRUISE                  to "Navigation",
-        Key.COCKPIT                 to "Launcher Settings",
-        Key.HUD_STRIP               to "System & Overlay Features",
-        Key.TAB_LEFT                to "◀ LEFT",
-        Key.TAB_CENTER              to "SYSTEMS",
-        Key.TAB_RIGHT               to "RIGHT ▶",
-
-        Key.DEFLECTORS              to "Left & Right Gesture Sidebars",
-        Key.LEFT_DEFLECTOR          to "Left Gesture Sidebar",
-        Key.RIGHT_DEFLECTOR         to "Right Gesture Sidebar",
-        Key.SENSOR_AREA             to "Gesture Area",
-        Key.UNIFIED_DEFLECTORS      to "Unified Gesture Sidebars",
-        Key.CORE_ZONE               to "Central Trigger Area",
-        Key.UPPER_FLANK             to "Upper Trigger Zone",
-        Key.LOWER_FLANK             to "Lower Trigger Zone",
-
-        Key.HORIZON_RAIL            to "Progress Rail",
-        Key.ORBITAL_CAPSULE         to "Camera Cutout HUD",
-        Key.SCREEN_ORIENTATION      to "Screen Orientation",
-        Key.SYSTEM_ACTIONS          to "System Actions",
-        Key.HARDWARE_CONTROLS       to "Hardware & System Controls",
-        Key.GESTURE_SCRUBBERS       to "Sliders",
-        Key.NAVIGATION              to "Navigation",
-        Key.MEDIA_CONTROLS          to "Media Controls",
-        Key.SHIP_MAINTENANCE        to "System Maintenance",
-
-        Key.SUB_LIGHT_THRUSTERS     to "Volume Button Actions",
-        Key.HULL_RESONATOR          to "Back-Tap Gestures",
-        Key.IGNITION_OVERRIDE       to "Power Button Remapping",
-
-        Key.REFUELING_BAY           to "Charging Dashboard",
-        Key.SHIP_DATA_VAULT         to "Backup & Restore",
-        Key.SHIZUKU_JETTISON        to "Elevated Task Dismissal (OEM Kill-Bypass)",
-        Key.WATCHDOG_SENTINELS      to "Watchdog & Crash Guard",
-        Key.PERIMETER_DEFENSE       to "Accessibility Service Manager (Shizuku)",
-        Key.CORE_WATCHDOG           to "System Immunity & Watchdogs",
-        Key.GRAVITY_ENGINE          to "Orientation Preferences",
-        Key.SYSTEM_OVERRIDES        to "Developer Options",
-        Key.BATTERY_EXEMPTION       to "Battery Exemption Control",
-        Key.SONIC_DECK              to "Universal Audio Control",
-        Key.VISTA_DECK              to "Display & Visual Optics Control",
-
-        Key.CORE_COOLING            to "System Reboot",
-
-        Key.MASTER_FLIGHT           to "Master Toggle",
-        Key.FLIGHT_DECK             to "Quick Controls",
-        Key.EXPERIMENTAL_LABS       to "Experimental Features",
-
-        Key.GUIDEBOOK               to "Feature Dictionary",
-        Key.TELEMETRY_AND_INDICATORS to "Telemetry",
-        Key.TACTICAL_HARDWARE       to "Hardware Gestures",
-        Key.POWER_GRAB_WARNING      to "This feature is experimental: with grab ON, the power button may not wake a screen that is off on some devices. If that happens, turn grab OFF or wake the phone with the fingerprint sensor or by plugging in a charger.",
-        Key.VAULT_IMPORT_WARNING    to "Only import files you exported yourself. Lightspeed has powerful access to your phone, and a settings file from someone else could change what it does.",
-        Key.FLIGHT_BLACKBOX         to "Diagnostics & Crash Logs",
-
-        Key.CALL_DEFLECTOR_MODE_TITLE       to "Gesture Sidebars During Calls",
-        Key.CALL_DEFLECTOR_MODE_KEEP_ACTIVE to "Keep sidebars active during calls",
-        Key.CALL_DEFLECTOR_MODE_HIDE        to "Hide sidebars during calls",
+    private val clearRes: Map<Key, Int> = mapOf(
+        Key.CENTRAL_COMMAND to R.string.vocab_clear_central_command,
+        Key.CRUISE to R.string.vocab_clear_cruise,
+        Key.COCKPIT to R.string.vocab_clear_cockpit,
+        Key.HUD_STRIP to R.string.vocab_clear_hud_strip,
+        Key.TAB_LEFT to R.string.vocab_clear_tab_left,
+        Key.TAB_CENTER to R.string.vocab_clear_tab_center,
+        Key.TAB_RIGHT to R.string.vocab_clear_tab_right,
+        Key.DEFLECTORS to R.string.vocab_clear_deflectors,
+        Key.LEFT_DEFLECTOR to R.string.vocab_clear_left_deflector,
+        Key.RIGHT_DEFLECTOR to R.string.vocab_clear_right_deflector,
+        Key.SENSOR_AREA to R.string.vocab_clear_sensor_area,
+        Key.UNIFIED_DEFLECTORS to R.string.vocab_clear_unified_deflectors,
+        Key.CORE_ZONE to R.string.vocab_clear_core_zone,
+        Key.UPPER_FLANK to R.string.vocab_clear_upper_flank,
+        Key.LOWER_FLANK to R.string.vocab_clear_lower_flank,
+        Key.HORIZON_RAIL to R.string.vocab_clear_horizon_rail,
+        Key.ORBITAL_CAPSULE to R.string.vocab_clear_orbital_capsule,
+        Key.SCREEN_ORIENTATION to R.string.vocab_clear_screen_orientation,
+        Key.SYSTEM_ACTIONS to R.string.vocab_clear_system_actions,
+        Key.HARDWARE_CONTROLS to R.string.vocab_clear_hardware_controls,
+        Key.GESTURE_SCRUBBERS to R.string.vocab_clear_gesture_scrubbers,
+        Key.NAVIGATION to R.string.vocab_clear_navigation,
+        Key.MEDIA_CONTROLS to R.string.vocab_clear_media_controls,
+        Key.SHIP_MAINTENANCE to R.string.vocab_clear_ship_maintenance,
+        Key.SUB_LIGHT_THRUSTERS to R.string.vocab_clear_sub_light_thrusters,
+        Key.HULL_RESONATOR to R.string.vocab_clear_hull_resonator,
+        Key.IGNITION_OVERRIDE to R.string.vocab_clear_ignition_override,
+        Key.REFUELING_BAY to R.string.vocab_clear_refueling_bay,
+        Key.SHIP_DATA_VAULT to R.string.vocab_clear_ship_data_vault,
+        Key.SHIZUKU_JETTISON to R.string.vocab_clear_shizuku_jettison,
+        Key.WATCHDOG_SENTINELS to R.string.vocab_clear_watchdog_sentinels,
+        Key.PERIMETER_DEFENSE to R.string.vocab_clear_perimeter_defense,
+        Key.CORE_WATCHDOG to R.string.vocab_clear_core_watchdog,
+        Key.GRAVITY_ENGINE to R.string.vocab_clear_gravity_engine,
+        Key.SYSTEM_OVERRIDES to R.string.vocab_clear_system_overrides,
+        Key.BATTERY_EXEMPTION to R.string.vocab_clear_battery_exemption,
+        Key.SONIC_DECK to R.string.vocab_clear_sonic_deck,
+        Key.VISTA_DECK to R.string.vocab_clear_vista_deck,
+        Key.CORE_COOLING to R.string.vocab_clear_core_cooling,
+        Key.MASTER_FLIGHT to R.string.vocab_clear_master_flight,
+        Key.FLIGHT_DECK to R.string.vocab_clear_flight_deck,
+        Key.EXPERIMENTAL_LABS to R.string.vocab_clear_experimental_labs,
+        Key.GUIDEBOOK to R.string.vocab_clear_guidebook,
+        Key.TELEMETRY_AND_INDICATORS to R.string.vocab_clear_telemetry_and_indicators,
+        Key.TACTICAL_HARDWARE to R.string.vocab_clear_tactical_hardware,
+        Key.POWER_GRAB_WARNING to R.string.vocab_clear_power_grab_warning,
+        Key.VAULT_IMPORT_WARNING to R.string.vocab_clear_vault_import_warning,
+        Key.FLIGHT_BLACKBOX to R.string.vocab_clear_flight_blackbox,
+        Key.CALL_DEFLECTOR_MODE_TITLE to R.string.vocab_clear_call_deflector_mode_title,
+        Key.CALL_DEFLECTOR_MODE_KEEP_ACTIVE to R.string.vocab_clear_call_deflector_mode_keep_active,
+        Key.CALL_DEFLECTOR_MODE_HIDE to R.string.vocab_clear_call_deflector_mode_hide,
     )
 
-    // ─── Co-Pilot (Bilingual) Subtitle dictionary ────────────────────────────
+    // ─── Co-Pilot (Bilingual) subtitle strings ───
 
-    private val copilotSubtitleMap: Map<Key, String> = mapOf(
-        Key.TELEMETRY_AND_INDICATORS to "Status bar telemetry",
-        Key.REFUELING_BAY           to "Charging Dashboard",
-        Key.POWER_GRAB_WARNING      to "Experimental feature warning: turn grab OFF or wake with fingerprint or charger if screen off wake fails.",
+    private val copilotSubtitleRes: Map<Key, Int> = mapOf(
+        Key.TELEMETRY_AND_INDICATORS to R.string.vocab_sub_telemetry_and_indicators,
+        Key.REFUELING_BAY to R.string.vocab_sub_refueling_bay,
+        Key.POWER_GRAB_WARNING to R.string.vocab_sub_power_grab_warning,
     )
 
     // ─── Lookup functions ───────────────────────────────────────────────────
+    // Every lookup resolves through [lsString] so the active real-world language (EN / PT / ES)
+    // applies, and so [LightspeedLocaleEngine.secondaryFor] can find the Bilingual twin.
+
+    private fun text(id: Int?): String? = id?.let { lsString(it) }?.takeIf { it.isNotEmpty() }
 
     /**
      * Returns the spaceship-metaphor label for [key].
      * Falls back to the key name if somehow unmapped (should never happen).
      */
-    fun vessel(key: Key): String = vesselMap[key] ?: key.name
+    fun vessel(key: Key): String = text(vesselRes[key]) ?: key.name
 
     /**
-     * Returns the plain Android/English label for [key].
+     * Returns the plain Android label for [key].
      * Falls back to [vessel] if not found.
      */
-    fun clear(key: Key): String = clearMap[key] ?: vessel(key)
+    fun clear(key: Key): String = text(clearRes[key]) ?: vessel(key)
 
     /**
-     * Returns the plain-English subtitle label for [key] in Co-Pilot mode.
+     * Returns the plain-language subtitle label for [key] in Co-Pilot mode.
      */
-    fun copilotSubtitle(key: Key): String = copilotSubtitleMap[key] ?: clear(key)
+    fun copilotSubtitle(key: Key): String = text(copilotSubtitleRes[key]) ?: clear(key)
 }

@@ -1,13 +1,16 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
+import androidx.compose.runtime.CompositionLocalProvider
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.os.Build
-import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -109,17 +112,10 @@ fun BatteryExemptionDeckDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        CompositionLocalProvider(LocalDensity provides density) {
         val activeSnapshot = LocalDeckTheme.current
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                dialogWindow?.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                val lp = dialogWindow?.attributes
-                if (lp != null) {
-                    lp.blurBehindRadius = activeSnapshot.windowBlurRadiusPx.coerceIn(0, 150)
-                    dialogWindow.attributes = lp
-                }
-            }
             dialogWindow?.setDimAmount(activeSnapshot.dimAmount)
         }
 
@@ -225,14 +221,14 @@ fun BatteryExemptionDeckDialog(
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Column {
                                         Text(
-                                            "WANT TO EXEMPT MORE APPS?",
+                                            lsString(R.string.bat_mgr_title),
                                             fontSize = 13.5.sp,
                                             fontWeight = FontWeight.Black,
                                             color = lsColors.textPrimary,
                                             letterSpacing = 0.5.sp
                                         )
                                         Text(
-                                            "Universal Battery & Doze Whitelist Manager",
+                                            lsString(R.string.bat_mgr_sub),
                                             fontSize = 10.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                                         )
@@ -259,7 +255,7 @@ fun BatteryExemptionDeckDialog(
                             FilterChip(
                                 selected = filterMode == 0,
                                 onClick = { filterMode = 0 },
-                                label = { Text("ALL (${allApps.size})", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                                label = { Text("${lsString(R.string.bat_chip_all)} (${allApps.size})", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                                 modifier = Modifier.weight(1f).height(32.dp),
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
@@ -271,7 +267,7 @@ fun BatteryExemptionDeckDialog(
                             FilterChip(
                                 selected = filterMode == 1,
                                 onClick = { filterMode = 1 },
-                                label = { Text("SAFE (${exemptedPackagesSet.size})", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                                label = { Text("${lsString(R.string.bat_chip_safe)} (${exemptedPackagesSet.size})", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                                 modifier = Modifier.weight(1f).height(32.dp),
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = successGreen.copy(alpha = 0.25f),
@@ -283,7 +279,7 @@ fun BatteryExemptionDeckDialog(
                             FilterChip(
                                 selected = filterMode == 2,
                                 onClick = { filterMode = 2 },
-                                label = { Text("PINNED (${pinnedAppsSet.size})", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                                label = { Text("${lsString(R.string.bat_chip_pinned)} (${pinnedAppsSet.size})", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                                 modifier = Modifier.weight(1f).height(32.dp),
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = LightspeedTokens.StatusGold.copy(alpha = 0.25f),
@@ -300,7 +296,7 @@ fun BatteryExemptionDeckDialog(
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search apps by name or package...", fontSize = 11.5.sp, color = lsColors.textDisabled) },
+                            placeholder = { Text(lsString(R.string.bat_search_hint), fontSize = 11.5.sp, color = lsColors.textDisabled) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                             leadingIcon = {
                                 Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
@@ -350,21 +346,26 @@ fun BatteryExemptionDeckDialog(
 
                         if (isLoading) {
                             BatteryPowerCellLoader(
-                                title = "CHECKING POWER PROFILES",
-                                subtitle = "Indexing battery exemptions...",
+                                title = lsString(R.string.picker_load_bat_t),
+                                subtitle = lsString(R.string.bat_indexing),
                                 modifier = Modifier.fillMaxWidth().weight(1f)
                             )
                         } else if (filteredApps.isEmpty()) {
                             Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                                 Text(
-                                    text = if (searchQuery.isBlank()) "No apps found in this filter." else "No matching applications found.",
+                                    text = if (searchQuery.isBlank()) lsString(R.string.bat_empty_filter) else lsString(R.string.bat_empty_match),
                                     fontSize = 12.sp,
                                     color = lsColors.textSecondary.copy(alpha = 0.6f)
                                 )
                             }
                         } else {
+                            val exemptionListState = androidx.compose.foundation.lazy.rememberLazyListState()
                             LazyColumn(
-                                modifier = Modifier.fillMaxWidth().weight(1f),
+                                state = exemptionListState,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .verticalEdgeFade(exemptionListState),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 contentPadding = PaddingValues(bottom = 16.dp)
                             ) {
@@ -390,7 +391,7 @@ fun BatteryExemptionDeckDialog(
                                             LightspeedHapticEngine.tick(context)
                                             Toast.makeText(
                                                 context,
-                                                if (nowPinned) "Pinned ${appItem.label} to top" else "Unpinned ${appItem.label}",
+                                                if (nowPinned) lsString(R.string.picker_pinned_toast, appItem.label) else lsString(R.string.picker_unpinned_toast, appItem.label),
                                                 Toast.LENGTH_SHORT
                                             ).show()
                                         },
@@ -409,6 +410,7 @@ fun BatteryExemptionDeckDialog(
                     }
                 }
             }
+        }
         }
     }
 }

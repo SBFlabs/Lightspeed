@@ -63,20 +63,27 @@ class ScrollableAppWidgetContainer(
         return false
     }
 
-    private fun hasVerticalScrollableChild(v: View): Boolean {
-        // Dynamically checks if view actually has scrollable content or is a scrollable container
-        if (v is android.widget.AbsListView || v is android.widget.ScrollView) return true
-        if (v.canScrollVertically(1) || v.canScrollVertically(-1)) return true
+    private fun hasVerticalScrollableChild(v: View, direction: Int = 0): Boolean {
+        val canScroll = if (direction == 0) {
+            v.canScrollVertically(1) || v.canScrollVertically(-1)
+        } else {
+            v.canScrollVertically(direction)
+        }
+        if (canScroll) return true
         if (v is ViewGroup) {
             for (i in 0 until v.childCount) {
-                if (hasVerticalScrollableChild(v.getChildAt(i))) return true
+                if (hasVerticalScrollableChild(v.getChildAt(i), direction)) return true
             }
         }
         return false
     }
 
-    /** True when this widget has an inner collection/scroll view that needs vertical drags. */
-    fun hasInnerVerticalScroll(): Boolean = hasVerticalScrollableChild(this)
+    /** True when this widget can actually scroll vertically in [direction] (1=down, -1=up, 0=either). */
+    fun canScrollVerticallyInDirection(direction: Int): Boolean =
+        hasVerticalScrollableChild(this, direction)
+
+    /** True when this widget has an inner collection/scroll view that can scroll vertically. */
+    fun hasInnerVerticalScroll(): Boolean = hasVerticalScrollableChild(this, 0)
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (!isStackMode || onSwipeDelta == null) {
@@ -160,15 +167,22 @@ class ScrollableAppWidgetContainer(
                 startX = ev.x
                 startY = ev.y
                 isVerticalScroll = false
-                parent?.requestDisallowInterceptTouchEvent(true)
+                // Only block parent intercept upfront if a child actually overflows right now;
+                // non-scrollable widgets must allow Refueling Grid / Cruise HUD to scroll over them.
+                val hasScrollableContent =
+                    hasVerticalScrollableChild(this, 0) || hasHorizontalScrollableChild(this)
+                parent?.requestDisallowInterceptTouchEvent(hasScrollableContent)
             }
             MotionEvent.ACTION_MOVE -> {
-                val dx = abs(ev.x - startX)
-                val dy = abs(ev.y - startY)
+                val rawDx = ev.x - startX
+                val rawDy = ev.y - startY
+                val dx = abs(rawDx)
+                val dy = abs(rawDy)
                 if (!isVerticalScroll) {
                     if (dy > dx && dy > touchSlop) {
                         isVerticalScroll = true
-                        val canScrollY = hasVerticalScrollableChild(this)
+                        val scrollDir = if (rawDy < 0f) 1 else -1
+                        val canScrollY = hasVerticalScrollableChild(this, scrollDir)
                         parent?.requestDisallowInterceptTouchEvent(canScrollY)
                     } else if (dx > dy && dx > touchSlop) {
                         val canScrollX = hasHorizontalScrollableChild(this)

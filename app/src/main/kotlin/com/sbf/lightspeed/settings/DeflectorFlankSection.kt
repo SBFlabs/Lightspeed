@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.layout.*
@@ -109,7 +112,7 @@ fun DeflectorFlankSection(
                     when (subKey) {
                         "geo" -> {
                             CollapsibleSubSection(
-                                title = "Sensor Geometry",
+                                title = lsString(R.string.sec_sensor_geometry),
                                 subtitle = if (isUpper) "Upper deflector span, touch reach & stealth glow" else "Lower deflector span, touch reach & stealth glow",
                                 isExpanded = isGeoExpanded,
                                 onToggle = onGeoToggle
@@ -134,7 +137,7 @@ fun DeflectorFlankSection(
                         }
                         "scrub" -> {
                             CollapsibleSubSection(
-                                title = "Inward Scrubbing Control",
+                                title = lsString(R.string.sec_inward_scrubbing_control),
                                 subtitle = if (isUpper) "Upper vector inward sweep scrubber" else "Lower vector inward sweep scrubber",
                                 isExpanded = isScrubExpanded,
                                 onToggle = onScrubToggle
@@ -157,8 +160,8 @@ fun DeflectorFlankSection(
                         }
                         "gestures" -> {
                             CollapsibleSubSection(
-                                title = "Gesture Actions & Macro Mappings",
-                                subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
+                                title = lsString(R.string.sec_gesture_actions_macro_mappings),
+                                subtitle = lsString(R.string.secd_tap_swipe_rebound_two_step_hol),
                                 isExpanded = isGesturesExpanded,
                                 onToggle = onGesturesToggle
                             ) {

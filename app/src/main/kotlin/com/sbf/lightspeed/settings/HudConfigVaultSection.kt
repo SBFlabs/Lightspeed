@@ -20,8 +20,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedVocabulary
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 @Composable
@@ -30,11 +32,12 @@ fun HudConfigVaultSection(
     onToggle: () -> Unit,
     onExportClicked: () -> Unit,
     onShowImportOptions: () -> Unit,
-    onShowResetConfirm: () -> Unit
+    onShowResetConfirm: () -> Unit,
+    languageMode: LightspeedLanguageEngine.LanguageMode = LightspeedLanguageEngine.modeFlow.value
 ) {
     val lsColors = LightspeedStyle.colors
     CompactAccordionSection(
-        title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SHIP_DATA_VAULT),
+        title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SHIP_DATA_VAULT, languageMode),
         icon = {
             Icon(
                 imageVector = Icons.Outlined.Lock,
@@ -68,8 +71,8 @@ fun HudConfigVaultSection(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Export Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
-                    Text("Save all gesture sets, sliders, physics, and shortcuts to a standalone JSON file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                    Text(lsString(R.string.vault_export_title), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
+                    Text(lsString(R.string.vault_export_desc), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
                 }
             }
 
@@ -90,12 +93,12 @@ fun HudConfigVaultSection(
                         .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.CloudDownload, contentDescription = "Import", tint = MaterialTheme.colorScheme.secondary)
+                    Icon(Icons.Default.CloudDownload, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Import Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
-                    Text("Restore complete settings from a previous Lightspeed backup file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                    Text(lsString(R.string.vault_import_title), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
+                    Text(lsString(R.string.vault_import_desc), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
                 }
             }
 
@@ -116,12 +119,12 @@ fun HudConfigVaultSection(
                         .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.RestartAlt, contentDescription = "Reset", tint = MaterialTheme.colorScheme.error)
+                    Icon(Icons.Default.RestartAlt, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Reset to Factory Defaults", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = MaterialTheme.colorScheme.error)
-                    Text("Wipe custom settings and revert to pristine defaults", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                    Text(lsString(R.string.vault_reset_title), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = MaterialTheme.colorScheme.error)
+                    Text(lsString(R.string.vault_reset_desc), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
                 }
             }
         }

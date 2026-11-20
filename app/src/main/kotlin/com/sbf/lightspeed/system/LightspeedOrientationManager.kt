@@ -445,9 +445,6 @@ object LightspeedOrientationManager {
         if (!targetPkg.isNullOrBlank() && targetPkg != lastForegroundPackage) {
             lastForegroundPackage = targetPkg
             com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay.onForegroundPackageChanged(targetPkg)
-            (context as? android.accessibilityservice.AccessibilityService ?: com.sbf.lightspeed.LightspeedAccessibilityService.instance)?.let {
-                com.sbf.lightspeed.system.display.LightspeedConsciousAirlockOverlay.checkAndShowAirlock(it, targetPkg)
-            }
             com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.onAppSwitch(context)
             val prefs = context.defaultPrefs()
             val expiration = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, LightspeedPreferences.DEFAULT_ORIENTATION_OVERRIDE_EXPIRATION) ?: LightspeedPreferences.DEFAULT_ORIENTATION_OVERRIDE_EXPIRATION

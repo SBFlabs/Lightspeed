@@ -649,6 +649,14 @@ fun VistaAirlockSection(
     var airlockEnabled by remember {
         mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ENABLED, false))
     }
+    var airlockAbortMode by remember {
+        mutableStateOf(
+            prefs.getString(
+                LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ABORT_MODE,
+                LightspeedPreferences.AIRLOCK_ABORT_MODE_CLOSE_APP
+            ) ?: LightspeedPreferences.AIRLOCK_ABORT_MODE_CLOSE_APP
+        )
+    }
     var airlockApps by remember {
         mutableStateOf(prefs.getStringSet(LightspeedPreferences.KEY_CONSCIOUS_DELAY_PACKAGES, emptySet()) ?: emptySet())
     }
@@ -684,8 +692,22 @@ fun VistaAirlockSection(
         if (airlockEnabled) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                DeckSubChip(
+                    text = if (airlockAbortMode == LightspeedPreferences.AIRLOCK_ABORT_MODE_GO_HOME) "Abort: Home" else "Abort: Close",
+                    isActive = airlockAbortMode != LightspeedPreferences.AIRLOCK_ABORT_MODE_GO_HOME,
+                    onClick = {
+                        val next = if (airlockAbortMode == LightspeedPreferences.AIRLOCK_ABORT_MODE_GO_HOME) {
+                            LightspeedPreferences.AIRLOCK_ABORT_MODE_CLOSE_APP
+                        } else {
+                            LightspeedPreferences.AIRLOCK_ABORT_MODE_GO_HOME
+                        }
+                        airlockAbortMode = next
+                        prefs.edit().putString(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ABORT_MODE, next).apply()
+                    }
+                )
                 DeckSubChip(
                     text = "Gated Apps (${airlockApps.size})",
                     icon = Icons.Default.LockClock,

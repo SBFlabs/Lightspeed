@@ -1,5 +1,10 @@
 package com.sbf.lightspeed.settings
 
+import androidx.annotation.StringRes
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
+import com.sbf.lightspeed.system.lsString
+
 import android.os.Build
 import android.view.WindowManager
 import androidx.compose.foundation.background
@@ -20,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -34,11 +40,11 @@ import java.util.Locale
 
 data class GuidebookEntry(
     val id: String,
-    val vesselTitle: String,
-    val androidTitle: String,
+    @StringRes val vesselTitleRes: Int,
+    @StringRes val androidTitleRes: Int,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
-    val vesselLore: String,
-    val androidUtility: String,
+    @StringRes val vesselLoreRes: Int,
+    @StringRes val androidUtilityRes: Int,
     val tabIndex: Int,
     val sectionKey: String
 )
@@ -46,113 +52,113 @@ data class GuidebookEntry(
 val GUIDEBOOK_ENTRIES = listOf(
     GuidebookEntry(
         id = "canopy",
-        vesselTitle = "Sensor Area",
-        androidTitle = "Touch Strip Matrix",
+        vesselTitleRes = R.string.gb_canopy_vt,
+        androidTitleRes = R.string.gb_canopy_at,
         icon = Icons.Default.TouchApp,
-        vesselLore = "The vessel's overhead touch zone calibrated for sub-second macro sweeps, taps, and rebound maneuvers.",
-        androidUtility = "A non-intrusive top-edge gesture area supporting taps, horizontal swipes, and hold modifiers without conflicting with Android's notification shade.",
+        vesselLoreRes = R.string.gb_canopy_vl,
+        androidUtilityRes = R.string.gb_canopy_au,
         tabIndex = 1,
         sectionKey = "statusbar"
     ),
     GuidebookEntry(
         id = "synthetic_gravity",
-        vesselTitle = "Synthetic Gravity Engine",
-        androidTitle = "Orientation Preferences & Attitude Buckets",
+        vesselTitleRes = R.string.gb_gravity_vt,
+        androidTitleRes = R.string.gb_gravity_at,
         icon = Icons.Default.Rotate90DegreesCw,
-        vesselLore = "Artificial gravity generator modulating the ship's 3D spatial attitude, active gyro stabilization, face posture tracking, and per-app orientation lock.",
-        androidUtility = "Controls system auto-rotate, face posture auto-rotate, active 5Hz gyro sensor-portrait driver, and per-app attitude buckets (Portrait, Landscape, 360°).",
+        vesselLoreRes = R.string.gb_gravity_vl,
+        androidUtilityRes = R.string.gb_gravity_au,
         tabIndex = 1,
         sectionKey = "gravity"
     ),
     GuidebookEntry(
         id = "deflectors",
-        vesselTitle = "Left & Right Deflectors",
-        androidTitle = "Left & Right Flank Gesture Sidebars",
+        vesselTitleRes = R.string.gb_deflectors_vt,
+        androidTitleRes = R.string.gb_deflectors_at,
         icon = Icons.Default.SwapHoriz,
-        vesselLore = "Flank-mounted kinetic deflector arrays calibrated for sub-second impulse sweeps, multi-axis vector rebound maneuvers, and rapid macro execution.",
-        androidUtility = "Customizable left and right edge touch zones supporting single/double taps, directional swipes, rebounds, two-step gestures, and hold modifiers.",
+        vesselLoreRes = R.string.gb_deflectors_vl,
+        androidUtilityRes = R.string.gb_deflectors_au,
         tabIndex = 0,
         sectionKey = "wings"
     ),
     GuidebookEntry(
         id = "notch_beacon",
-        vesselTitle = "Info Beacons",
-        androidTitle = "Telemetry & Indicators",
+        vesselTitleRes = R.string.gb_beacon_vt,
+        androidTitleRes = R.string.gb_beacon_at,
         icon = Icons.Default.Sensors,
-        vesselLore = "A dual-channel telemetry matrix comprising the horizon rail (top line progress) and orbital capsule (floating dynamic cutout HUD).",
-        androidUtility = "Real-time download and media progress streamed along the top-edge horizon rail and/or the front camera punch-hole capsule with marquee scrolling and mini-player controls.",
+        vesselLoreRes = R.string.gb_beacon_vl,
+        androidUtilityRes = R.string.gb_beacon_au,
         tabIndex = 1,
         sectionKey = "telemetry"
     ),
     GuidebookEntry(
         id = "hardware_keys",
-        vesselTitle = "Hull & Ship Maneuvers",
-        androidTitle = "Hardware Volume Button Matrix & Chords",
+        vesselTitleRes = R.string.gb_hwkeys_vt,
+        androidTitleRes = R.string.gb_hwkeys_at,
         icon = Icons.Default.Tune,
-        vesselLore = "Emergency analog thruster triggers wired directly to primary propulsion. Enables blind cockpit firing through multi-switch sequence chords.",
-        androidUtility = "Intercepts hardware volume key long presses, chords, and sequence combinations to trigger flashlight, screenshot, app kills, or previous app switching.",
+        vesselLoreRes = R.string.gb_hwkeys_vl,
+        androidUtilityRes = R.string.gb_hwkeys_au,
         tabIndex = 1,
         sectionKey = "volumekeys"
     ),
     GuidebookEntry(
         id = "back_tap",
-        vesselTitle = "Hull Kinetic Acoustic Resonator",
-        androidTitle = "Back-of-Device Hull Tap Detection",
+        vesselTitleRes = R.string.gb_backtap_vt,
+        androidTitleRes = R.string.gb_backtap_at,
         icon = Icons.Default.TouchApp,
-        vesselLore = "Micro-gravimetric sensors bonded to the external hull armor. Detects physical kinetic impacts on the ship's skin to trigger rapid defensive measures.",
-        androidUtility = "Leverages the phone's accelerometer to register double and triple taps on the back chassis with real-time m/s² strike force threshold calibration.",
+        vesselLoreRes = R.string.gb_backtap_vl,
+        androidUtilityRes = R.string.gb_backtap_au,
         tabIndex = 1,
         sectionKey = "backtap"
     ),
     GuidebookEntry(
         id = "refueling_bay",
-        vesselTitle = "Refueling Bay & Cryo Stasis",
-        androidTitle = "Ambient Charging Screen & OLED Dashboard",
+        vesselTitleRes = R.string.gb_refuel_vt,
+        androidTitleRes = R.string.gb_refuel_at,
         icon = Icons.Default.BatteryChargingFull,
-        vesselLore = "Docks the ship in cryogenic low-power mode during plasma reactor refueling. Displays real-time wattage, fuel capacity, and mission widgets.",
-        androidUtility = "Standalone fullscreen charging dashboard and DreamService screensaver featuring live wattage, time to full, burn-in pixel drift, and 3rd-party widget hosting.",
+        vesselLoreRes = R.string.gb_refuel_vl,
+        androidUtilityRes = R.string.gb_refuel_au,
         tabIndex = 1,
         sectionKey = "refueling"
     ),
     GuidebookEntry(
-        id = "vault",
-        vesselTitle = "Config Vault",
-        androidTitle = "Offline JSON Backup & Restore Engine",
-        icon = Icons.Default.Storage,
-        vesselLore = "An air-gapped crystalline datacore archiving all bridge ergonomics, flight trajectories, and customized telemetry calibrations in standalone JSON format.",
-        androidUtility = "100% offline configuration engine that exports and restores all gesture matrices, haptic profiles, and embedded Base64 custom icons with instant hot reload.",
-        tabIndex = 1,
-        sectionKey = "backup"
-    ),
-    GuidebookEntry(
         id = "shizuku_jettison",
-        vesselTitle = "Sub-Space Cloaked Egress",
-        androidTitle = "Elevated Task Dismissal (OEM Kill-Bypass)",
+        vesselTitleRes = R.string.gb_jettison_vt,
+        androidTitleRes = R.string.gb_jettison_at,
         icon = Icons.Default.Close,
-        vesselLore = "Low-signature orbital egress maneuver via privileged Binder. Quietly decouples the active viewport and clears its trace from the tactical radar without alerting planetary OEM battery sentinels, shielding background engines (like Termux) from aggressive purging.\n\n⚡ Default Vector: Deflector Inward Hold (Left & Right Flanks).",
-        androidUtility = "Gracefully dismisses the active app window and removes it from the Recents stack via Shizuku Binder without triggering OEM aggressive force-stop scripts, keeping background daemons (like Termux) running safely.\n\n⚡ Default Gesture: Swipe Inward & Hold on either Deflector.",
+        vesselLoreRes = R.string.gb_jettison_vl,
+        androidUtilityRes = R.string.gb_jettison_au,
         tabIndex = -1,
         sectionKey = ""
     ),
     GuidebookEntry(
         id = "system_overrides",
-        vesselTitle = "System Overrides & Edge Sovereignty",
-        androidTitle = "Native Edge Back Gesture Neutralization & Display Tuning",
+        vesselTitleRes = R.string.gb_overrides_vt,
+        androidTitleRes = R.string.gb_overrides_at,
         icon = Icons.Default.VerticalDistribute,
-        vesselLore = "Direct command bypass overriding planetary OS telemetry. Calibrates border sensor sovereignty, animation speed acceleration, and DPI scaling.",
-        androidUtility = "Zeroes out Android's native back gesture sensitivity (back_gesture_inset_scale_left/right = 0) via Shizuku/ADB to eliminate edge touch conflicts, and configures global OS animation and display DPI scales.",
+        vesselLoreRes = R.string.gb_overrides_vl,
+        androidUtilityRes = R.string.gb_overrides_au,
         tabIndex = 1,
         sectionKey = "system_overrides"
     ),
     GuidebookEntry(
         id = "gesture_scrubbers",
-        vesselTitle = "Scrubbers & Precision Calibration",
-        androidTitle = "Sliders, Tactile Value Pills & Preset Profiles",
+        vesselTitleRes = R.string.gb_scrubbers_vt,
+        androidTitleRes = R.string.gb_scrubbers_at,
         icon = Icons.Default.Tune,
-        vesselLore = "Sub-system scrubbers engineered with Prism thumb tracking and dual-mode gearing. Vertical drag activates micro-precision 1-step gearing. Tapping a tactile value pill deploys the Precision Control & Presets flyout matrix; long-pressing resets the setting to factory default.",
-        androidUtility = "Interactive slider controls with vertical drag precision gearing. Tapping any numeric value box/pill opens Precision Control & Presets to type exact numbers, save custom preset profiles, or toggle tap-to-jump. Long-pressing the value pill resets it to factory default.",
+        vesselLoreRes = R.string.gb_scrubbers_vl,
+        androidUtilityRes = R.string.gb_scrubbers_au,
         tabIndex = 1,
         sectionKey = "scrubbers"
+    ),
+    GuidebookEntry(
+        id = "vault",
+        vesselTitleRes = R.string.gb_vault_vt,
+        androidTitleRes = R.string.gb_vault_at,
+        icon = Icons.Default.Storage,
+        vesselLoreRes = R.string.gb_vault_vl,
+        androidUtilityRes = R.string.gb_vault_au,
+        tabIndex = 1,
+        sectionKey = "backup"
     )
 )
 
@@ -173,29 +179,30 @@ fun GuidebookBottomSheet(
     val isCompactLandscape = isLandscape && configuration.screenHeightDp < 460
     val viewMode by com.sbf.lightspeed.system.LightspeedLanguageEngine.modeFlow.collectAsState()
 
-    val filteredEntries = remember(searchQuery) {
+    val localeState = LightspeedLocaleEngine.state
+    val filteredEntries = remember(searchQuery, localeState) {
         if (searchQuery.isBlank()) {
             GUIDEBOOK_ENTRIES
         } else {
-            val q = searchQuery.lowercase(Locale.US)
+            val q = searchQuery.lowercase(Locale.getDefault())
             GUIDEBOOK_ENTRIES.filter {
-                it.vesselTitle.lowercase(Locale.US).contains(q) ||
-                        it.androidTitle.lowercase(Locale.US).contains(q) ||
-                        it.vesselLore.lowercase(Locale.US).contains(q) ||
-                        it.androidUtility.lowercase(Locale.US).contains(q)
+                lsString(it.vesselTitleRes).lowercase(Locale.getDefault()).contains(q) ||
+                    lsString(it.androidTitleRes).lowercase(Locale.getDefault()).contains(q) ||
+                    lsString(it.vesselLoreRes).lowercase(Locale.getDefault()).contains(q) ||
+                    lsString(it.androidUtilityRes).lowercase(Locale.getDefault()).contains(q)
             }
         }
     }
 
+    val activeDensity = LocalDensity.current
     val activeSnapshot = LocalDeckTheme.current
     val cornerDp = activeSnapshot.cornerRadiusDp.dp
     // Top two corners curved to theme radius; bottom two corners razor-sharp (0.dp) to feel rooted behind the bottom screen edge
     val sheetShape = RoundedCornerShape(topStart = cornerDp, topEnd = cornerDp, bottomEnd = 0.dp, bottomStart = 0.dp)
-    val sheetMaxHeight = (configuration.screenHeightDp.dp * if (isLandscape) 0.92f else 0.88f).coerceAtLeast(240.dp)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = isWideLayout),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = isCompactLandscape),
         sheetMaxWidth = if (isWideLayout) 900.dp else BottomSheetDefaults.SheetMaxWidth,
         containerColor = Color.Transparent,
         scrimColor = Color.Black.copy(alpha = 0.55f),
@@ -204,10 +211,11 @@ fun GuidebookBottomSheet(
         dragHandle = null,
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
     ) {
+        CompositionLocalProvider(LocalDensity provides activeDensity) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = sheetMaxHeight)
+                .fillMaxHeight(0.94f)
                 .clip(sheetShape)
         ) {
             Box(
@@ -228,7 +236,7 @@ fun GuidebookBottomSheet(
             )
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .displayCutoutPadding()
                     .padding(
@@ -278,19 +286,29 @@ fun GuidebookBottomSheet(
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
-                            Text(
-                                text = "The Stranded in Space Guidebook",
+                            BilingualTitleText(
+                                title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(
+                                    com.sbf.lightspeed.system.LightspeedVocabulary.Key.GUIDEBOOK,
+                                    viewMode
+                                ),
                                 fontSize = if (isCompactLandscape) 14.5.sp else 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = lsColors.textPrimary,
-                                maxLines = 1
+                                preferStacked = true,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                             if (!isCompactLandscape) {
                                 Text(
-                                    text = "Standard Operating Procedures for Vessel Systems",
+                                    text = if (viewMode == com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS) {
+                                        lsString(R.string.ls_guidebook_sub_clear)
+                                    } else {
+                                        lsString(R.string.ls_guidebook_sub_lore)
+                                    },
                                     fontSize = 11.sp,
+                                    lineHeight = 14.sp,
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                                    maxLines = 1
+                                    maxLines = 2
                                 )
                             }
                         }
@@ -303,9 +321,11 @@ fun GuidebookBottomSheet(
                             .clip(CircleShape)
                             .background(lsColors.textPrimary.copy(alpha = 0.08f))
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = lsColors.textPrimary, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Close, contentDescription = lsString(R.string.ls_close), tint = lsColors.textPrimary, modifier = Modifier.size(16.dp))
                     }
                 }
+
+                GuidebookLanguageSlider()
 
                 if (isWideLayout) {
                     Row(
@@ -338,10 +358,13 @@ fun GuidebookBottomSheet(
                 }
 
                 // Entries List (2-column grid on tablets & wide landscape; full single column on portrait phones)
+                val guidebookListState = androidx.compose.foundation.lazy.rememberLazyListState()
                 LazyColumn(
+                    state = guidebookListState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f, fill = false),
+                        .weight(1f)
+                        .verticalEdgeFade(guidebookListState),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(bottom = 8.dp)
                 ) {
@@ -354,7 +377,7 @@ fun GuidebookBottomSheet(
                             .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
                             .clickable {
                                 try {
-                                    val uri = android.net.Uri.parse("https://github.com/SBFlabs/Lightspeed#readme")
+                                    val uri = android.net.Uri.parse(com.sbf.lightspeed.system.LightspeedLocaleEngine.readmeUrl())
                                     context.startActivity(
                                         android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
                                             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -367,14 +390,14 @@ fun GuidebookBottomSheet(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Main Guidebook (GitHub README)",
+                                text = lsString(R.string.gb_readme_title),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Indexed Table of Contents with back links, screenshots, and showcase videos directly in the README.",
+                                text = lsString(R.string.gb_readme_sub),
                                 fontSize = 10.5.sp,
                                 lineHeight = 14.sp,
                                 color = lsColors.textPrimary.copy(alpha = 0.8f)
@@ -382,7 +405,7 @@ fun GuidebookBottomSheet(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "OPEN",
+                            text = lsString(R.string.gb_btn_open),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimary,
@@ -408,14 +431,14 @@ fun GuidebookBottomSheet(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Replay Welcome Aboard",
+                                    text = lsString(R.string.gb_replay_title),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = lsColors.accent
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Revisit what Lightspeed is, Your Launch Pad, and quick-start links.",
+                                    text = lsString(R.string.gb_replay_sub),
                                     fontSize = 10.5.sp,
                                     lineHeight = 14.sp,
                                     color = lsColors.textPrimary.copy(alpha = 0.8f)
@@ -423,7 +446,7 @@ fun GuidebookBottomSheet(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "REPLAY",
+                                text = lsString(R.string.gb_btn_replay),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = lsColors.accent,
@@ -447,39 +470,18 @@ fun GuidebookBottomSheet(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = "Community, Issues & Q&A",
+                            text = lsString(R.string.wel_community_title),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = lsColors.textPrimary
                         )
                         Text(
-                            text = "• GitHub Issues: Bugs, feature feedback, language fixes & Q&A\n• XDA Forums: Open discussions & setup tips with users\n• YouTube & Reddit: Video clips & updates for convenience",
+                            text = lsString(R.string.gb_comm_bullets),
                             fontSize = 11.8.sp,
                             lineHeight = 16.5.sp,
                             color = lsColors.textPrimary.copy(alpha = 0.84f)
                         )
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf(
-                                "GITHUB ISSUES" to "https://github.com/SBFlabs/Lightspeed/issues",
-                                "XDA THREAD" to "https://xdaforums.com/t/4804419/",
-                                "YOUTUBE" to "https://www.youtube.com/@SBFlabs"
-                            ).forEach { (label, url) ->
-                                Text(
-                                    text = label,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
-                                        .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                                        .clickable { openExternalUrl(context, url) }
-                                        .padding(horizontal = 9.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
+                        GuidebookSupportLinksRow(context = context)
                     }
                 }
                 if (isWideLayout) {
@@ -520,6 +522,37 @@ fun GuidebookBottomSheet(
     }
 }
 }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GuidebookSupportLinksRow(context: android.content.Context) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        listOf(
+            "GITHUB ISSUES" to "https://github.com/SBFlabs/Lightspeed/issues",
+            lsString(R.string.gb_xda_chip) to "https://xdaforums.com/t/4804419/",
+            "YOUTUBE" to "https://www.youtube.com/@SBFlabs"
+        ).forEach { (label, url) ->
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
+                    .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                    .clickable { openExternalUrl(context, url) }
+                    .padding(horizontal = 9.dp, vertical = 4.dp)
+            )
+        }
+    }
+}
 
 @Composable
 private fun GuidebookModeSelector(
@@ -536,9 +569,9 @@ private fun GuidebookModeSelector(
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         listOf(
-            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT to "Bilingual",
-            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE to "Space Lore",
-            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS to "Clear Comms"
+            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT to lsString(R.string.ls_vocab_bilingual),
+            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE to lsString(R.string.ls_vocab_space_lore),
+            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS to lsString(R.string.ls_vocab_clear_comms)
         ).forEach { (mode, label) ->
             val isSelected = viewMode == mode
             Box(
@@ -576,10 +609,11 @@ private fun GuidebookSearchField(
         modifier = modifier,
         placeholder = {
             Text(
-                "Search terminology or Android utilities…",
+                lsString(R.string.ls_guidebook_search),
                 fontSize = 12.sp,
                 color = lsColors.textPrimary.copy(alpha = 0.45f),
-                maxLines = 1
+                maxLines = 1,
+                softWrap = false
             )
         },
         leadingIcon = {
@@ -652,11 +686,19 @@ private fun GuidebookEntryCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
+                    val vesselTitle = lsString(entry.vesselTitleRes)
+                    val androidTitle = lsString(entry.androidTitleRes)
                     Text(
                         text = when (viewMode) {
-                            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE -> entry.vesselTitle
-                            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS -> entry.androidTitle
-                            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT -> "${entry.vesselTitle}  ⇄  ${entry.androidTitle}"
+                            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE -> vesselTitle
+                            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS -> androidTitle
+                            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT -> {
+                                if (vesselTitle.equals(androidTitle, ignoreCase = true)) {
+                                    vesselTitle
+                                } else {
+                                    "$vesselTitle  ⇄  $androidTitle"
+                                }
+                            }
                         },
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold,
@@ -665,6 +707,7 @@ private fun GuidebookEntryCard(
                 }
 
                 if (entry.tabIndex >= 0 && entry.sectionKey.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(8.dp))
                     DeckButton(
                         onClick = {
                             onDismiss()
@@ -673,40 +716,47 @@ private fun GuidebookEntryCard(
                         isActive = true,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
                     ) {
+                        val contentColor = LocalContentColor.current
                         Text(
-                            text = "Jump",
+                            text = lsString(R.string.gb_jump),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = contentColor
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = contentColor,
                             modifier = Modifier.size(12.dp)
-                        )
-                    }
-                } else {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
-                    ) {
-                        Text(
-                            text = if (viewMode == com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE) "INWARD + HOLD" else "SWIPE INWARD & HOLD",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                         )
                     }
                 }
             }
 
+            if (entry.tabIndex < 0 || entry.sectionKey.isEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+                ) {
+                    Text(
+                        text = if (viewMode == com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE) {
+                            lsString(R.string.gb_inward_hold_lore)
+                        } else {
+                            lsString(R.string.gb_inward_hold_clear)
+                        },
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                    )
+                }
+            }
+
             if (viewMode == com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT || viewMode == com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE) {
                 Text(
-                    text = "Vessel Protocol: ${entry.vesselLore}",
+                    text = lsString(R.string.gb_prefix_vessel, lsString(entry.vesselLoreRes)),
                     fontSize = 12.sp,
                     color = lsColors.textPrimary.copy(alpha = 0.85f),
                     lineHeight = 16.sp
@@ -714,8 +764,13 @@ private fun GuidebookEntryCard(
             }
 
             if (viewMode == com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT || viewMode == com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS) {
+                val androidUtility = lsString(entry.androidUtilityRes)
                 Text(
-                    text = "Android Utility: ${entry.androidUtility}",
+                    text = if (viewMode == com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT) {
+                        lsString(R.string.gb_prefix_android, androidUtility)
+                    } else {
+                        androidUtility
+                    },
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
                     lineHeight = 16.sp

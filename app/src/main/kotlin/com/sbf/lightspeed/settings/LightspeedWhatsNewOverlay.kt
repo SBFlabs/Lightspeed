@@ -41,9 +41,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.BuildConfig
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedInfinityManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlinx.coroutines.delay
 
@@ -53,6 +55,9 @@ val LocalOpenWhatsNew = staticCompositionLocalOf<(() -> Unit)?> { null }
 /** Nightly-only callback to preview the full Post-Update What's New -> Engine Warm-Up Gate flow on demand. */
 val LocalTestWarmupGate = staticCompositionLocalOf<(() -> Unit)?> { null }
 
+/** Nightly-only callback to replay the Arm Lightspeed Core setup gate in a simulated, side-effect-free preview. */
+val LocalTestCoreSetupGate = staticCompositionLocalOf<(() -> Unit)?> { null }
+
 internal fun openExternalUrl(context: Context, url: String) {
     try {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
@@ -60,7 +65,7 @@ internal fun openExternalUrl(context: Context, url: String) {
         }
         context.startActivity(intent)
     } catch (_: Exception) {
-        Toast.makeText(context, "Unable to launch browser", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, lsString(R.string.wn_unable_browser), Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -169,13 +174,13 @@ object SupporterReminderController {
                 .putBoolean(LightspeedPreferences.KEY_SUPPORTER_SHOWN_30D, true)
                 .putBoolean(LightspeedPreferences.KEY_SUPPORTER_SHOWN_7D, true)
                 .apply()
-            return "30 DAYS AT LIGHTSPEED"
+            return lsString(R.string.wn_milestone_30d)
         }
         if (elapsedDays >= 7L && !shown7d) {
             prefs.edit()
                 .putBoolean(LightspeedPreferences.KEY_SUPPORTER_SHOWN_7D, true)
                 .apply()
-            return "7 DAYS AT LIGHTSPEED"
+            return lsString(R.string.wn_milestone_7d)
         }
         return null
     }
@@ -208,7 +213,7 @@ fun CentralCommandWhatsNewMorphPanel(
                     lastWelcomeBackPressMs = now
                     Toast.makeText(
                         context,
-                        "Welcome Aboard can be replayed anytime from the Guidebook — press Back again or tap Skip to return.",
+                        lsString(R.string.wn_welcome_back_toast),
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -279,29 +284,28 @@ fun CentralCommandWhatsNewMorphPanel(
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back to Welcome Aboard",
+                                    contentDescription = lsString(R.string.wn_cd_back_welcome),
                                     tint = lsColors.textPrimary,
                                     modifier = Modifier.size(17.dp)
                                 )
                             }
                         }
                         Column {
-                            Text(
-                                text = if (isWelcomeStep) {
-                                    "Welcome Aboard"
+                            BilingualTitleText(
+                                title = if (isWelcomeStep) {
+                                    lsString(R.string.wn_welcome_title)
                                 } else {
-                                    "What's New in Lightspeed · v${BuildConfig.VERSION_NAME}"
+                                    lsString(R.string.wn_whats_new_version, BuildConfig.VERSION_NAME)
                                 },
                                 fontSize = if (isWelcomeStep) 18.sp else 16.5.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = lsColors.textPrimary,
-                                maxLines = 2
+                                color = lsColors.textPrimary
                             )
                             Text(
                                 text = if (isWelcomeStep) {
-                                    "Meta-launcher & Android control layer"
+                                    lsString(R.string.wn_welcome_subtitle)
                                 } else {
-                                    "🌌 Quantum Horizon & Telemetry Matrix"
+                                    lsString(R.string.wn_release_tagline)
                                 },
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -320,7 +324,7 @@ fun CentralCommandWhatsNewMorphPanel(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = if (isWelcomeStep) "Close Welcome Aboard" else "Close What's New",
+                            contentDescription = if (isWelcomeStep) lsString(R.string.wn_cd_close_welcome) else lsString(R.string.wn_cd_close_whats_new),
                             tint = lsColors.textPrimary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -334,8 +338,8 @@ fun CentralCommandWhatsNewMorphPanel(
 
                 if (!isWelcomeStep) {
                     InfinitySupportMissionLine(
-                        context = context,
-                        isUnlocked = isUnlocked
+                        isUnlocked = isUnlocked,
+                        onOpenInfinity = onOpenInfinityUnlock
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -343,6 +347,7 @@ fun CentralCommandWhatsNewMorphPanel(
                 Column(
                     modifier = Modifier
                         .weight(1f)
+                        .verticalEdgeFade(stepScrollState)
                         .verticalScroll(stepScrollState),
                     verticalArrangement = Arrangement.spacedBy(9.dp)
                 ) {
@@ -450,15 +455,15 @@ fun LightspeedSupporterReminderDialog(
             Spacer(modifier = Modifier.height(6.dp))
 
             InfinitySupportMissionLine(
-                context = context,
                 isUnlocked = isUnlocked,
-                onBeforeAction = saveOptOutIfChecked
+                onBeforeAction = saveOptOutIfChecked,
+                onOpenInfinity = onOpenInfinityUnlock
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = if (isUpdateBanner) "What's New in Lightspeed" else "Built for One-Thumb Sovereignty",
+                text = if (isUpdateBanner) lsString(R.string.wn_title_update) else lsString(R.string.wn_title_sovereignty),
                 fontSize = 17.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = lsColors.textPrimary,
@@ -467,9 +472,9 @@ fun LightspeedSupporterReminderDialog(
 
             Text(
                 text = if (isUpdateBanner) {
-                    "🌌 Quantum Horizon & Telemetry Matrix"
+                    lsString(R.string.wn_release_tagline)
                 } else {
-                    "100% Offline · Zero Telemetry · Free Forever"
+                    lsString(R.string.wn_offline_free_tagline)
                 },
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -483,7 +488,7 @@ fun LightspeedSupporterReminderDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 380.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScrollWithEdgeFade(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (isUpdateBanner) {
@@ -507,7 +512,7 @@ fun LightspeedSupporterReminderDialog(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Don't show this again",
+                    text = lsString(R.string.wn_dont_show_again),
                     fontSize = 12.5.sp,
                     color = lsColors.textPrimary.copy(alpha = 0.88f),
                     modifier = Modifier.weight(1f)
@@ -556,15 +561,15 @@ private fun StaggeredRevealCard(
 
 @Composable
 private fun InfinitySupportMissionLine(
-    context: Context,
     isUnlocked: Boolean,
-    onBeforeAction: () -> Unit = {}
+    onBeforeAction: () -> Unit = {},
+    onOpenInfinity: () -> Unit
 ) {
     val lsColors = LightspeedStyle.colors
     val bannerText = if (isUnlocked) {
-        "Thank you for unlocking Lightspeed ∞ — you help keep Lightspeed free, offline, and source-available on GitHub."
+        lsString(R.string.wn_mission_unlocked)
     } else {
-        "Lightspeed ∞ ($1.99 one-time on Buy Me a Coffee · Google Pay) unlocks all signature themes & unlimited Cockpit Gear sets. Tap here to view the shop item."
+        lsString(R.string.wn_mission_locked)
     }
     Text(
         text = buildGooglePayAnnotatedText(bannerText),
@@ -580,12 +585,7 @@ private fun InfinitySupportMissionLine(
             .border(0.6.dp, lsColors.accentGold.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
             .clickable {
                 onBeforeAction()
-                val targetUrl = if (isUnlocked) {
-                    "https://buymeacoffee.com/sbflabs"
-                } else {
-                    "https://buymeacoffee.com/sbflabs/e/579114"
-                }
-                openExternalUrl(context, targetUrl)
+                onOpenInfinity()
             }
             .padding(horizontal = 11.dp, vertical = 7.dp)
     )
@@ -595,41 +595,41 @@ private fun InfinitySupportMissionLine(
 private fun ReleaseHighlightCardsContent(revealedSteps: Int) {
     StaggeredRevealCard(visible = revealedSteps >= 1) {
         UpdateHighlightCard(
-            title = "🌌 Category Cruise & Widgets",
+            title = lsString(R.string.wn_hl_cruise_title),
             bullets = listOf(
-                "Pin Android widgets alongside Lightspeed cards, scaled cleanly for phones and tablets.",
-                "Reorder any card with directional arrows or move it directly between categories.",
-                "Save custom icon lists, long-press to favorite, set per-category icon packs, and pick from 85 vector icons.",
-                "Tap System Vitals for culprit logs & Storage cleanups, or check granted app Privacy Scores."
+                lsString(R.string.wn_hl_cruise_b1),
+                lsString(R.string.wn_hl_cruise_b2),
+                lsString(R.string.wn_hl_cruise_b3),
+                lsString(R.string.wn_hl_cruise_b4)
             )
         )
     }
     StaggeredRevealCard(visible = revealedSteps >= 2) {
         UpdateHighlightCard(
-            title = "🔋 Refueling Bay Studio",
+            title = lsString(R.string.wn_hl_refuel_title),
             bullets = listOf(
-                "Opposite-side editing panels keep your live Clock, Battery Gauge, and Widgets clearly visible.",
-                "Choose from 9 animated battery gauge styles, resize the gauge, and switch clock fonts smoothly.",
-                "Track live charging power and temperature on a customizable graph with Clean Mode."
+                lsString(R.string.wn_hl_refuel_b1),
+                lsString(R.string.wn_hl_refuel_b2),
+                lsString(R.string.wn_hl_refuel_b3)
             )
         )
     }
     StaggeredRevealCard(visible = revealedSteps >= 3) {
         UpdateHighlightCard(
-            title = "⚡ Smooth Display & Pop-Up Windows",
+            title = lsString(R.string.wn_hl_display_title),
             bullets = listOf(
-                "Unlock higher refresh rates and set lower idle speeds on supported screens.",
-                "Live draggable performance badge plus floating multi-window support on supported devices."
+                lsString(R.string.wn_hl_display_b1),
+                lsString(R.string.wn_hl_display_b2)
             )
         )
     }
     StaggeredRevealCard(visible = revealedSteps >= 4) {
         UpdateHighlightCard(
-            title = "🎛️ New Action Styles & Quick Startup",
+            title = lsString(R.string.wn_hl_styles_title),
             bullets = listOf(
-                "7 new control styles for volume, brightness, timers, and quick actions.",
-                "Resize Central Command text from the top bar and keep all 3 tabs warmed in memory.",
-                "Verify your app signature and official download channels offline right inside About."
+                lsString(R.string.wn_hl_styles_b1),
+                lsString(R.string.wn_hl_styles_b2),
+                lsString(R.string.wn_hl_styles_b3)
             )
         )
     }
@@ -648,16 +648,16 @@ private fun SupporterCommunityCard(isUnlocked: Boolean) {
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(
-            text = if (isUnlocked) "💙 Thank You, Lightspeed ∞ Supporter" else "💙 Support Indie Development",
+            text = if (isUnlocked) lsString(R.string.wn_supporter_title_unlocked) else lsString(R.string.wn_supporter_title_locked),
             fontSize = 13.5.sp,
             fontWeight = FontWeight.Bold,
             color = lsColors.accentGold
         )
         Text(
             text = if (isUnlocked) {
-                "Building and testing an offline meta-launcher & Android control layer takes real time and care. Your support helps keep Lightspeed free forever, 100% offline, ad-free, and source-available on GitHub.\n\nStarring on GitHub or joining us on XDA Forums (as well as Reddit & YouTube) helps others discover Lightspeed too."
+                lsString(R.string.wn_supporter_body_unlocked)
             } else {
-                "Building and testing an offline meta-launcher & Android control layer takes real time and care. Lightspeed stays free forever, runs 100% offline, and carries zero ads or tracking.\n\nIf it saves you time every day, starring the project on GitHub or joining us on XDA Forums, Reddit & YouTube helps a lot — or support indie development anytime below."
+                lsString(R.string.wn_supporter_body_locked)
             },
             fontSize = 12.5.sp,
             lineHeight = 18.sp,

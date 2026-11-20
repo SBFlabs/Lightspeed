@@ -29,14 +29,19 @@ internal object RecentsFallbackCloser {
 
     internal fun closeViaRecentsFallback(
         context: Context,
-        service: com.sbf.lightspeed.LightspeedAccessibilityService
+        service: com.sbf.lightspeed.LightspeedAccessibilityService,
+        targetPkgOverride: String? = null,
+        returnBackAfterDismiss: Boolean = false,
+        onFailed: (() -> Unit)? = null
     ) {
         if (!isRecentsFallbackRunning.compareAndSet(false, true)) {
             Log.w(TAG, "closeViaRecentsFallback already running, ignoring trigger")
+            onFailed?.invoke()
             return
         }
 
-        val recordedPkg = com.sbf.lightspeed.LightspeedAccessibilityService.lastAppPackage
+        val recordedPkg = targetPkgOverride?.takeIf { it.isNotBlank() }
+            ?: com.sbf.lightspeed.LightspeedAccessibilityService.lastAppPackage
         val label: String? = if (!recordedPkg.isNullOrBlank()) {
             try {
                 val appInfo = context.packageManager.getApplicationInfo(recordedPkg, 0)
@@ -59,8 +64,12 @@ internal object RecentsFallbackCloser {
                 returned = reason,
                 verified = false
             )
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(context, "Nothing to close here", Toast.LENGTH_SHORT).show()
+            if (onFailed != null) {
+                onFailed.invoke()
+            } else {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Nothing to close here", Toast.LENGTH_SHORT).show()
+                }
             }
             return
         }
@@ -82,8 +91,12 @@ internal object RecentsFallbackCloser {
                 returned = reason,
                 verified = false
             )
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(context, "Swipe \"$label\" away", Toast.LENGTH_SHORT).show()
+            if (onFailed != null) {
+                onFailed.invoke()
+            } else {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Swipe \"$label\" away", Toast.LENGTH_SHORT).show()
+                }
             }
             return
         }
@@ -243,8 +256,19 @@ internal object RecentsFallbackCloser {
                         returned = failureReason,
                         verified = false
                     )
+                    if (onFailed != null) {
+                        onFailed.invoke()
+                    } else {
+                        Handler(Looper.getMainLooper()).post {
+                            Toast.makeText(context, "Swipe \"$label\" away", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else if (returnBackAfterDismiss) {
+                    try { Thread.sleep(160L) } catch (_: InterruptedException) {}
                     Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(context, "Swipe \"$label\" away", Toast.LENGTH_SHORT).show()
+                        try {
+                            service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+                        } catch (_: Exception) {}
                     }
                 }
             } catch (e: Throwable) {
@@ -259,8 +283,12 @@ internal object RecentsFallbackCloser {
                     returned = errMsg,
                     verified = false
                 )
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context, "Swipe \"$label\" away", Toast.LENGTH_SHORT).show()
+                if (onFailed != null) {
+                    onFailed.invoke()
+                } else {
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(context, "Swipe \"$label\" away", Toast.LENGTH_SHORT).show()
+                    }
                 }
             } finally {
                 isRecentsFallbackRunning.set(false)

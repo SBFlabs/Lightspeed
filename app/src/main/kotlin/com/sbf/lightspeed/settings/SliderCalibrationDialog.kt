@@ -1,7 +1,11 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -194,7 +198,7 @@ fun SliderCalibrationFlyoutDialog(
         ProfileNamingDialog(
             initialName = "",
             valueStr = currentValueStr,
-            dialogTitle = "Save New Profile",
+            dialogTitle = lsString(R.string.lg_save_new),
             onConfirm = { customName ->
                 SliderPresetManager.addPreset(prefs, sliderKey, customName, currentValueStr)
                 presets = SliderPresetManager.getPresets(prefs, sliderKey)
@@ -208,7 +212,7 @@ fun SliderCalibrationFlyoutDialog(
         ProfileNamingDialog(
             initialName = targetItem.label ?: "",
             valueStr = targetItem.valueStr,
-            dialogTitle = "Rename Profile",
+            dialogTitle = lsString(R.string.lg_rename),
             onConfirm = { newName ->
                 SliderPresetManager.updatePresetLabel(prefs, sliderKey, targetItem, newName)
                 presets = SliderPresetManager.getPresets(prefs, sliderKey)
@@ -218,10 +222,12 @@ fun SliderCalibrationFlyoutDialog(
         )
     }
 
+    val activeDensity = LocalDensity.current
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        CompositionLocalProvider(LocalDensity provides activeDensity) {
         val activeSnapshot = LocalDeckTheme.current
         DeckGlassCardSurface(
             modifier = Modifier
@@ -263,7 +269,7 @@ fun SliderCalibrationFlyoutDialog(
                         }
                         Column {
                             Text(
-                                text = title.ifEmpty { "Slider Calibration" },
+                                text = title.ifEmpty { lsString(R.string.scal_title) },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.5.sp,
                                 color = lsColors.textPrimary,
@@ -271,7 +277,7 @@ fun SliderCalibrationFlyoutDialog(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = "Precision Control & Presets",
+                                text = lsString(R.string.scal_sub),
                                 fontSize = 11.sp,
                                 color = lsColors.textDisabled
                             )
@@ -316,7 +322,7 @@ fun SliderCalibrationFlyoutDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Type Value", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                                Text(lsString(R.string.scal_type_val), fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = "Type value",
@@ -355,7 +361,7 @@ fun SliderCalibrationFlyoutDialog(
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(modifier = Modifier.padding(8.dp)) {
-                            Text("Factory Default", fontSize = 10.sp, color = lsColors.textDisabled)
+                            Text(lsString(R.string.scal_factory), fontSize = 10.sp, color = lsColors.textDisabled)
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(defaultValueStr, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = lsColors.textSecondary)
                         }
@@ -368,9 +374,9 @@ fun SliderCalibrationFlyoutDialog(
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(modifier = Modifier.padding(8.dp)) {
-                            Text("↕ Fine Gearing", fontSize = 10.sp, color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.SemiBold)
+                            Text(lsString(R.string.scal_fine_gear), fontSize = 10.sp, color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.SemiBold)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text("±1 Step", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                            Text(lsString(R.string.scal_step1), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
                         }
                     }
                 }
@@ -394,13 +400,13 @@ fun SliderCalibrationFlyoutDialog(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Tap-to-Jump on Track",
+                                text = lsString(R.string.scal_tap_jump),
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = lsColors.textPrimary
                             )
                             Text(
-                                text = "Instantly snap thumb to tap position on rail",
+                                text = lsString(R.string.scal_tap_jump_sub),
                                 fontSize = 10.5.sp,
                                 color = lsColors.textDisabled
                             )
@@ -547,7 +553,7 @@ fun SliderCalibrationFlyoutDialog(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "No saved profiles for this slider yet.",
+                                        text = lsString(R.string.scal_no_profiles),
                                         fontSize = 11.sp,
                                         color = lsColors.textDisabled
                                     )
@@ -652,6 +658,7 @@ fun SliderCalibrationFlyoutDialog(
                     }
                 }
             }
+        }
         }
     }
 }

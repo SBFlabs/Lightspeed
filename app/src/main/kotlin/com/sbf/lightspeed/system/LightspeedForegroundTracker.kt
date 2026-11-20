@@ -95,8 +95,14 @@ object LightspeedForegroundTracker {
 
         val isFullScreen = event.isFullScreen
         val isLauncher = LightspeedOrientationEngine.isLauncherPackage(service, currentPkg)
-        if (isLauncher) {
+        if (isLocked) {
+            LightspeedConsciousAirlockOverlay.clearAuthorizedSession()
             LightspeedConsciousAirlockOverlay.dismiss()
+        } else if (isLauncher || isRecents) {
+            if (isLauncher) LightspeedConsciousAirlockOverlay.clearAuthorizedSession()
+            LightspeedConsciousAirlockOverlay.scheduleTransientDismiss(
+                source = "pkg=$currentPkg cls=$className launcher=$isLauncher recents=$isRecents full=${event.isFullScreen}"
+            )
         }
         val isLikelyActivity = isFullScreen || isLauncher || (className.endsWith("Activity") || className.endsWith("Launcher") || className.contains("Workspace") || className.contains("Launcher") || className.contains("quickstep", ignoreCase = true))
         if (isLikelyActivity) {
@@ -124,8 +130,13 @@ object LightspeedForegroundTracker {
             }
             LightspeedSmartPixelsOverlay.onForegroundPackageChanged(effectivePkg)
             LightspeedTelemetryHudOverlay.onForegroundPackageChanged(service, fgPkg)
-            if (!isLauncher) {
+            if (!isLauncher && !isLocked && !isSysUi && !isRecents && !isOverlayEvent &&
+                isNotSysOrLauncher && (isFullScreen || isLikelyActivity) && effectivePkg == fgPkg
+            ) {
+                LightspeedConsciousAirlockOverlay.cancelTransientDismiss(effectivePkg)
                 LightspeedConsciousAirlockOverlay.checkAndShowAirlock(service, effectivePkg)
+            } else if (!isOverlayEvent && isNotSysOrLauncher && effectivePkg == fgPkg) {
+                LightspeedConsciousAirlockOverlay.noteForegroundApp(effectivePkg)
             }
             com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.refreshMacroButtonsState()
         }

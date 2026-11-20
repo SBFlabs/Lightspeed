@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -74,6 +77,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import com.sbf.lightspeed.LightspeedCruiseOverlay
 import com.sbf.lightspeed.system.DeviceFontScanner
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
@@ -123,8 +127,18 @@ fun CentralCommandTypographyMenu(
     val fontScale = savedScale ?: remember { LightspeedPreferences.getCentralCommandFontScale(context) }
     val scalePct = (fontScale * 100f).roundToInt().coerceIn(80, 135)
     var draftScalePct by remember(scalePct) { mutableIntStateOf(scalePct) }
+    val savedCruiseScale by LightspeedPreferences.categoryCruiseFontScaleFlow.collectAsState()
+    val cruiseFontScale = savedCruiseScale ?: remember { LightspeedPreferences.getCategoryCruiseFontScale(context) }
+    val cruiseScalePct = (cruiseFontScale * 100f).roundToInt().coerceIn(80, 135)
+    var draftCruiseScalePct by remember(cruiseScalePct) { mutableIntStateOf(cruiseScalePct) }
+    val savedHangarScale by LightspeedPreferences.cockpitHangarFontScaleFlow.collectAsState()
+    val hangarFontScale = savedHangarScale ?: remember { LightspeedPreferences.getCockpitHangarFontScale(context) }
+    val hangarScalePct = (hangarFontScale * 100f).roundToInt().coerceIn(80, 135)
+    var draftHangarScalePct by remember(hangarScalePct) { mutableIntStateOf(hangarScalePct) }
     val savedFamily by LightspeedPreferences.centralCommandFontFamilyFlow.collectAsState()
     val fontFamilyKey = savedFamily ?: remember { LightspeedPreferences.getCentralCommandFontFamily(context) }
+    val savedApplyGlobally by LightspeedPreferences.applyFontGloballyFlow.collectAsState()
+    val applyFontGlobally = savedApplyGlobally ?: remember { LightspeedPreferences.getApplyFontGlobally(context) }
     val selectedFontLabel = remember(fontFamilyKey) { DeviceFontScanner.getFontLabel(fontFamilyKey) }
     val selectedFontFamily = remember(fontFamilyKey) { DeviceFontScanner.resolveComposeFontFamily(fontFamilyKey) }
 
@@ -241,11 +255,6 @@ fun CentralCommandTypographyMenu(
                 .width(targetPanelWidthDp)
                 .widthIn(max = maxFlyoutDp)
                 .heightIn(max = maxPanelHeightDp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {}
-                )
         ) {
             DeckGlassCardSurface(
                 modifier = Modifier.fillMaxWidth(),
@@ -275,7 +284,12 @@ fun CentralCommandTypographyMenu(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = topPaddingForPanelDp)
-                            .verticalScroll(rememberScrollState())
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {}
+                            )
+                            .verticalScrollWithEdgeFade()
                             .padding(
                                 horizontal = 14.dp,
                                 vertical = if (isLandscape) 10.dp else 14.dp
@@ -296,13 +310,13 @@ fun CentralCommandTypographyMenu(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Typography & Scale",
+                                    text = lsString(R.string.typo_title),
                                     fontSize = 13.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = lsColors.textPrimary
                                 )
                                 Text(
-                                    text = "Hold % pill to reset · Applies on lift",
+                                    text = lsString(R.string.typo_hint),
                                     fontSize = 10.sp,
                                     color = lsColors.textSecondary
                                 )
@@ -314,7 +328,7 @@ fun CentralCommandTypographyMenu(
                             prefs = prefs,
                             keyResName = LightspeedPreferences.KEY_CENTRAL_COMMAND_FONT_SCALE,
                             titleResName = "",
-                            defaultTitle = "Text Size",
+                            defaultTitle = if (applyFontGlobally) lsString(R.string.typo_all) else lsString(R.string.typo_cc),
                             minVal = 80,
                             maxVal = 135,
                             step = 5,
@@ -326,8 +340,61 @@ fun CentralCommandTypographyMenu(
                             },
                             onValueChangeFinished = { pct ->
                                 LightspeedPreferences.setCentralCommandFontScale(context, pct / 100f)
+                                LightspeedCruiseOverlay.instance?.invalidate()
                             }
                         )
+
+                        AnimatedVisibility(
+                            visible = !applyFontGlobally,
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut()
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(if (isLandscape) 6.dp else 8.dp)
+                            ) {
+                                PrefDottedSliderRow(
+                                    context = context,
+                                    prefs = prefs,
+                                    keyResName = LightspeedPreferences.KEY_CATEGORY_CRUISE_FONT_SCALE,
+                                    titleResName = "",
+                                    defaultTitle = lsString(R.string.typo_cruise),
+                                    minVal = 80,
+                                    maxVal = 135,
+                                    step = 5,
+                                    defaultVal = 100,
+                                    valueSuffix = "%",
+                                    externalValue = draftCruiseScalePct,
+                                    onValueChanged = { pct ->
+                                        draftCruiseScalePct = pct
+                                    },
+                                    onValueChangeFinished = { pct ->
+                                        LightspeedPreferences.setCategoryCruiseFontScale(context, pct / 100f)
+                                        LightspeedCruiseOverlay.instance?.invalidate()
+                                    }
+                                )
+                                PrefDottedSliderRow(
+                                    context = context,
+                                    prefs = prefs,
+                                    keyResName = LightspeedPreferences.KEY_COCKPIT_HANGAR_FONT_SCALE,
+                                    titleResName = "",
+                                    defaultTitle = lsString(R.string.typo_cockpit),
+                                    minVal = 80,
+                                    maxVal = 135,
+                                    step = 5,
+                                    defaultVal = 100,
+                                    valueSuffix = "%",
+                                    externalValue = draftHangarScalePct,
+                                    onValueChanged = { pct ->
+                                        draftHangarScalePct = pct
+                                    },
+                                    onValueChangeFinished = { pct ->
+                                        LightspeedPreferences.setCockpitHangarFontScale(context, pct / 100f)
+                                        LightspeedCruiseOverlay.instance?.invalidate()
+                                    }
+                                )
+                            }
+                        }
 
                         // Instant-open on-demand Device Font Family dropdown
                         Column(
@@ -347,7 +414,7 @@ fun CentralCommandTypographyMenu(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "DEVICE FONT FAMILY",
+                                        text = lsString(R.string.typo_font_family),
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 0.7.sp,
@@ -398,7 +465,7 @@ fun CentralCommandTypographyMenu(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .heightIn(max = fontListMaxHeightDp)
-                                            .verticalScroll(rememberScrollState())
+                                            .verticalScrollWithEdgeFade()
                                             .padding(start = 6.dp, end = 6.dp, bottom = 6.dp),
                                         verticalArrangement = Arrangement.spacedBy(2.dp)
                                     ) {
@@ -414,6 +481,9 @@ fun CentralCommandTypographyMenu(
                                                     )
                                                     .clickable {
                                                         LightspeedPreferences.setCentralCommandFontFamily(context, key)
+                                                        if (applyFontGlobally) {
+                                                            LightspeedCruiseOverlay.instance?.invalidate()
+                                                        }
                                                         isFontListExpanded = false
                                                     }
                                                     .padding(horizontal = 10.dp, vertical = 7.dp),
@@ -443,6 +513,44 @@ fun CentralCommandTypographyMenu(
                                     }
                                 }
                             }
+                        }
+
+                        // Toggle: extend Central Command font family to Cockpit, Category Cruise, menus & HUD widgets
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(lsColors.textPrimary.copy(alpha = 0.05f))
+                                .border(0.8.dp, lsColors.borderSubtle, RoundedCornerShape(12.dp))
+                                .clickable {
+                                    val next = !applyFontGlobally
+                                    LightspeedPreferences.setApplyFontGlobally(context, next)
+                                    LightspeedCruiseOverlay.instance?.invalidate()
+                                }
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = lsString(R.string.typo_apply_overlays),
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = lsColors.textPrimary
+                                )
+                                Text(
+                                    text = lsString(R.string.typo_apply_overlays_sub),
+                                    fontSize = 9.5.sp,
+                                    color = lsColors.textSecondary
+                                )
+                            }
+                            DeckSwitch(
+                                checked = applyFontGlobally,
+                                onCheckedChange = { checked ->
+                                    LightspeedPreferences.setApplyFontGlobally(context, checked)
+                                    LightspeedCruiseOverlay.instance?.invalidate()
+                                }
+                            )
                         }
                     }
                 }
@@ -552,7 +660,7 @@ fun FontWritingLoadingAnimation(
         }
 
         Text(
-            text = "Reading device fonts on demand...",
+            text = lsString(R.string.typo_reading_fonts),
             fontSize = 10.sp,
             color = subColor
         )

@@ -1,7 +1,9 @@
 package com.sbf.lightspeed.settings
 
 import android.content.Context
+import android.view.WindowManager
 import com.sbf.lightspeed.system.LightspeedDeckStyleManager
+import com.sbf.lightspeed.system.LightspeedInfinityManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,8 +26,9 @@ object DeckThemeManager {
     private const val LEGACY_FROST = "frost"
     private const val LEGACY_OBSIDIAN = "obsidian"
 
-    private val _styleIdFlow = MutableStateFlow(DeckStylePresets.PRISM.styleId)
-    private val _snapshotFlow = MutableStateFlow(DeckStylePresets.PRISM)
+    private val _styleIdFlow = MutableStateFlow(DeckStylePresets.MATERIAL_3.styleId)
+    private val _snapshotFlow = MutableStateFlow(DeckStylePresets.MATERIAL_3)
+    private val _liveBackdropOpacityOverride = MutableStateFlow<Float?>(null)
     private var loaded = false
     private var previewStyleId: String? = null
 
@@ -35,11 +38,31 @@ object DeckThemeManager {
     /** Current snapshot; for Prism it carries the owner's Prism calibration values. */
     val snapshotFlow: StateFlow<DeckThemeSnapshot> = _snapshotFlow
 
-    /** Legacy glass-style value to style id. Anything unknown becomes prism. */
+    /** Live in-memory backdrop opacity override while dragging the slider in Live Lab. */
+    val liveBackdropOpacityOverride: StateFlow<Float?> = _liveBackdropOpacityOverride
+
+    fun setLiveBackdropOpacityOverride(opacity: Float?) {
+        _liveBackdropOpacityOverride.value = opacity?.coerceIn(0f, 0.95f)
+    }
+
+    /** Legacy glass-style value to style id. Fresh installs (null) default to Material 3. */
     fun deriveFromLegacy(legacyGlassStyle: String?): String = when (legacyGlassStyle) {
         LEGACY_FROST -> DeckStylePresets.FROSTED.styleId
         LEGACY_OBSIDIAN -> DeckStylePresets.DARK.styleId
-        else -> DeckStylePresets.PRISM.styleId // "liquid" and anything else
+        LEGACY_LIQUID -> DeckStylePresets.PRISM.styleId
+        null -> DeckStylePresets.MATERIAL_3.styleId
+        else -> DeckStylePresets.PRISM.styleId
+    }
+
+    /**
+     * Entitlement fallback: a gated (Infinity-only) style persisted by a non-Infinity user
+     * (e.g. after upgrading from a build where it was free) resolves to Material 3.
+     */
+    private fun entitledStyleId(context: Context, id: String): String {
+        val preset = DeckStylePresets.ALL.firstOrNull { it.styleId == id } ?: return DeckStylePresets.MATERIAL_3.styleId
+        if (preset.freeTier) return id
+        val unlocked = try { LightspeedInfinityManager.isUnlocked(context) } catch (_: Exception) { false }
+        return if (unlocked) id else DeckStylePresets.MATERIAL_3.styleId
     }
 
     /** Returns the current style id, deriving and persisting it from the legacy key if missing. */
@@ -56,11 +79,12 @@ object DeckThemeManager {
         val prefs = context.defaultPrefs()
         val stored = prefs.getString(LightspeedPreferences.KEY_DECK_STYLE, null)
         val knownIds = DeckStylePresets.ALL.map { it.styleId }
-        return if (stored != null && stored in knownIds) {
+        val raw = if (stored != null && stored in knownIds) {
             stored
         } else {
             deriveFromLegacy(prefs.getString(LightspeedPreferences.KEY_DECK_GLASS_STYLE, null))
         }
+        return entitledStyleId(context, raw)
     }
 
     /** Current snapshot (see [getStyleId] for lazy loading). */
@@ -78,11 +102,12 @@ object DeckThemeManager {
         val stored = prefs.getString(LightspeedPreferences.KEY_DECK_STYLE, null)
         val knownIds = DeckStylePresets.ALL.map { it.styleId }
         val id = if (stored != null && stored in knownIds) {
-            stored
+            entitledStyleId(context, stored)
         } else {
             val derived = deriveFromLegacy(prefs.getString(LightspeedPreferences.KEY_DECK_GLASS_STYLE, null))
-            prefs.edit().putString(LightspeedPreferences.KEY_DECK_STYLE, derived).apply()
-            derived
+            val entitled = entitledStyleId(context, derived)
+            prefs.edit().putString(LightspeedPreferences.KEY_DECK_STYLE, entitled).apply()
+            entitled
         }
         publish(context, id)
         loaded = true
@@ -120,6 +145,7 @@ object DeckThemeManager {
     @Synchronized
     fun setStyle(context: Context, styleId: String) {
         if (DeckStylePresets.ALL.none { it.styleId == styleId }) return
+        val prevBlurRadius = _snapshotFlow.value.windowBlurRadiusPx
         previewStyleId = null
         context.defaultPrefs().edit().putString(LightspeedPreferences.KEY_DECK_STYLE, styleId).apply()
         when (styleId) {
@@ -129,6 +155,32 @@ object DeckThemeManager {
         }
         publish(context, styleId)
         loaded = true
+
+        // Sync live Central Command & Flight Control Deck blur immediately when switching
+        // between opaque Material 3 (0px blur) and Glass/Blur themes (or vice versa).
+        val nextBlurRadius = _snapshotFlow.value.windowBlurRadiusPx
+        val hasVisibleHosts = CentralCommandBackdropBlur.hasRegisteredHostWindows() || CentralCommandActivity.isActive
+        if (hasVisibleHosts) {
+            val wm = CentralCommandActivity.activeInstance?.windowManager
+                ?: (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)
+            val blurMode = BackdropBlurModeManager.getMode(context)
+            val useScreenshot = BackdropBlurModeManager.shouldUseScreenshotBlur(wm, blurMode)
+            if (nextBlurRadius <= 0) {
+                CentralCommandBackdropBlur.prepareForCentralCommand(wm, forceRecapture = false, hideActiveHosts = false)
+                CentralCommandActivity.activeInstance?.updateLiveWindowBlur()
+            } else if (useScreenshot && (prevBlurRadius <= 0 || CentralCommandBackdropBlur.backdropBitmap == null)) {
+                CentralCommandBackdropBlur.prepareForCentralCommand(
+                    windowManager = wm,
+                    forceRecapture = true,
+                    settleDelayMs = 85L,
+                    hideActiveHosts = true
+                ) {
+                    CentralCommandActivity.activeInstance?.updateLiveWindowBlur()
+                }
+            } else {
+                CentralCommandActivity.activeInstance?.updateLiveWindowBlur()
+            }
+        }
     }
 
     private fun publish(context: Context, id: String) {

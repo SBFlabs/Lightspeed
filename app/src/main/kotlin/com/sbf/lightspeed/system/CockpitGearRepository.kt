@@ -463,15 +463,19 @@ object CockpitGearRepository {
     fun getGearSetNameById(context: Context, setId: String): String {
         gearSetNamesCache[setId]?.let { return it }
         val prefs = context.defaultPrefs()
-        val defaultName = when(setId) {
-            "0" -> "CORE AVIONICS"
-            "1" -> "POWER & DEV DECK"
-            "2" -> "UTILITIES SECTOR"
-            "3" -> "ENTERTAINMENT DECK"
-            else -> "CUSTOM SET"
+        val defaultName = when (setId) {
+            "0" -> lsString(com.sbf.lightspeed.R.string.ck_set_core).ifBlank { "CORE AVIONICS" }
+            "1" -> lsString(com.sbf.lightspeed.R.string.ck_set_dev).ifBlank { "POWER & DEV DECK" }
+            "2" -> lsString(com.sbf.lightspeed.R.string.ck_set_util).ifBlank { "UTILITIES SECTOR" }
+            "3" -> lsString(com.sbf.lightspeed.R.string.ck_set_ent).ifBlank { "ENTERTAINMENT DECK" }
+            else -> lsString(com.sbf.lightspeed.R.string.ck_set_custom).ifBlank { "CUSTOM SET" }
         }
-        val saved = prefs.getString("gear_set_${setId}_name", defaultName) ?: defaultName
-        val effective = if (saved == "SET A" || saved == "SET B" || saved == "SET C" || saved == "SET D" || saved == "SET" || saved.isEmpty()) defaultName else saved
+        val saved = prefs.getString("gear_set_${setId}_name", null)
+        val isLegacyDefault = saved.isNullOrEmpty() || saved in setOf(
+            "SET A", "SET B", "SET C", "SET D", "SET",
+            "CORE AVIONICS", "POWER & DEV DECK", "UTILITIES SECTOR", "ENTERTAINMENT DECK", "CUSTOM SET"
+        )
+        val effective = if (isLegacyDefault) defaultName else saved!!
         gearSetNamesCache[setId] = effective
         return effective
     }

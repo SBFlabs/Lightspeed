@@ -91,7 +91,7 @@ internal fun LightspeedCruiseOverlay.drawFlightLockReticle(
     appName: String,
     density: Float,
     reticleStyle: String = "tactical"
-) = deepSpaceRenderer.drawFlightLockReticle(canvas, targetCX, targetCY, bracketSize, m3Primary, m3Secondary, appName, density, reticleStyle)
+) = deepSpaceRenderer.drawFlightLockReticle(canvas, targetCX, targetCY, bracketSize, m3Primary, m3Secondary, appName, density, reticleStyle, context)
 
 internal fun LightspeedCruiseOverlay.drawHolographicReactorCore(
     canvas: Canvas,
@@ -115,8 +115,12 @@ internal fun LightspeedCruiseOverlay.drawGalacticNebula(
     alphaFactor: Float
 ) = deepSpaceRenderer.drawGalacticNebula(canvas, cx, cy, radius, m3Primary, alphaFactor)
 
-internal fun LightspeedCruiseOverlay.drawHyperdriveWarpSurge(canvas: Canvas, m3Primary: Int, density: Float) =
-    deepSpaceRenderer.drawHyperdriveWarpSurge(canvas, m3Primary, density)
+internal fun LightspeedCruiseOverlay.drawHyperdriveWarpSurge(
+    canvas: Canvas,
+    m3Primary: Int,
+    density: Float,
+    style: String = categoryLaunchSparkStyle()
+) = deepSpaceRenderer.drawHyperdriveWarpSurge(canvas, m3Primary, density, style)
 
 internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Float, h: Float) {
     val density = resources.displayMetrics.density
@@ -134,12 +138,20 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
     val gTop = getCategoryGridTop(catId)
     val gBot = h * 0.98f
     val gScope = gBot - gTop
+    // Self-heal stale app grid coordinates whenever widget height or overlay size changed
+    val firstPlacedTop = placedAppsList.firstOrNull()?.bounds?.top
+    if ((placedAppsList.isEmpty() && cachedApps.isNotEmpty()) ||
+        (firstPlacedTop != null && kotlin.math.abs(firstPlacedTop - gTop) > 4f * density)
+    ) {
+        buildPackedGridLayout()
+        categoryGridCache[catId] = ArrayList(placedAppsList)
+        categoryHeightCache[catId] = totalGridContentHeight
+    }
     val scroll = if (totalGridContentHeight <= gScope) 0f else viewportScrollOffset
 
     val focusedPlaced = placedAppsList.find { it.app == activeItem }
     if (focusedPlaced != null) {
-        val spotX = focusedPlaced.bounds.centerX()
-        val spotY = focusedPlaced.bounds.centerY() - scroll
+        val (spotX, spotY) = resolvePlacedItemIconCenter(focusedPlaced)
         drawGalacticNebula(canvas, spotX, spotY, 150f * density, focusAccent, 0.75f)
     }
 
@@ -166,7 +178,7 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
             canvas.drawRoundRect(b.left + 3f, b.top + 3f, b.right - 3f, b.bottom - 3f, 18f, 18f, highlightPaint)
 
             textPaint.color = Color.WHITE
-            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+            textPaint.typeface = overlayTypeface(isBold = true)
         } else {
             elementPaint.style = Paint.Style.FILL
             val tileAlpha = if (item.app.isWidget) 45 else 25
@@ -179,7 +191,7 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
             canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 16f, 16f, elementPaint)
 
             textPaint.color = Color.parseColor("#E0E5F0")
-            textPaint.typeface = android.graphics.Typeface.DEFAULT
+            textPaint.typeface = overlayTypeface(isBold = false)
         }
         if (item.app.isWidget) {
             if (!hideGridLabels) {
@@ -210,12 +222,12 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
 
                 val initial = item.app.label.firstOrNull()?.uppercase() ?: "?"
                 textPaint.textSize = sz * 0.46f
-                textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                textPaint.typeface = overlayTypeface(isBold = true)
                 canvas.drawText(initial, b.centerX(), iconY + (sz * 0.16f), textPaint)
 
                 if (!hideGridLabels) {
                     textPaint.textSize = 11f * density
-                    textPaint.typeface = android.graphics.Typeface.DEFAULT
+                    textPaint.typeface = overlayTypeface(isBold = false)
                     canvas.drawText(if (item.app.label.length > 12) item.app.label.take(10) + ".." else item.app.label, b.centerX(), b.centerY() + (sz * 0.55f) + 14f, textPaint)
                 }
             }
@@ -361,6 +373,7 @@ internal fun LightspeedCruiseOverlay.drawCruiseModalsOverlay(canvas: Canvas) {
     if (isEditModeOpen) drawEditModePanel(canvas, elementPaint)
     if (isCountdownModalOpen) drawCountdownModal(canvas, elementPaint)
     if (isScreenTimeInfoBubbleOpen) drawScreenTimeInfoBubble(canvas)
+    if (isBatterySpanInfoBubbleOpen) drawBatterySpanInfoBubble(canvas)
     if (isPrivacyScoreInfoBubbleOpen) drawPrivacyScoreInfoBubble(canvas)
     if (isAlertsHistoryModalOpen) drawAlertsHistoryModal(canvas, density, focusAccent)
     if (isFirewallModalOpen) drawFirewallManagerModal(canvas, density, focusAccent)

@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.layout.*
@@ -41,7 +44,7 @@ fun CyberneticTrackpadAccordion(
     }
 
     CompactAccordionSection(
-        title = "Cybernetic Trackpad",
+        title = lsString(R.string.sec_cybernetic_trackpad),
         isExpanded = isExpanded,
         onToggle = {
             isExpanded = !isExpanded
@@ -64,8 +67,8 @@ fun CyberneticTrackpadAccordion(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Enable Cybernetic Trackpad", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
-                    Text("Half-circle cursor trackpad with 3 programmable macro segments (Tap = Play, Hold = Record, Tap+Hold = Edit)", fontSize = 10.sp, color = lsColors.textSecondary)
+                    Text(lsString(R.string.lab_trackpad_title), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                    Text(lsString(R.string.tp_desc), fontSize = 10.sp, color = lsColors.textSecondary)
                 }
                 Switch(
                     checked = isEnabled,

@@ -1,5 +1,11 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
+import com.sbf.lightspeed.settings.verticalEdgeFade
+
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
@@ -169,7 +175,7 @@ private fun HackerWidgetLoadingRain(
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Text(
-                text = "SCANNING WIDGETS$statusDots",
+                text = lsString(R.string.picker_wid_scan, statusDots),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
@@ -177,7 +183,7 @@ private fun HackerWidgetLoadingRain(
                 letterSpacing = 1.sp
             )
             Text(
-                text = "Discovering installed widget providers",
+                text = lsString(R.string.picker_wid_disc),
                 fontSize = 11.sp,
                 color = labelColor.copy(alpha = 0.72f)
             )
@@ -276,8 +282,8 @@ object TacticalWidgetPreviewCache {
  */
 @Composable
 fun TacticalWidgetAccordionPicker(
-    title: String = "MODULE DOCK",
-    subtitle: String = "SELECT COMPATIBLE WIDGET TO DEPLOY",
+    title: String = lsString(R.string.picker_wid_dock),
+    subtitle: String = lsString(R.string.picker_wid_sub),
     onDismiss: () -> Unit,
     onSelectWidget: (AppWidgetProviderInfo, String, String) -> Unit,
     dynamicPrimary: Color? = null,
@@ -472,7 +478,7 @@ fun TacticalWidgetAccordionPicker(
         val newSet = if (nowPinned) pinnedApps + packageName else pinnedApps - packageName
         pinnedApps = newSet
         prefs.edit().putStringSet(LightspeedPreferences.KEY_WIDGET_PICKER_PINNED_APPS, newSet).apply()
-        val toastMsg = if (nowPinned) "✦ Pinned $appName to top" else "Unpinned $appName"
+        val toastMsg = if (nowPinned) "✦ " + lsString(R.string.picker_pinned_toast, appName) else lsString(R.string.picker_unpinned_toast, appName)
         Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
     }
 
@@ -533,7 +539,7 @@ fun TacticalWidgetAccordionPicker(
             onValueChange = { searchQuery = it },
             placeholder = {
                 Text(
-                    "Search apps & widgets (${sortedAndFilteredGroups.size} apps)...",
+                    lsString(R.string.picker_wid_search, sortedAndFilteredGroups.size),
                     color = lsColors.textPrimary.copy(alpha = 0.45f),
                     fontSize = 13.sp
                 )
@@ -597,7 +603,7 @@ fun TacticalWidgetAccordionPicker(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "NO COMPATIBLE MODULES FOUND",
+                    text = lsString(R.string.picker_wid_none),
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     color = lsColors.textPrimary.copy(alpha = 0.45f),
@@ -616,7 +622,8 @@ fun TacticalWidgetAccordionPicker(
                         state = listState,
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight(),
+                            .fillMaxHeight()
+                            .verticalEdgeFade(listState),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                         contentPadding = PaddingValues(end = 8.dp, bottom = 16.dp)
                     ) {
@@ -716,8 +723,8 @@ fun TacticalWidgetPickerModal(
         ) {
             Box(modifier = Modifier.padding(14.dp)) {
                 TacticalWidgetAccordionPicker(
-                    title = "REFUELING DOCK",
-                    subtitle = "SELECT COMPATIBLE WIDGET TO DEPLOY",
+                    title = lsString(R.string.picker_wid_refuel),
+                    subtitle = lsString(R.string.picker_wid_sub),
                     onDismiss = onDismiss,
                     onSelectWidget = { providerInfo, _, _ ->
                         onSelectProvider(providerInfo)

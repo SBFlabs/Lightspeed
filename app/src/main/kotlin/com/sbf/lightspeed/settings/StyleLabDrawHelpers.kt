@@ -152,21 +152,24 @@ internal fun buildCardSurfaceCache(
     density: Density,
     noiseEnabled: Boolean = false
 ): CardSurfaceSpec = with(density) {
-    val fallbackScrimPaint = if (!isApi31Plus) {
+    val isMaterial3 = preset.styleId == DeckStylePresets.MATERIAL_3.styleId
+    val fallbackScrimPaint = if (!isApi31Plus && !isMaterial3) {
         ditheredColorPaint(Color.Black.copy(alpha = (preset.dimAmount * 0.72f).coerceIn(0.40f, 0.78f)))
     } else null
 
-    val baseAlpha = if (preset.styleId == "jelly") {
-        0.92f
+    val baseAlpha = if (isMaterial3) {
+        preset.panelAlpha.coerceIn(0.0f, 1.0f)
+    } else if (preset.styleId == "jelly") {
+        (preset.panelAlpha * (0.92f / 0.80f)).coerceIn(0.0f, 0.96f)
     } else if (isApi31Plus) {
-        ((preset.panelAlpha - 0.32f) * 1.1f).coerceIn(0.20f, 0.76f)
+        ((preset.panelAlpha - 0.32f) * 1.1f).coerceIn(0.0f, 0.88f)
     } else {
-        preset.panelAlpha.coerceIn(0.60f, 0.92f)
+        preset.panelAlpha.coerceIn(0.0f, 0.95f)
     }
 
-    val topAlpha = if (preset.isProgressive) (baseAlpha * 0.55f).coerceAtLeast(0.15f) else baseAlpha * 0.88f
-    val botAlpha = if (preset.isProgressive) (baseAlpha * 1.15f).coerceAtMost(0.88f) else baseAlpha
-    val tintAlpha = if (preset.styleId == "jelly") 0.48f else if (preset.styleId == "adaptive") 0.36f else 0.22f
+    val topAlpha = if (isMaterial3) baseAlpha else if (preset.isProgressive) (baseAlpha * 0.55f).coerceAtLeast(0.0f) else baseAlpha * 0.88f
+    val botAlpha = if (isMaterial3) baseAlpha else if (preset.isProgressive) (baseAlpha * 1.15f).coerceAtMost(0.94f) else baseAlpha
+    val tintAlpha = if (isMaterial3) 0f else if (preset.styleId == "jelly") 0.48f else if (preset.styleId == "adaptive") 0.36f else 0.22f
     val hl = preset.highlightStrength
 
     fun buildForRect(rect: Rect, cr: CornerRadius, isHero: Boolean): SingleCardBrushes {
@@ -197,13 +200,12 @@ internal fun buildCardSurfaceCache(
             )
         }
         val glare = if (hl > 0.01f) {
-            Brush.linearGradient(
-                0.0f to Color.White.copy(alpha = (0.42f * hl).coerceAtMost(0.55f)),
-                0.35f to colors.tintColor.copy(alpha = (0.20f * hl).coerceAtMost(0.35f)),
-                0.55f to Color.White.copy(alpha = (0.14f * hl).coerceAtMost(0.25f)),
+            Brush.verticalGradient(
+                0.0f to Color.White.copy(alpha = (0.14f * hl).coerceAtMost(0.18f)),
+                0.45f to colors.tintColor.copy(alpha = (0.07f * hl).coerceAtMost(0.11f)),
                 1.0f to Color.Transparent,
-                start = rect.topLeft,
-                end = rect.bottomRight
+                startY = rect.top,
+                endY = rect.top + rect.height * 0.35f
             )
         } else null
         return SingleCardBrushes(

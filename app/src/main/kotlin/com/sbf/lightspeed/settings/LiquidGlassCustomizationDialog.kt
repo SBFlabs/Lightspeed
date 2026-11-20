@@ -1,6 +1,11 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +18,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -52,6 +59,17 @@ fun DeckThemeCustomizationDialog(
     // Editable optical tuning states
     var blurRadius by remember { mutableIntStateOf(initialCustomization.blurRadius) }
     var opacity by remember { mutableFloatStateOf(initialCustomization.opacity) }
+    var backdropOpacity by remember { mutableFloatStateOf(initialCustomization.backdropOpacity) }
+
+    // Stream live backdropOpacity to Central Command's scrim and window dim while Live Lab is open
+    LaunchedEffect(backdropOpacity) {
+        DeckThemeManager.setLiveBackdropOpacityOverride(backdropOpacity)
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            DeckThemeManager.setLiveBackdropOpacityOverride(null)
+        }
+    }
     var cornerRadius by remember { mutableFloatStateOf(initialCustomization.cornerRadius) }
     var borderWidth by remember { mutableFloatStateOf(initialCustomization.borderWidth) }
     var glowStrength by remember { mutableFloatStateOf(initialCustomization.glowStrength) }
@@ -74,6 +92,7 @@ fun DeckThemeCustomizationDialog(
         basePreset,
         blurRadius,
         opacity,
+        backdropOpacity,
         cornerRadius,
         borderWidth,
         glowStrength,
@@ -109,6 +128,7 @@ fun DeckThemeCustomizationDialog(
         basePreset.copy(
             windowBlurRadiusPx = blurRadius,
             panelAlpha = opacity,
+            dimAmount = backdropOpacity,
             cornerRadiusDp = cornerRadius,
             borderWidthDp = borderWidth,
             glowStrength = glowStrength,
@@ -124,6 +144,7 @@ fun DeckThemeCustomizationDialog(
     val hasUnsavedChanges = remember(
         blurRadius,
         opacity,
+        backdropOpacity,
         cornerRadius,
         borderWidth,
         glowStrength,
@@ -133,6 +154,7 @@ fun DeckThemeCustomizationDialog(
     ) {
         blurRadius != initialCustomization.blurRadius ||
             opacity != initialCustomization.opacity ||
+            backdropOpacity != initialCustomization.backdropOpacity ||
             cornerRadius != initialCustomization.cornerRadius ||
             borderWidth != initialCustomization.borderWidth ||
             glowStrength != initialCustomization.glowStrength ||
@@ -155,6 +177,7 @@ fun DeckThemeCustomizationDialog(
         val p = profile.params
         p["blur"]?.let { blurRadius = it.toInt() }
         p["opacity"]?.let { opacity = it }
+        p["backdrop_opacity"]?.let { backdropOpacity = it }
         p["corner"]?.let { cornerRadius = it }
         p["border"]?.let { borderWidth = it }
         p["glow"]?.let { glowStrength = it }
@@ -169,6 +192,7 @@ fun DeckThemeCustomizationDialog(
             styleId = styleId,
             blurRadius = blurRadius,
             opacity = opacity,
+            backdropOpacity = backdropOpacity,
             cornerRadius = cornerRadius,
             borderWidth = borderWidth,
             glowStrength = glowStrength,
@@ -184,6 +208,7 @@ fun DeckThemeCustomizationDialog(
         ThemeCustomizationManager.resetToDefaults(context, styleId)
         blurRadius = basePreset.windowBlurRadiusPx
         opacity = basePreset.panelAlpha
+        backdropOpacity = basePreset.dimAmount
         cornerRadius = basePreset.cornerRadiusDp
         borderWidth = basePreset.borderWidthDp
         glowStrength = basePreset.glowStrength
@@ -194,12 +219,13 @@ fun DeckThemeCustomizationDialog(
     // Modal Profile Naming Dialog
     if (isAddingNewProfile) {
         ThemeProfileNamingDialog(
-            title = "Save New Profile",
+            title = lsString(R.string.lg_save_new),
             initialName = "",
             onConfirm = { name ->
                 val currentMap = mapOf(
                     "blur" to blurRadius.toFloat(),
                     "opacity" to opacity,
+                    "backdrop_opacity" to backdropOpacity,
                     "corner" to cornerRadius,
                     "border" to borderWidth,
                     "glow" to glowStrength,
@@ -217,7 +243,7 @@ fun DeckThemeCustomizationDialog(
     // Modal Profile Rename Dialog
     profileToRename?.let { profile ->
         ThemeProfileNamingDialog(
-            title = "Rename Profile",
+            title = lsString(R.string.lg_rename),
             initialName = profile.label,
             onConfirm = { newName ->
                 ThemeProfileManager.renameProfile(prefs, styleId, profile, newName)
@@ -241,10 +267,12 @@ fun DeckThemeCustomizationDialog(
     }
 
     // Main Dialog Host
+    val activeDensity = LocalDensity.current
     Dialog(
         onDismissRequest = { handleDismissAttempt() },
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        CompositionLocalProvider(LocalDensity provides activeDensity) {
         // The dialog card ITSELF renders directly in the live theme optics
         DeckGlassCardSurface(
             modifier = Modifier
@@ -267,7 +295,7 @@ fun DeckThemeCustomizationDialog(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .verticalScroll(rememberScrollState()),
+                        .verticalScrollWithEdgeFade(),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     // Multi-Profile Preset Manager Section
@@ -289,6 +317,8 @@ fun DeckThemeCustomizationDialog(
                     ThemeOpticalSlidersSection(
                         opacity = opacity,
                         onOpacityChange = { opacity = it },
+                        backdropOpacity = backdropOpacity,
+                        onBackdropOpacityChange = { backdropOpacity = it },
                         blurRadius = blurRadius,
                         onBlurRadiusChange = { blurRadius = it },
                         cornerRadius = cornerRadius,
@@ -333,6 +363,7 @@ fun DeckThemeCustomizationDialog(
                     onSaveAndApply = { saveCurrentChanges() }
                 )
             }
+        }
         }
     }
 }

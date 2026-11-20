@@ -61,80 +61,16 @@ internal fun LightspeedCruiseOverlay.scrollStorageFromRailY(touchY: Float) {
     vitalsStorageDragY = touchY.coerceIn(vitalsFastRailRect.top, vitalsFastRailRect.bottom)
     val markers = vitalsStorageJumpMarkers
     val rowH = vitalsStorageRowH
-    val targetScroll = if (markers.isNotEmpty() && rowH > 1f) {
-        mapRailYToScroll(touchY, vitalsFastRailRect.top, vitalsFastRailRect.bottom, markers, rowH, vitalsModalMaxScroll)
-    } else {
-        val frac = ((touchY - vitalsFastRailRect.top) / vitalsFastRailRect.height()).coerceIn(0f, 1f)
-        frac * vitalsModalMaxScroll
-    }
+    val targetScroll = mapVitalsRailYToScroll(
+        touchY = touchY,
+        railTop = vitalsFastRailRect.top,
+        railBot = vitalsFastRailRect.bottom,
+        markers = markers,
+        rowH = rowH,
+        maxScroll = vitalsModalMaxScroll
+    )
     vitalsModalScrollOffset = targetScroll.coerceIn(0f, vitalsModalMaxScroll)
     invalidate()
-}
-
-private fun mapRailYToScroll(
-    touchY: Float,
-    railTop: Float,
-    railBot: Float,
-    markers: List<StorageJumpMarker>,
-    rowH: Float,
-    maxScroll: Float
-): Float {
-    val y = touchY.coerceIn(railTop, railBot)
-    val first = markers.first()
-    if (y <= first.yCenter) {
-        val span = (first.yCenter - railTop).coerceAtLeast(1f)
-        val firstScroll = (first.rowIndex * rowH).coerceIn(0f, maxScroll)
-        return ((y - railTop) / span) * firstScroll
-    }
-    for (i in 0 until markers.lastIndex) {
-        val a = markers[i]
-        val b = markers[i + 1]
-        if (y <= b.yCenter) {
-            val span = (b.yCenter - a.yCenter).coerceAtLeast(1f)
-            val sA = (a.rowIndex * rowH).coerceIn(0f, maxScroll)
-            val sB = (b.rowIndex * rowH).coerceIn(0f, maxScroll)
-            return sA + ((y - a.yCenter) / span) * (sB - sA)
-        }
-    }
-    val last = markers.last()
-    val lastScroll = (last.rowIndex * rowH).coerceIn(0f, maxScroll)
-    val span = (railBot - last.yCenter).coerceAtLeast(1f)
-    return lastScroll + ((y - last.yCenter) / span) * (maxScroll - lastScroll)
-}
-
-private fun mapScrollToRailY(
-    scroll: Float,
-    railTop: Float,
-    railBot: Float,
-    markers: List<StorageJumpMarker>,
-    rowH: Float,
-    maxScroll: Float
-): Float {
-    if (markers.isEmpty() || maxScroll <= 0f || rowH <= 1f) {
-        val frac = if (maxScroll > 0f) (scroll / maxScroll).coerceIn(0f, 1f) else 0f
-        return railTop + frac * (railBot - railTop)
-    }
-    val s = scroll.coerceIn(0f, maxScroll)
-    val first = markers.first()
-    val firstScroll = (first.rowIndex * rowH).coerceIn(0f, maxScroll)
-    if (s <= firstScroll) {
-        val frac = if (firstScroll > 0f) s / firstScroll else 1f
-        return railTop + frac * (first.yCenter - railTop)
-    }
-    for (i in 0 until markers.lastIndex) {
-        val a = markers[i]
-        val b = markers[i + 1]
-        val sA = (a.rowIndex * rowH).coerceIn(0f, maxScroll)
-        val sB = (b.rowIndex * rowH).coerceIn(0f, maxScroll)
-        if (s <= sB) {
-            val frac = if (sB > sA) (s - sA) / (sB - sA) else 0f
-            return a.yCenter + frac * (b.yCenter - a.yCenter)
-        }
-    }
-    val last = markers.last()
-    val lastScroll = (last.rowIndex * rowH).coerceIn(0f, maxScroll)
-    val span = (maxScroll - lastScroll).coerceAtLeast(1f)
-    return last.yCenter + ((s - lastScroll) / span) * (railBot - last.yCenter)
 }
 
 internal fun LightspeedCruiseOverlay.drawVitalsStorageTabContent(
@@ -468,19 +404,28 @@ internal fun LightspeedCruiseOverlay.drawVitalsStorageTabContent(
 
     val railLeft = listRight + railGap
     vitalsFastRailRect.set(railLeft, curListTop, right - padX, listBottom)
-    highlightPaint.style = Paint.Style.FILL
-    highlightPaint.color = Color.argb(32, 255, 255, 255)
-    canvas.drawRoundRect(vitalsFastRailRect, 7f * dp, 7f * dp, highlightPaint)
-    highlightPaint.style = Paint.Style.STROKE
-    highlightPaint.strokeWidth = 0.7f * dp
-    highlightPaint.color = Color.argb(55, 255, 255, 255)
-    canvas.drawRoundRect(vitalsFastRailRect, 7f * dp, 7f * dp, highlightPaint)
+    val rawMarkers = LightspeedStorageAnalyzer.buildJumpMarkers(
+        vitalsFilteredStorageApps,
+        vitalsStorageSortKey,
+        vitalsStorageSortReversed
+    )
+    vitalsStorageJumpMarkers.addAll(
+        drawVitalsNumberedJumpRail(
+            canvas = canvas,
+            railRect = vitalsFastRailRect,
+            rawMarkers = rawMarkers,
+            scrollOffset = vitalsModalScrollOffset,
+            maxScroll = vitalsModalMaxScroll,
+            rowH = rowH,
+            itemCount = vitalsFilteredStorageApps.size,
+            accent = accent,
+            dp = dp,
+            highlightPaint = highlightPaint,
+            textPaint = textPaint
+        )
+    )
 
-    if (vitalsModalMaxScroll > 0f) {
-        drawSizeTierJumpRail(canvas, accent, dp)
-    }
-
-    canvas.save()
+    val listLayerCount = canvas.saveLayer(listLeft, curListTop, listRight, listBottom, null)
     canvas.clipRect(listLeft, curListTop, listRight, listBottom)
     if (vitalsModalLoadingApps && vitalsAllStorageApps.isEmpty()) {
         drawVitalsLoadingRadar(
@@ -515,6 +460,9 @@ internal fun LightspeedCruiseOverlay.drawVitalsStorageTabContent(
             )
         }
     } else {
+        val iconPx = (28f * dp).toInt().coerceAtLeast(1)
+        val iconDstRect = RectF()
+        val iconBmpPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         var curY = curListTop - vitalsModalScrollOffset
         for (entry in vitalsFilteredStorageApps) {
             val rRect = RectF(listLeft, curY, listRight, curY + rowH - 5f * dp)
@@ -541,9 +489,9 @@ internal fun LightspeedCruiseOverlay.drawVitalsStorageTabContent(
                 val iconSize = 28f * dp
                 val iconTop = rRect.centerY() - iconSize * 0.5f
                 val iconLeft = rRect.left + 8f * dp
-                getVitalsRowIcon(entry.packageName)?.let { icon ->
-                    icon.setBounds(iconLeft.toInt(), iconTop.toInt(), (iconLeft + iconSize).toInt(), (iconTop + iconSize).toInt())
-                    icon.draw(canvas)
+                getVitalsRowBitmap(entry.packageName, iconPx)?.let { bmp ->
+                    iconDstRect.set(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize)
+                    canvas.drawBitmap(bmp, null, iconDstRect, iconBmpPaint)
                 }
 
                 // Right action pill: [INFO]
@@ -626,125 +574,41 @@ internal fun LightspeedCruiseOverlay.drawVitalsStorageTabContent(
             curY += rowH
         }
     }
-    canvas.restore()
+    LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+        canvas = canvas,
+        left = listLeft,
+        top = curListTop,
+        right = listRight,
+        bottom = listBottom,
+        featherTopPx = if (vitalsModalScrollOffset > 0.5f) 18f * dp else 0f,
+        featherBottomPx = if (vitalsModalScrollOffset < vitalsModalMaxScroll - 0.5f) 20f * dp else 0f,
+        density = dp,
+        seed = 8202
+    )
+    canvas.restoreToCount(listLayerCount)
 
     // Floating Size-Tier Scrub Callout Bubble while dragging the rail
     if (vitalsModalDraggingRail && vitalsFilteredStorageApps.isNotEmpty()) {
-        drawScrubLoupeBubble(canvas, listRight, accent, dp)
+        val idx = (vitalsModalScrollOffset / rowH.coerceAtLeast(1f)).toInt().coerceIn(0, vitalsFilteredStorageApps.lastIndex)
+        val app = vitalsFilteredStorageApps[idx]
+        val metricStr = when (vitalsStorageSortKey) {
+            "updated" -> LightspeedStorageAnalyzer.formatDateShort(app.lastUpdateTime)
+            "installed" -> LightspeedStorageAnalyzer.formatDateShort(app.firstInstallTime)
+            else -> LightspeedStorageAnalyzer.formatBytesCompact(LightspeedStorageAnalyzer.metricBytesForSort(app, vitalsStorageSortKey))
+        }
+        drawVitalsScrubLoupeBubble(
+            canvas = canvas,
+            listRight = listRight,
+            railRect = vitalsFastRailRect,
+            dragY = vitalsStorageDragY,
+            primaryText = metricStr,
+            secondaryLabel = app.label,
+            accent = accent,
+            dp = dp
+        )
     }
 
     scheduleVitalsStorageScanTickerIfNeeded()
-}
-
-private fun LightspeedCruiseOverlay.drawSizeTierJumpRail(
-    canvas: Canvas,
-    accent: Int,
-    dp: Float
-) {
-    val railTop = vitalsFastRailRect.top + 10f * dp
-    val railBot = vitalsFastRailRect.bottom - 10f * dp
-    val usableH = (railBot - railTop).coerceAtLeast(24f * dp)
-    val rowH = vitalsStorageRowH.coerceAtLeast(1f)
-    val maxScroll = vitalsModalMaxScroll.coerceAtLeast(1f)
-
-    val minGap = 15.5f * dp
-    val maxFitting = ((usableH / minGap).toInt() + 1).coerceAtLeast(2)
-    val rawMarkers = LightspeedStorageAnalyzer.buildJumpMarkers(
-        vitalsFilteredStorageApps,
-        vitalsStorageSortKey,
-        vitalsStorageSortReversed
-    )
-
-    val thinned = if (rawMarkers.size > maxFitting) {
-        val picked = mutableListOf<StorageJumpMarker>()
-        for (i in 0 until maxFitting) {
-            val srcIdx = ((i.toFloat() / (maxFitting - 1)) * rawMarkers.lastIndex).toInt().coerceIn(0, rawMarkers.lastIndex)
-            val m = rawMarkers[srcIdx]
-            if (picked.none { it.rowIndex == m.rowIndex }) picked.add(m)
-        }
-        picked
-    } else {
-        rawMarkers
-    }
-
-    val laidOut = mutableListOf<StorageJumpMarker>()
-    for ((i, m) in thinned.withIndex()) {
-        val natY = railTop + ((m.rowIndex * rowH).coerceIn(0f, maxScroll) / maxScroll) * usableH
-        val minY = if (laidOut.isEmpty()) railTop else laidOut.last().yCenter + minGap
-        val remAfter = (thinned.lastIndex - i)
-        val maxY = railBot - remAfter * minGap
-        val finalY = natY.coerceAtLeast(minY).coerceAtMost(maxY.coerceAtLeast(minY))
-        if (finalY <= railBot + 1f) {
-            laidOut.add(m.copy(yCenter = finalY))
-        }
-    }
-    vitalsStorageJumpMarkers.addAll(laidOut)
-
-    val topVisibleIdx = ((vitalsModalScrollOffset + rowH * 0.3f) / rowH).toInt().coerceIn(0, (vitalsFilteredStorageApps.size - 1).coerceAtLeast(0))
-    val activeMarkerIdx = laidOut.indexOfLast { it.rowIndex <= topVisibleIdx }.coerceAtLeast(0)
-
-    // Scroll thumb track dot / indicator along rail
-    val thumbY = mapScrollToRailY(vitalsModalScrollOffset, vitalsFastRailRect.top + 4f * dp, vitalsFastRailRect.bottom - 4f * dp, laidOut, rowH, maxScroll)
-    highlightPaint.style = Paint.Style.FILL
-    highlightPaint.color = Color.argb(65, Color.red(accent), Color.green(accent), Color.blue(accent))
-    val thumbPill = RectF(vitalsFastRailRect.left + 2f * dp, (thumbY - 7.5f * dp).coerceAtLeast(vitalsFastRailRect.top + 1f * dp), vitalsFastRailRect.right - 2f * dp, (thumbY + 7.5f * dp).coerceAtMost(vitalsFastRailRect.bottom - 1f * dp))
-    canvas.drawRoundRect(thumbPill, 4f * dp, 4f * dp, highlightPaint)
-
-    textPaint.textAlign = Paint.Align.CENTER
-    val fm = textPaint.fontMetrics
-    for ((idx, marker) in laidOut.withIndex()) {
-        val isAct = (idx == activeMarkerIdx)
-        if (isAct) {
-            val pillRect = RectF(vitalsFastRailRect.left + 1.5f * dp, marker.yCenter - 6.5f * dp, vitalsFastRailRect.right - 1.5f * dp, marker.yCenter + 6.5f * dp)
-            highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = Color.argb(220, Color.red(accent), Color.green(accent), Color.blue(accent))
-            canvas.drawRoundRect(pillRect, 4f * dp, 4f * dp, highlightPaint)
-        }
-        textPaint.typeface = Typeface.DEFAULT_BOLD
-        textPaint.textSize = if (isAct) 8.4f * dp else 7.8f * dp
-        textPaint.color = if (isAct) Color.BLACK else Color.argb(205, 215, 232, 250)
-        canvas.drawText(marker.label, vitalsFastRailRect.centerX(), marker.yCenter - ((fm.descent + fm.ascent) / 2f), textPaint)
-    }
-}
-
-private fun LightspeedCruiseOverlay.drawScrubLoupeBubble(
-    canvas: Canvas,
-    listRight: Float,
-    accent: Int,
-    dp: Float
-) {
-    val rowH = vitalsStorageRowH.coerceAtLeast(1f)
-    val idx = (vitalsModalScrollOffset / rowH).toInt().coerceIn(0, vitalsFilteredStorageApps.lastIndex)
-    val app = vitalsFilteredStorageApps[idx]
-    val metricStr = when (vitalsStorageSortKey) {
-        "updated" -> LightspeedStorageAnalyzer.formatDateShort(app.lastUpdateTime)
-        "installed" -> LightspeedStorageAnalyzer.formatDateShort(app.firstInstallTime)
-        else -> LightspeedStorageAnalyzer.formatBytesCompact(LightspeedStorageAnalyzer.metricBytesForSort(app, vitalsStorageSortKey))
-    }
-    val bubbleW = 148f * dp
-    val bubbleH = 38f * dp
-    val cy = (if (vitalsStorageDragY >= 0f) vitalsStorageDragY else vitalsFastRailRect.centerY())
-        .coerceIn(vitalsFastRailRect.top + bubbleH * 0.5f, vitalsFastRailRect.bottom - bubbleH * 0.5f)
-    val bRect = RectF(listRight - bubbleW - 4f * dp, cy - bubbleH * 0.5f, listRight - 4f * dp, cy + bubbleH * 0.5f)
-
-    highlightPaint.style = Paint.Style.FILL
-    highlightPaint.color = Color.argb(242, 10, 14, 24)
-    canvas.drawRoundRect(bRect, 8f * dp, 8f * dp, highlightPaint)
-    highlightPaint.style = Paint.Style.STROKE
-    highlightPaint.strokeWidth = 1.2f * dp
-    highlightPaint.color = accent
-    canvas.drawRoundRect(bRect, 8f * dp, 8f * dp, highlightPaint)
-
-    textPaint.textAlign = Paint.Align.CENTER
-    textPaint.typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-    textPaint.textSize = 13.0f * dp
-    textPaint.color = accent
-    canvas.drawText(metricStr, bRect.centerX(), bRect.top + 16.5f * dp, textPaint)
-
-    textPaint.typeface = Typeface.DEFAULT_BOLD
-    textPaint.textSize = 9.8f * dp
-    textPaint.color = Color.WHITE
-    canvas.drawText(clipTextToWidth(app.label, bubbleW - 14f * dp), bRect.centerX(), bRect.top + 31f * dp, textPaint)
 }
 
 internal fun LightspeedCruiseOverlay.clipTextToWidth(text: String, maxWidth: Float): String {

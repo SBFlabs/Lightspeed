@@ -286,7 +286,7 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
 
     paint.style = Paint.Style.FILL
     paint.textAlign = Paint.Align.LEFT
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.typeface = overlayTypeface(isBold = true)
     paint.textSize = 12.5f * dp
     paint.color = Color.argb(250, 245, 248, 255)
     canvas.drawText(ellipsizeMenuText(target.label, paint, maxTextW), titleLeft, iconTop + 12f * dp, paint)
@@ -312,7 +312,7 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
     val pillH = 15f * dp
     val pillTop = bounds.top + headerH - pillH - 4f * dp
     val fmHead = paint.fontMetrics
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.typeface = overlayTypeface(isBold = true)
     paint.textSize = 8.0f * dp
     paint.textAlign = Paint.Align.LEFT
     paint.color = scoreColor
@@ -335,7 +335,7 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
     canvas.drawRoundRect(infoRect, 3.8f * dp, 3.8f * dp, paint)
     paint.style = Paint.Style.FILL
     paint.textAlign = Paint.Align.CENTER
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.typeface = overlayTypeface(isBold = true)
     paint.textSize = 8.2f * dp
     paint.color = Color.WHITE
     canvas.drawText("!", infoRect.centerX(), infoRect.centerY() - ((fmHead.descent + fmHead.ascent) / 2f), paint)
@@ -357,7 +357,7 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
     pinnedMenuNetPillRect.set(netPillRect)
 
     val alertLabel = "${telemetry.alertCount} ALERTS"
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.typeface = overlayTypeface(isBold = true)
     paint.textSize = 7.6f * dp
     val estAlertW = 19f * dp + paint.measureText(alertLabel)
     val alertRect = LightspeedHudVectorIcons.drawVectorPill(
@@ -409,7 +409,7 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
     paint.color = Color.argb(245, 240, 245, 255)
     paint.textSize = 14.5f * dp
     paint.textAlign = Paint.Align.LEFT
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.typeface = overlayTypeface(isBold = true)
 
     val textX = bounds.left + 18f * dp
     val fontMetrics = paint.fontMetrics
@@ -469,7 +469,7 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppCategoryMenu(canvas: Canvas, p
     paint.style = Paint.Style.FILL
     paint.textSize = 12.5f * dp
     paint.textAlign = Paint.Align.LEFT
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.typeface = overlayTypeface(isBold = true)
 
     val fontMetrics = paint.fontMetrics
     val textYOffset = (fontMetrics.descent + fontMetrics.ascent) / 2f

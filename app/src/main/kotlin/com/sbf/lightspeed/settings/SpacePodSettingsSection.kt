@@ -1,5 +1,7 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.system.lsString
+
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -50,8 +52,8 @@ fun SpacePodSettingsSection(
                 Icon(Icons.Default.Adjust, contentDescription = null, tint = lsColors.accentInfo, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
                 Column {
-                    Text("SPACE PODS // MULTI-GESTURE CONTROL", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
-                    Text("QS Tiles, Home Screen Shortcuts & 12-Theme 1x1 Pod Widgets", fontSize = 10.sp, color = lsColors.textSecondary)
+                    Text(lsString(R.string.pod_hdr), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                    Text(lsString(R.string.pod_sub), fontSize = 10.sp, color = lsColors.textSecondary)
                 }
             }
 
@@ -153,6 +155,6 @@ private fun pinPodToHomeScreen(context: Context, podIndex: Int) {
         ShortcutManagerCompat.requestPinShortcut(context, shortcutInfo, null)
         Toast.makeText(context, "Requested Home Screen Pin for Pod $podIndex", Toast.LENGTH_SHORT).show()
     } else {
-        Toast.makeText(context, "Home Screen Pinning not supported by current launcher", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, lsString(R.string.pod_pin_unsup), Toast.LENGTH_SHORT).show()
     }
 }

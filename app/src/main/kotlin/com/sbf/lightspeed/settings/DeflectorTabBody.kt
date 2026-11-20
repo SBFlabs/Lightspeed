@@ -84,7 +84,7 @@ fun DeflectorTabBody(
     val centerSecId = "${secPrefix}center"
     val trackpadSecId = "${secPrefix}trackpad"
 
-    val customVectors = remember(isLeft) { getCustomVectorsForFlank(isLeft) }
+    val customVectors = remember(isLeft, com.sbf.lightspeed.system.LightspeedLocaleEngine.state) { getCustomVectorsForFlank(isLeft) }
     val isTrackpadLabsEnabled = com.sbf.lightspeed.system.bot.LightspeedBotContract.isLabsEnabled(prefs)
 
     val defaultOrder = buildList {
@@ -201,17 +201,19 @@ fun DeflectorTabBody(
             }
         }
 
-        val isDismissedEdgeCard = prefs.getBoolean("pref_dismiss_edge_conflict_card", false)
+        val isDismissedEdgeCard = prefs.getBoolean(LightspeedPreferences.KEY_DISMISS_EDGE_CONFLICT_CARD, false)
         var isEdgeNoticeDemoted by remember { mutableStateOf(isDismissedEdgeCard) }
         val showEdgeSovereigntyNotice = !isNativeInsetsZeroed
 
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalEdgeFade(listState),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(bottom = 20.dp)
         ) {
-            item(key = "${secPrefix}deflector_master") {
+            item(key = "${secPrefix}deflector_master", contentType = "master_card") {
                 var isEnabled by remember {
                     mutableStateOf(
                         if (isLeft) LightspeedPreferences.isLeftDeflectorEnabled(context)
@@ -244,7 +246,7 @@ fun DeflectorTabBody(
             }
 
             if (showEdgeSovereigntyNotice && !isEdgeNoticeDemoted) {
-                item(key = "${secPrefix}edge_sovereignty_tip") {
+                item(key = "${secPrefix}edge_sovereignty_tip", contentType = "notice_card") {
                     EdgeSovereigntyNoticeCard(
                         exceedsEdgeThreshold = exceedsEdgeThreshold,
                         deflectorCoverageRatio = deflectorCoverageRatio,
@@ -254,15 +256,15 @@ fun DeflectorTabBody(
                         onToggleDemote = {
                             isEdgeNoticeDemoted = true
                             prefs.edit()
-                                .putBoolean("pref_has_seen_edge_sovereignty_tip", true)
-                                .putBoolean("pref_dismiss_edge_conflict_card", true)
+                                .putBoolean(LightspeedPreferences.KEY_HAS_SEEN_EDGE_SOVEREIGNTY_TIP, true)
+                                .putBoolean(LightspeedPreferences.KEY_DISMISS_EDGE_CONFLICT_CARD, true)
                                 .apply()
                         },
                         onDismiss = {
                             isEdgeNoticeDemoted = true
                             prefs.edit()
-                                .putBoolean("pref_has_seen_edge_sovereignty_tip", true)
-                                .putBoolean("pref_dismiss_edge_conflict_card", true)
+                                .putBoolean(LightspeedPreferences.KEY_HAS_SEEN_EDGE_SOVEREIGNTY_TIP, true)
+                                .putBoolean(LightspeedPreferences.KEY_DISMISS_EDGE_CONFLICT_CARD, true)
                                 .apply()
                         },
                         onOpenOverrides = { showOverridesDeck = true }
@@ -270,7 +272,7 @@ fun DeflectorTabBody(
                 }
             }
 
-            item {
+            item(key = "${secPrefix}unify_flank_actions", contentType = "unify_card") {
                 UnifyFlankActionsCard(
                     isUnified = isFlankUnified,
                     onToggle = { enable ->
@@ -278,7 +280,7 @@ fun DeflectorTabBody(
                             showUnifyTemplateDialog = true
                         } else {
                             isFlankUnified = false
-                            val key = if (isLeft) "pref_sidebar_left_link_flank_actions" else "pref_sidebar_right_link_flank_actions"
+                            val key = if (isLeft) LightspeedPreferences.KEY_SIDEBAR_LEFT_LINK_FLANK else LightspeedPreferences.KEY_SIDEBAR_RIGHT_LINK_FLANK
                             prefs.edit().putBoolean(key, false).apply()
                             safeReloadPreferences()
                             onRefreshNeeded()
@@ -353,7 +355,7 @@ fun DeflectorTabBody(
             )
 
             if (showEdgeSovereigntyNotice && isEdgeNoticeDemoted) {
-                item(key = "${secPrefix}edge_sovereignty_tip_demoted") {
+                item(key = "${secPrefix}edge_sovereignty_tip_demoted", contentType = "notice_card") {
                     EdgeSovereigntyNoticeCard(
                         exceedsEdgeThreshold = exceedsEdgeThreshold,
                         deflectorCoverageRatio = deflectorCoverageRatio,
@@ -363,7 +365,7 @@ fun DeflectorTabBody(
                         onToggleDemote = {
                             isEdgeNoticeDemoted = false
                             prefs.edit()
-                                .putBoolean("pref_dismiss_edge_conflict_card", false)
+                                .putBoolean(LightspeedPreferences.KEY_DISMISS_EDGE_CONFLICT_CARD, false)
                                 .apply()
                         },
                         onDismiss = {},

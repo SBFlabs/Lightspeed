@@ -1,9 +1,12 @@
 package com.sbf.lightspeed.settings
 
 import com.sbf.lightspeed.BuildConfig
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.system.safeReloadPreferences
 
 import android.app.Activity
+import android.os.Build
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -11,7 +14,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.outlined.UnfoldLess
 import androidx.compose.material.icons.outlined.UnfoldMore
@@ -19,9 +21,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -31,9 +30,9 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
-import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.LightspeedWatchdogEngine
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
@@ -70,9 +69,6 @@ fun MainSettingsScreen() {
         }
     }
 
-    var showLanguageHud by remember { mutableStateOf(false) }
-    var activeLanguageIndex by remember { mutableIntStateOf(-1) }
-
     var showGuidebook by remember { mutableStateOf(false) }
     var showTypographyDialog by remember { mutableStateOf(false) }
     var typographyRootTopLeft by remember { mutableStateOf(Offset.Zero) }
@@ -87,6 +83,7 @@ fun MainSettingsScreen() {
         when {
             initialGate == CentralCommandLaunchGate.FRESH_INSTALL ||
                 initialGate == CentralCommandLaunchGate.VERSION_UPDATE -> "WHATS_NEW"
+            !LightspeedWatchdogEngine.isAccessibilityServiceEnabled(context) -> "CORE_SETUP"
             initialGate == CentralCommandLaunchGate.BUILD_REFRESH ||
                 !CentralCommandWarmupCoordinator.isUiWarmed -> "WARMING_UP"
             else -> "READY"
@@ -110,6 +107,7 @@ fun MainSettingsScreen() {
     }
     var showWhatsNewMorph by rememberSaveable { mutableStateOf(false) }
     var replayWelcomeFromGuidebook by rememberSaveable { mutableStateOf(false) }
+    var coreSetupPreviewMode by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(launchGatePhase) {
         if (launchGatePhase == "READY" && supporterReminderBadge == null) {
             kotlinx.coroutines.delay(650L)
@@ -150,10 +148,19 @@ fun MainSettingsScreen() {
     }
 
     val snapshot = LocalDeckTheme.current
+    val liveBackdropOverride by DeckThemeManager.liveBackdropOpacityOverride.collectAsState()
+    val effectiveBackdropOpacity = (liveBackdropOverride ?: snapshot.dimAmount).coerceIn(0f, 0.95f)
+    val isCapturing = CentralCommandBackdropBlur.isCapturing
+    val hasActiveBlur = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+        (CentralCommandActivity.isCrossWindowBlurActive || CentralCommandBackdropBlur.backdropBitmap != null)
 
     val animatedScrimAlpha by animateFloatAsState(
-        targetValue = if (isVisible) (snapshot.dimAmount * 0.7f).coerceIn(0.15f, 0.6f) else 0f,
-        animationSpec = tween(durationMillis = 300),
+        targetValue = when {
+            !isVisible || isCapturing -> 0f
+            hasActiveBlur -> (effectiveBackdropOpacity * 0.85f).coerceIn(0f, 0.92f)
+            else -> effectiveBackdropOpacity
+        },
+        animationSpec = tween(durationMillis = if (liveBackdropOverride != null) 45 else 300),
         label = "scrim_alpha"
     )
 
@@ -176,7 +183,7 @@ fun MainSettingsScreen() {
             contentAlignment = Alignment.Center
         ) {
             AnimatedVisibility(
-                visible = isVisible,
+                visible = isVisible && !isCapturing,
                 enter = slideInVertically(
                     initialOffsetY = { fullHeight -> fullHeight },
                     animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
@@ -208,6 +215,17 @@ fun MainSettingsScreen() {
                         LocalOpenWhatsNew provides {
                             replayWelcomeFromGuidebook = false
                             showWhatsNewMorph = true
+                        },
+                        LocalTestCoreSetupGate provides if (com.sbf.lightspeed.system.NightlyFeatures.isCoreSetupGateTesterEnabled) {
+                            {
+                                replayWelcomeFromGuidebook = false
+                                showWhatsNewMorph = false
+                                mountMatrixDeck = false
+                                coreSetupPreviewMode = true
+                                launchGatePhase = "CORE_SETUP"
+                            }
+                        } else {
+                            null
                         },
                         LocalTestWarmupGate provides if (com.sbf.lightspeed.system.NightlyFeatures.isWarmupGateTesterEnabled) {
                             {
@@ -245,7 +263,7 @@ fun MainSettingsScreen() {
                                     LightspeedPreferences.setMasterFlightArmed(context, next)
                                     LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
                                     LightspeedFlightNotificationManager.update(context)
-                                    Toast.makeText(context, if (next) "Flight Mode: ARMED" else "Flight Mode: STANDBY", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, if (next) lsString(R.string.ls_toast_flight_armed) else lsString(R.string.ls_toast_flight_standby), Toast.LENGTH_SHORT).show()
                                 }
                                 "toggle_all_deflectors" -> {
                                     val leftOn = LightspeedPreferences.isLeftDeflectorEnabled(context)
@@ -255,21 +273,21 @@ fun MainSettingsScreen() {
                                     LightspeedPreferences.setRightDeflectorEnabled(context, next)
                                     LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
                                     LightspeedFlightNotificationManager.update(context)
-                                    Toast.makeText(context, if (next) "All Deflectors: ACTIVE" else "All Deflectors: MUTED", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, if (next) lsString(R.string.ls_toast_all_deflectors_on) else lsString(R.string.ls_toast_all_deflectors_off), Toast.LENGTH_SHORT).show()
                                 }
                                 "toggle_left_deflector" -> {
                                     val next = !LightspeedPreferences.isLeftDeflectorEnabled(context)
                                     LightspeedPreferences.setLeftDeflectorEnabled(context, next)
                                     LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
                                     LightspeedFlightNotificationManager.update(context)
-                                    Toast.makeText(context, if (next) "Left Flank: ACTIVE" else "Left Flank: MUTED", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, if (next) lsString(R.string.ls_toast_left_flank_on) else lsString(R.string.ls_toast_left_flank_off), Toast.LENGTH_SHORT).show()
                                 }
                                 "toggle_right_deflector" -> {
                                     val next = !LightspeedPreferences.isRightDeflectorEnabled(context)
                                     LightspeedPreferences.setRightDeflectorEnabled(context, next)
                                     LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
                                     LightspeedFlightNotificationManager.update(context)
-                                    Toast.makeText(context, if (next) "Right Flank: ACTIVE" else "Right Flank: MUTED", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, if (next) lsString(R.string.ls_toast_right_flank_on) else lsString(R.string.ls_toast_right_flank_off), Toast.LENGTH_SHORT).show()
                                 }
                                 else -> {
                                     showCentralCommandDeck = true
@@ -278,12 +296,12 @@ fun MainSettingsScreen() {
                         },
                         headerControl = {
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(40.dp)
+                                        .size(36.dp)
                                         .clip(CircleShape)
                                         .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                         .onGloballyPositioned { coords ->
@@ -301,119 +319,30 @@ fun MainSettingsScreen() {
                                 ) {
                                     Icon(
                                         Icons.Default.FormatSize,
-                                        contentDescription = "Central Command Typography",
+                                        contentDescription = lsString(R.string.ls_cd_typography),
                                         tint = colorScheme.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
-                                Box {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                            .clickable { showGuidebook = true }
-                                            .pointerInput(Unit) {
-                                                detectDragGesturesAfterLongPress(
-                                                    onDragStart = { _ ->
-                                                        LightspeedHapticEngine.tick(context)
-                                                        showLanguageHud = true
-                                                        activeLanguageIndex = when (LightspeedLanguageEngine.mode) {
-                                                            LightspeedLanguageEngine.LanguageMode.VESSEL_LORE -> 0
-                                                            LightspeedLanguageEngine.LanguageMode.CO_PILOT -> 1
-                                                            LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS -> 2
-                                                            else -> 0
-                                                        }
-                                                    },
-                                                    onDragEnd = {
-                                                        showLanguageHud = false
-                                                        if (activeLanguageIndex != -1) {
-                                                            val mode = when (activeLanguageIndex) {
-                                                                0 -> LightspeedLanguageEngine.LanguageMode.VESSEL_LORE
-                                                                1 -> LightspeedLanguageEngine.LanguageMode.CO_PILOT
-                                                                2 -> LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS
-                                                                else -> return@detectDragGesturesAfterLongPress
-                                                            }
-                                                            if (LightspeedLanguageEngine.mode != mode) {
-                                                                LightspeedLanguageEngine.setMode(context, mode)
-                                                                LightspeedHapticEngine.click(context)
-                                                            }
-                                                        }
-                                                    },
-                                                    onDragCancel = { showLanguageHud = false },
-                                                    onDrag = { change, _ ->
-                                                        val x = change.position.x
-                                                        val density = context.resources.displayMetrics.density
-                                                        val xDp = x / density
-                                                        val newIndex = when {
-                                                            xDp < -15 -> 0
-                                                            xDp > 55 -> 2
-                                                            else -> 1
-                                                        }
-                                                        if (newIndex != activeLanguageIndex) {
-                                                            activeLanguageIndex = newIndex
-                                                            LightspeedHapticEngine.tick(context)
-                                                        }
-                                                    }
-                                                )
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            Icons.AutoMirrored.Outlined.MenuBook,
-                                            contentDescription = "The Stranded in Space Guidebook",
-                                            tint = colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
+                                GuidebookLanguageButton(onOpenGuidebook = { showGuidebook = true })
 
-                                    if (showLanguageHud) {
-                                        Popup(alignment = Alignment.TopCenter, offset = IntOffset(0, -180)) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(24.dp))
-                                                    .background(LightspeedTokens.TacticalMenuSurface.copy(alpha = 0.95f))
-                                                    .padding(6.dp),
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                @Composable
-                                                fun HudItem(title: String, isSelected: Boolean) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .clip(RoundedCornerShape(16.dp))
-                                                            .background(if (isSelected) colorScheme.primary else Color.Transparent)
-                                                            .padding(horizontal = 16.dp, vertical = 10.dp)
-                                                    ) {
-                                                        Text(
-                                                            text = title,
-                                                            color = if (isSelected) colorScheme.onPrimary else LightspeedStyle.colors.textPrimary.copy(alpha = 0.7f),
-                                                            fontSize = 13.sp,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
-                                                }
-                                                HudItem("Space Lore", activeLanguageIndex == 0)
-                                                HudItem("Bilingual", activeLanguageIndex == 1)
-                                                HudItem("Clear Comms", activeLanguageIndex == 2)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                IconButton(
-                                    onClick = {
-                                        isAllExpanded = !isAllExpanded
-                                        toggleAllTrigger++
-                                    },
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                    )
+                                Box(
+                                    modifier = Modifier
+                                        .width(30.dp)
+                                        .height(38.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                        .clickable {
+                                            isAllExpanded = !isAllExpanded
+                                            toggleAllTrigger++
+                                        },
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = if (isAllExpanded) Icons.Outlined.UnfoldLess else Icons.Outlined.UnfoldMore,
-                                        contentDescription = "Expand or Collapse All",
+                                        contentDescription = lsString(R.string.ls_cd_expand_collapse),
                                         tint = colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(19.dp)
                                     )
                                 }
                             }
@@ -513,7 +442,11 @@ fun MainSettingsScreen() {
                                 (!showWhatsNewMorph && startWelcomeForInitialGate),
                             onDismiss = {
                                 if (launchGatePhase == "WHATS_NEW") {
-                                    launchGatePhase = "WARMING_UP"
+                                    launchGatePhase = if (!LightspeedWatchdogEngine.isAccessibilityServiceEnabled(context)) {
+                                        "CORE_SETUP"
+                                    } else {
+                                        "WARMING_UP"
+                                    }
                                 }
                                 startWelcomeForInitialGate = false
                                 replayWelcomeFromGuidebook = false
@@ -521,13 +454,53 @@ fun MainSettingsScreen() {
                             },
                             onOpenInfinityUnlock = {
                                 if (launchGatePhase == "WHATS_NEW") {
-                                    launchGatePhase = "WARMING_UP"
+                                    launchGatePhase = if (!LightspeedWatchdogEngine.isAccessibilityServiceEnabled(context)) {
+                                        "CORE_SETUP"
+                                    } else {
+                                        "WARMING_UP"
+                                    }
                                 }
                                 startWelcomeForInitialGate = false
                                 replayWelcomeFromGuidebook = false
                                 showWhatsNewMorph = false
                                 showSupporterInfinityDialog = true
                             }
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = launchGatePhase == "CORE_SETUP" && !showWhatsNewMorph,
+                        enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
+                            scaleIn(
+                                initialScale = 0.94f,
+                                animationSpec = spring(
+                                    dampingRatio = 0.85f,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            ),
+                        exit = fadeOut(animationSpec = tween(durationMillis = 170)) +
+                            scaleOut(
+                                targetScale = 0.96f,
+                                animationSpec = tween(durationMillis = 170)
+                            )
+                    ) {
+                        CentralCommandCoreSetupPanel(
+                            context = context,
+                            previewMode = coreSetupPreviewMode,
+                            onClosePreview = {
+                                coreSetupPreviewMode = false
+                                mountMatrixDeck = true
+                                launchGatePhase = "READY"
+                            },
+                            onCoreArmed = {
+                                launchGatePhase = if (CentralCommandWarmupCoordinator.isUiWarmed) {
+                                    mountMatrixDeck = true
+                                    "READY"
+                                } else {
+                                    "WARMING_UP"
+                                }
+                            },
+                            onOpenGuidebook = { showGuidebook = true }
                         )
                     }
 

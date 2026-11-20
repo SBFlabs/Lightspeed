@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import com.sbf.lightspeed.system.safeReloadPreferences
 
 import android.content.Context
@@ -33,19 +36,19 @@ fun HorizonRailGeometrySection(
     }
 
     CollapsibleSubSection(
-        title = "Horizon Rail Geometry & Stacking",
-        subtitle = "Span, orientation display rules, safe-margins, glow & offsets",
+        title = lsString(R.string.sec_horizon_rail_geometry_stacking),
+        subtitle = lsString(R.string.secd_span_orientation_display_rules),
         isExpanded = isExpanded,
         onToggle = onToggle
     ) {
         val currentRailOrientMode = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_ORIENTATION_MODE, "both") ?: "both"
         val railOrientOptions = listOf(
-            "both" to "🔄 Both Orientations (Always Active)",
-            "landscape_only" to "📐 Landscape Only (Horizontal Deck)",
-            "portrait_only" to "📱 Portrait Only"
+            "both" to lsString(R.string.hr_orient_both),
+            "landscape_only" to lsString(R.string.hr_orient_land),
+            "portrait_only" to lsString(R.string.hr_orient_port)
         )
         PrefDropdownSelector(
-            title = "RAIL ORIENTATION DISPLAY RULE",
+            title = lsString(R.string.hr_orient_rule),
             currentKey = currentRailOrientMode,
             options = railOrientOptions,
             onSelected = { key ->
@@ -69,12 +72,12 @@ fun HorizonRailGeometrySection(
 
         val currentRailAlign = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_ALIGN, "center") ?: "center"
         val railAlignOptions = listOf(
-            "center" to "Center Aligned",
-            "left" to "Left Aligned",
-            "right" to "Right Aligned"
+            "center" to lsString(R.string.hr_align_center),
+            "left" to lsString(R.string.hr_align_left),
+            "right" to lsString(R.string.hr_align_right)
         )
         PrefDropdownSelector(
-            title = "RAIL ALIGNMENT",
+            title = lsString(R.string.hr_align_header),
             currentKey = currentRailAlign,
             options = railAlignOptions,
             onSelected = { key ->
@@ -84,20 +87,20 @@ fun HorizonRailGeometrySection(
             }
         )
 
-        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_offset_x", "", "Horizontal Offset (X Axis)", -100, 100, 5, 0)
+        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_OFFSET_X, "", "Horizontal Offset (X Axis)", -100, 100, 5, 0)
         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_OFFSET_Y, "", "Vertical Offset Y (0 to 40dp)", 0, 40, 1, 0)
-        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_thickness", "", "Line Thickness (dp)", 1, 6, 1, 2)
+        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, "", "Line Thickness (dp)", 1, 6, 1, 2)
         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_STACK_SPACING, "", "Inter-Rail Stack Spacing (0 to 6dp)", 0, 6, 1, 0)
-        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_glow", "", "Glow Radiance Intensity (%)", 0, 100, 5, 60)
-        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_track_opacity", "", "Inactive Track Opacity (%)", 0, 100, 5, 15)
+        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_GLOW, "", "Glow Radiance Intensity (%)", 0, 100, 5, 60)
+        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_TRACK_OPACITY, "", "Inactive Track Opacity (%)", 0, 100, 5, 15)
         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, "", "Max Concurrent Rails (1 to 3)", 1, 3, 1, 2)
 
         PrefToggleRow(
             prefs = prefs,
             prefKey = LightspeedPreferences.KEY_HORIZON_RAIL_DROP_SHADOW,
             defaultVal = true,
-            title = "Ambient Drop Shadow & Contrast Trench",
-            subtitle = "Renders a dark ambient occlusion shadow underneath the rails to maintain crisp separation from matching wallpapers and light backgrounds.",
+            title = lsString(R.string.hr_shadow_title),
+            subtitle = lsString(R.string.hr_shadow_sub),
             onChanged = { onRefreshNeeded() }
         )
 
@@ -105,8 +108,8 @@ fun HorizonRailGeometrySection(
             prefs = prefs,
             prefKey = LightspeedPreferences.KEY_HORIZON_RAIL_TERMINAL_CAPS,
             defaultVal = true,
-            title = "Tactical Head Caps & End Markers",
-            subtitle = "Renders high-contrast specular notches at the progress head of each rail for pinpoint completion readout.",
+            title = lsString(R.string.hr_caps_title),
+            subtitle = lsString(R.string.hr_caps_sub),
             onChanged = { onRefreshNeeded() }
         )
 
@@ -114,7 +117,7 @@ fun HorizonRailGeometrySection(
             prefs = prefs,
             prefKey = LightspeedPreferences.KEY_HORIZON_RAIL_STATUS_BAR_GUARD,
             defaultVal = true,
-            title = "Status Bar Text Safe Guard",
+            title = lsString(R.string.hr_safeguard),
             subtitle = "Keeps ticker text away from the system clock and battery icons in both portrait and landscape, using the safe margins in the \"Horizon Rail Micro-Text Ticker\" section.",
             onChanged = { onRefreshNeeded() }
         )
@@ -124,19 +127,19 @@ fun HorizonRailGeometrySection(
 
         val currentPriority = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_PRIORITY, "downloads_top") ?: "downloads_top"
         val priorityOptions = listOf(
-            "downloads_top" to "⬇ Pin Downloads on Top (Shows Text Ticker)",
-            "media_top" to "♫ Pin Media on Top (Shows Text Ticker)",
-            "most_recent" to "⏱ Most Recent Stream on Top"
+            "downloads_top" to lsString(R.string.hr_pin_dl),
+            "media_top" to lsString(R.string.hr_pin_media),
+            "most_recent" to lsString(R.string.hr_pin_recent)
         )
         Text(
-            text = "Select which active stream is pinned at the top and displays the typography ticker.",
+            text = lsString(R.string.hr_pin_desc),
             fontSize = 11.sp,
             color = LightspeedStyle.colors.textDisabled,
             lineHeight = 14.sp,
             modifier = Modifier.padding(top = 4.dp)
         )
         PrefDropdownSelector(
-            title = "MULTI-RAIL PINNING & PRIORITY",
+            title = lsString(R.string.hr_pin_header),
             currentKey = currentPriority,
             options = priorityOptions,
             onSelected = { key ->

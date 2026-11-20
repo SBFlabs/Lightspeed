@@ -10,8 +10,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -23,9 +28,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -70,66 +78,107 @@ fun DeckDialog(
     icon: (@Composable () -> Unit)? = null,
     confirmButton: (@Composable () -> Unit)? = null,
     dismissButton: (@Composable () -> Unit)? = null,
+    scrollable: Boolean = true,
     properties: DialogProperties = DialogProperties(usePlatformDefaultWidth = false),
     content: (@Composable ColumnScope.() -> Unit)? = null
 ) {
+    // Compose Dialog creates a separate window whose LocalDensity resets to Android OS system
+    // fontScale/density. Re-provide the active Lightspeed density + fontScale inside the dialog.
+    val activeDensity = LocalDensity.current
+    val maxDialogH = (LocalConfiguration.current.screenHeightDp.dp * 0.86f).coerceAtLeast(240.dp)
     Dialog(onDismissRequest = onDismissRequest, properties = properties) {
-        val snapshot = LocalDeckTheme.current
-        val view = LocalView.current
-        SideEffect {
-            val dialogWindow = (view.parent as? DialogWindowProvider)?.window
-            dialogWindow?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
-            dialogWindow?.setDimAmount(snapshot.dimAmount)
-            dialogWindow?.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
-            dialogWindow?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-        }
+        CompositionLocalProvider(LocalDensity provides activeDensity) {
+            val snapshot = LocalDeckTheme.current
+            val view = LocalView.current
+            SideEffect {
+                val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+                dialogWindow?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+                dialogWindow?.setDimAmount(snapshot.dimAmount)
+                dialogWindow?.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+                dialogWindow?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.90f)
-                .widthIn(min = 320.dp, max = 480.dp)
-                .padding(vertical = 20.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            DeckGlassCardSurface(
-                modifier = modifier.fillMaxWidth().wrapContentHeight(),
-                isFlyout = true
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .widthIn(max = 480.dp)
+                    .padding(vertical = 16.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                    if (icon != null) {
-                        Box(modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp)) {
-                            icon()
-                        }
-                    }
-                    if (title != null) {
-                        CompositionLocalProvider(
-                            LocalTextStyle provides MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = LightspeedStyle.colors.textPrimary
-                            )
-                        ) { title() }
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
-                    if (text != null) {
-                        CompositionLocalProvider(
-                            LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        ) { text() }
-                    }
-                    content?.invoke(this)
-                    if (confirmButton != null || dismissButton != null) {
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (dismissButton != null) {
-                                dismissButton()
-                                Spacer(modifier = Modifier.width(8.dp))
+                DeckGlassCardSurface(
+                    modifier = modifier
+                        .fillMaxWidth()
+                        .heightIn(max = maxDialogH)
+                        .wrapContentHeight(),
+                    isFlyout = true
+                ) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+                            if (icon != null) {
+                                Box(modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp, end = 24.dp)) {
+                                    icon()
+                                }
                             }
-                            confirmButton?.invoke()
+                            if (title != null) {
+                                Box(modifier = Modifier.fillMaxWidth().padding(end = 30.dp)) {
+                                    CompositionLocalProvider(
+                                        LocalTextStyle provides MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = LightspeedStyle.colors.textPrimary
+                                        )
+                                    ) { title() }
+                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+                            }
+                            val bodyModifier = if (scrollable) {
+                                Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f, fill = false)
+                                    .verticalScrollWithEdgeFade()
+                            } else {
+                                Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f, fill = false)
+                            }
+                            Column(modifier = bodyModifier) {
+                                if (text != null) {
+                                    CompositionLocalProvider(
+                                        LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    ) { text() }
+                                }
+                                content?.invoke(this)
+                            }
+                            if (confirmButton != null || dismissButton != null) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (dismissButton != null) {
+                                        dismissButton()
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                    }
+                                    confirmButton?.invoke()
+                                }
+                            }
+                        }
+
+                        IconButton(
+                            onClick = onDismissRequest,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                                .size(30.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = LightspeedStyle.colors.textSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
                 }
@@ -161,7 +210,10 @@ fun DeckCard(
 
     Box(
         modifier = modifier
-            .clip(effectiveShape)
+            .graphicsLayer {
+                this.shape = effectiveShape
+                this.clip = true
+            }
             .deckGlassSurface(
                 snapshot = snapshot,
                 isBlurAvailable = isBlurAvailable,
@@ -190,42 +242,56 @@ fun DeckButton(
     contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 9.dp),
     content: @Composable RowScope.() -> Unit
 ) {
-    val cornerRadius = (snapshot.cornerRadiusDp * 0.40f).coerceIn(8f, 14f).dp
+    val isM3 = snapshot.styleId == "material3"
+    // Sharp tactical rectangle (8..12.dp) to stay visually distinct from Central Command's rounded tab pills
+    val cornerRadius = if (isM3) 10.dp else (snapshot.cornerRadiusDp * 0.34f).coerceIn(8f, 12f).dp
     val shape = RoundedCornerShape(cornerRadius)
-    val borderWidth = (snapshot.borderWidthDp * 0.85f).coerceIn(1f, 1.8f).dp
+    val borderWidth = if (isM3) 1.dp else (snapshot.borderWidthDp * 0.75f).coerceIn(0.9f, 1.3f).dp
 
     val opticalColors = snapshot.resolveOpticalColors()
-    val tintColor = if (isDestructive) MaterialTheme.colorScheme.error else opticalColors.readableTintColor
+    val colorScheme = MaterialTheme.colorScheme
+    val tintColor = if (isDestructive) colorScheme.error else opticalColors.readableTintColor
     val panelColor = opticalColors.panelColor
-    val borderColor = if (isDestructive) MaterialTheme.colorScheme.error.copy(alpha = 0.60f) else opticalColors.borderColor
+    val borderColor = if (isDestructive) colorScheme.error.copy(alpha = 0.55f) else opticalColors.borderColor
+    val isLightPanel = panelColor.luminance() > 0.5f
 
     val contentColor = when {
-        !isEnabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-        isDestructive -> MaterialTheme.colorScheme.error
-        isActive -> tintColor
-        else -> Color.White.copy(alpha = 0.92f)
+        !isEnabled -> colorScheme.onSurface.copy(alpha = 0.38f)
+        isM3 && isDestructive -> colorScheme.onErrorContainer
+        isM3 && isActive -> colorScheme.primary
+        isM3 -> colorScheme.onSurface
+        isDestructive -> colorScheme.error
+        isActive -> if (isLightPanel) colorScheme.primary else tintColor
+        isLightPanel -> colorScheme.onSurface.copy(alpha = 0.92f)
+        else -> Color.White.copy(alpha = 0.94f)
     }
 
-    val containerBrush = when {
-        !isEnabled -> Brush.verticalGradient(listOf(panelColor.copy(alpha = 0.25f), panelColor.copy(alpha = 0.18f)))
-        isDestructive -> Brush.verticalGradient(listOf(MaterialTheme.colorScheme.error.copy(alpha = 0.28f), panelColor.copy(alpha = 0.80f)))
-        isActive -> Brush.verticalGradient(listOf(tintColor.copy(alpha = 0.32f), panelColor.copy(alpha = 0.80f)))
-        else -> Brush.verticalGradient(listOf(panelColor.copy(alpha = 0.70f), panelColor.copy(alpha = 0.55f)))
+    val containerColor = when {
+        !isEnabled -> colorScheme.onSurface.copy(alpha = 0.08f)
+        isM3 && isDestructive -> colorScheme.errorContainer
+        isM3 && isActive -> colorScheme.primary.copy(alpha = 0.16f)
+        isM3 -> colorScheme.surfaceContainerHighest
+        isDestructive -> colorScheme.error.copy(alpha = 0.22f)
+        isActive -> tintColor.copy(alpha = if (isLightPanel) 0.16f else 0.20f)
+        else -> Color.White.copy(alpha = 0.10f)
     }
 
     val currentBorder = when {
-        !isEnabled -> BorderStroke(borderWidth, borderColor.copy(alpha = 0.15f))
-        isDestructive -> BorderStroke(borderWidth, MaterialTheme.colorScheme.error.copy(alpha = 0.65f))
-        isActive -> BorderStroke(borderWidth, borderColor.copy(alpha = 0.70f))
-        else -> BorderStroke(borderWidth, borderColor.copy(alpha = 0.35f))
+        !isEnabled -> BorderStroke(borderWidth, borderColor.copy(alpha = 0.12f))
+        isM3 && isActive -> BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.50f))
+        isM3 && isDestructive -> BorderStroke(1.dp, colorScheme.error.copy(alpha = 0.40f))
+        isM3 -> BorderStroke(1.dp, colorScheme.outlineVariant.copy(alpha = 0.65f))
+        isDestructive -> BorderStroke(borderWidth, colorScheme.error.copy(alpha = 0.55f))
+        isActive -> BorderStroke(borderWidth, tintColor.copy(alpha = 0.58f))
+        else -> BorderStroke(borderWidth, borderColor.copy(alpha = 0.30f))
     }
 
     CompositionLocalProvider(LocalContentColor provides contentColor) {
         Surface(
             modifier = modifier
                 .clip(shape)
-                .border(currentBorder, shape)
-                .background(containerBrush)
+                .then(if (currentBorder != null) Modifier.border(currentBorder, shape) else Modifier)
+                .background(containerColor)
                 .combinedClickable(
                     enabled = isEnabled,
                     onClick = onClick
@@ -254,15 +320,6 @@ fun DeckButton(
     isEnabled: Boolean = true,
     snapshot: DeckThemeSnapshot = LocalDeckTheme.current
 ) {
-    val opticalColors = snapshot.resolveOpticalColors()
-    val tintColor = if (isDestructive) MaterialTheme.colorScheme.error else opticalColors.readableTintColor
-    val contentColor = when {
-        !isEnabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-        isDestructive -> MaterialTheme.colorScheme.error
-        isActive -> tintColor
-        else -> Color.White.copy(alpha = 0.92f)
-    }
-
     DeckButton(
         onClick = onClick,
         modifier = modifier,
@@ -271,6 +328,7 @@ fun DeckButton(
         isEnabled = isEnabled,
         snapshot = snapshot
     ) {
+        val contentColor = LocalContentColor.current
         if (icon != null) {
             Icon(
                 imageVector = icon,

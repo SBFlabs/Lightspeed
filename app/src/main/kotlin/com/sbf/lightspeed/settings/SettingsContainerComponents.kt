@@ -9,10 +9,12 @@ import androidx.compose.ui.text.font.FontFamily
 import com.sbf.lightspeed.R
 import kotlin.math.roundToInt
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -198,6 +200,8 @@ fun FloatingOverlayContainer(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 4.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .combinedClickable(
                                 enabled = onTitleClick != null || onTitleLongClick != null,
@@ -209,30 +213,35 @@ fun FloatingOverlayContainer(
                                     onTitleLongClick?.invoke()
                                 }
                             )
-                            .padding(vertical = 2.dp, horizontal = 4.dp)
+                            .padding(vertical = 2.dp, horizontal = 2.dp)
                     ) {
-                        Text(
-                            text = title,
+                        BilingualTitleText(
+                            title = title,
                             fontSize = 20.sp,
+                            minFontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = lsColors.textPrimary
+                            color = lsColors.textPrimary,
+                            preferStacked = true,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                         if (onTitleClick != null || onTitleLongClick != null) {
-                            Spacer(modifier = Modifier.width(3.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
                             Icon(
                                 imageVector = Icons.Default.ExpandMore,
                                 contentDescription = null,
                                 tint = lsColors.textPrimary.copy(alpha = 0.45f),
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(17.dp)
                             )
                         }
                         if (titleBadge != null) {
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             titleBadge()
                         }
                     }
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         headerControl()
@@ -350,26 +359,21 @@ fun CentralCommandFooter(
                 )
             }
 
-            // Buy Me a Coffee Button
+            // Buy Me a Coffee Button — routes through LightspeedInfinityDialog first
+            var showInfinityDialog by remember { mutableStateOf(false) }
+            if (showInfinityDialog) {
+                LightspeedInfinityDialog(
+                    context = context,
+                    onDismiss = { showInfinityDialog = false }
+                )
+            }
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
                     .background(LightspeedTokens.StatusGoldAlt.copy(alpha = 0.16f))
                     .border(0.8.dp, LightspeedTokens.StatusGoldAlt.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
                     .clickable {
-                        try {
-                            val targetUrl = if (com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
-                                "https://buymeacoffee.com/sbflabs"
-                            } else {
-                                "https://buymeacoffee.com/sbflabs/e/579114"
-                            }
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(intent)
-                        } catch (_: Exception) {
-                            Toast.makeText(context, "Unable to launch browser", Toast.LENGTH_SHORT).show()
-                        }
+                        showInfinityDialog = true
                     }
                     .padding(horizontal = 9.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -407,10 +411,15 @@ fun CompactAccordionSection(
 ) {
     val context = LocalContext.current
     val lsColors = LightspeedStyle.colors
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+    val cardShape = remember { RoundedCornerShape(18.dp) }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                this.shape = cardShape
+                this.clip = true
+            }
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -432,12 +441,7 @@ fun CompactAccordionSection(
                     Spacer(modifier = Modifier.width(10.dp))
                 }
                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(
-                        text = title,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = lsColors.textPrimary
-                    )
+                    BilingualTitleText(title = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
                     if (!subtitle.isNullOrBlank()) {
                         Text(
                             text = subtitle,
@@ -457,23 +461,32 @@ fun CompactAccordionSection(
                     modifier = Modifier.size(24.dp)
                 )
             }
-            val activeSnapshot = LocalDeckTheme.current
-            val isJelly = activeSnapshot.styleId == "jelly"
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = if (isJelly) {
-                    expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
-                } else {
-                    expandVertically() + fadeIn()
-                },
-                exit = if (isJelly) {
-                    shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
-                } else {
-                    shrinkVertically() + fadeOut()
-                }
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 10.dp)) {
-                    content()
+            val initialExpanded = remember { isExpanded }
+            var hasBeenExpanded by remember { mutableStateOf(isExpanded) }
+            if (isExpanded && !hasBeenExpanded) {
+                hasBeenExpanded = true
+            }
+            if (hasBeenExpanded) {
+                val activeSnapshot = LocalDeckTheme.current
+                val isJelly = activeSnapshot.styleId == "jelly"
+                val visibleState = remember { MutableTransitionState(initialExpanded) }
+                visibleState.targetState = isExpanded
+                AnimatedVisibility(
+                    visibleState = visibleState,
+                    enter = if (isJelly) {
+                        expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
+                    } else {
+                        expandVertically() + fadeIn()
+                    },
+                    exit = if (isJelly) {
+                        shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
+                    } else {
+                        shrinkVertically() + fadeOut()
+                    }
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 10.dp)) {
+                        content()
+                    }
                 }
             }
         }
@@ -493,11 +506,16 @@ fun CollapsibleSubSection(
 ) {
     val context = LocalContext.current
     val lsColors = LightspeedStyle.colors
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, lsColors.textPrimary.copy(alpha = 0.08f))
+    val subShape = remember { RoundedCornerShape(14.dp) }
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                this.shape = subShape
+                this.clip = true
+            }
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.45f))
+            .border(1.dp, lsColors.textPrimary.copy(alpha = 0.08f), subShape)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -520,12 +538,7 @@ fun CollapsibleSubSection(
                         icon()
                     }
                     Column(modifier = Modifier.weight(1f, fill = false)) {
-                        Text(
-                            text = title,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.5.sp,
-                            color = lsColors.textPrimary
-                        )
+                        BilingualTitleText(title = title, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
                         if (!subtitle.isNullOrBlank()) {
                             Text(
                                 text = subtitle,
@@ -550,28 +563,37 @@ fun CollapsibleSubSection(
                     )
                 }
             }
-            val activeSnapshot = LocalDeckTheme.current
-            val isJelly = activeSnapshot.styleId == "jelly"
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = if (isJelly) {
-                    expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
-                } else {
-                    expandVertically() + fadeIn()
-                },
-                exit = if (isJelly) {
-                    shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
-                } else {
-                    shrinkVertically() + fadeOut()
-                }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 8.dp, end = 8.dp, bottom = 8.dp, top = 2.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+            val initialExpanded = remember { isExpanded }
+            var hasBeenExpanded by remember { mutableStateOf(isExpanded) }
+            if (isExpanded && !hasBeenExpanded) {
+                hasBeenExpanded = true
+            }
+            if (hasBeenExpanded) {
+                val activeSnapshot = LocalDeckTheme.current
+                val isJelly = activeSnapshot.styleId == "jelly"
+                val visibleState = remember { MutableTransitionState(initialExpanded) }
+                visibleState.targetState = isExpanded
+                AnimatedVisibility(
+                    visibleState = visibleState,
+                    enter = if (isJelly) {
+                        expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
+                    } else {
+                        expandVertically() + fadeIn()
+                    },
+                    exit = if (isJelly) {
+                        shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
+                    } else {
+                        shrinkVertically() + fadeOut()
+                    }
                 ) {
-                    content()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 8.dp, end = 8.dp, bottom = 8.dp, top = 2.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        content()
+                    }
                 }
             }
         }
@@ -591,11 +613,16 @@ fun HazardAccordionSection(
     val context = LocalContext.current
     val cautionAmber = lsColors.accentWarn
     val deepBlack = LightspeedTokens.TacticalDeepBlack
-    val hazardStripePath = remember { androidx.compose.ui.graphics.Path() }
+    val hazardShape = remember { RoundedCornerShape(18.dp) }
 
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                this.shape = hazardShape
+                this.clip = true
+            }
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
             .border(
                 1.5.dp,
                 Brush.horizontalGradient(
@@ -605,36 +632,40 @@ fun HazardAccordionSection(
                         cautionAmber.copy(alpha = 0.85f)
                     )
                 ),
-                RoundedCornerShape(18.dp)
-            ),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                hazardShape
+            )
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // 45° Alternating Industrial Caution Amber and Deep Black Diagonal Hazard Hatch Stripe
-            androidx.compose.foundation.Canvas(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
-            ) {
-                val w = size.width
-                val h = size.height
-                val stripeWidth = 10.dp.toPx()
-                var x = -h
-                var isAmber = true
-                while (x < w + h) {
-                    hazardStripePath.reset()
-                    hazardStripePath.moveTo(x, 0f)
-                    hazardStripePath.lineTo(x + stripeWidth, 0f)
-                    hazardStripePath.lineTo(x + stripeWidth + h, h)
-                    hazardStripePath.lineTo(x + h, h)
-                    hazardStripePath.close()
-                    drawPath(hazardStripePath, if (isAmber) cautionAmber else deepBlack)
-                    x += stripeWidth
-                    isAmber = !isAmber
-                }
-            }
+                    .drawWithCache {
+                        val w = size.width
+                        val h = size.height
+                        val stripeWidth = 10.dp.toPx()
+                        val amberPath = androidx.compose.ui.graphics.Path()
+                        val blackPath = androidx.compose.ui.graphics.Path()
+                        var x = -h
+                        var isAmber = true
+                        while (x < w + h) {
+                            val target = if (isAmber) amberPath else blackPath
+                            target.moveTo(x, 0f)
+                            target.lineTo(x + stripeWidth, 0f)
+                            target.lineTo(x + stripeWidth + h, h)
+                            target.lineTo(x + h, h)
+                            target.close()
+                            x += stripeWidth
+                            isAmber = !isAmber
+                        }
+                        onDrawBehind {
+                            drawPath(amberPath, cautionAmber)
+                            drawPath(blackPath, deepBlack)
+                        }
+                    }
+            )
 
             Row(
                 modifier = Modifier
@@ -660,12 +691,7 @@ fun HazardAccordionSection(
                             tint = cautionAmber,
                             modifier = Modifier.size(18.dp)
                         )
-                        Text(
-                            text = title,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = cautionAmber
-                        )
+                        BilingualTitleText(title = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = cautionAmber)
                     }
                     if (!subtitle.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(3.dp))
@@ -688,23 +714,32 @@ fun HazardAccordionSection(
                     modifier = Modifier.size(24.dp)
                 )
             }
-            val activeSnapshot = LocalDeckTheme.current
-            val isJelly = activeSnapshot.styleId == "jelly"
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = if (isJelly) {
-                    expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
-                } else {
-                    expandVertically() + fadeIn()
-                },
-                exit = if (isJelly) {
-                    shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
-                } else {
-                    shrinkVertically() + fadeOut()
-                }
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
-                    content()
+            val initialExpanded = remember { isExpanded }
+            var hasBeenExpanded by remember { mutableStateOf(isExpanded) }
+            if (isExpanded && !hasBeenExpanded) {
+                hasBeenExpanded = true
+            }
+            if (hasBeenExpanded) {
+                val activeSnapshot = LocalDeckTheme.current
+                val isJelly = activeSnapshot.styleId == "jelly"
+                val visibleState = remember { MutableTransitionState(initialExpanded) }
+                visibleState.targetState = isExpanded
+                AnimatedVisibility(
+                    visibleState = visibleState,
+                    enter = if (isJelly) {
+                        expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
+                    } else {
+                        expandVertically() + fadeIn()
+                    },
+                    exit = if (isJelly) {
+                        shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
+                    } else {
+                        shrinkVertically() + fadeOut()
+                    }
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+                        content()
+                    }
                 }
             }
         }

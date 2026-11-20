@@ -15,7 +15,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlin.math.roundToInt
 
@@ -58,9 +60,16 @@ fun HapticDomainSliderRow(
 
     val activeLabel = if (selectedKey.startsWith("custom_")) {
         val pct = selectedKey.removePrefix("custom_").toIntOrNull() ?: 50
-        "Custom ($pct%)"
+        lsString(R.string.hap_prof_custom, pct)
     } else {
-        options.getOrNull(currentIdx)?.second ?: options.firstOrNull()?.second ?: "Standard"
+        when (options.getOrNull(currentIdx)?.first) {
+            "off" -> lsString(R.string.hap_prof_off)
+            "jumps_only" -> lsString(R.string.hap_prof_trans_only)
+            "soft", "soft_low_freq" -> lsString(R.string.hap_prof_soft_full)
+            "tactical" -> lsString(R.string.hap_prof_crisp_full)
+            "heavy" -> lsString(R.string.hap_prof_heavy_full)
+            else -> options.getOrNull(currentIdx)?.second ?: lsString(R.string.hap_prof_standard)
+        }
     }
 
     fun applyKey(newKey: String) {
@@ -188,11 +197,11 @@ fun HapticDomainSliderRow(
             options.forEachIndexed { idx, (key, _) ->
                 val isSelected = (idx == currentIdx && !selectedKey.startsWith("custom_"))
                 val shortLabel = when (key) {
-                    "off" -> "Off"
-                    "jumps_only" -> "Trans"
-                    "soft", "soft_low_freq" -> "Soft"
-                    "heavy" -> "Heavy"
-                    else -> "Crisp"
+                    "off" -> lsString(R.string.hap_prof_off)
+                    "jumps_only" -> lsString(R.string.hap_prof_trans_short)
+                    "soft", "soft_low_freq" -> lsString(R.string.hap_prof_soft)
+                    "heavy" -> lsString(R.string.hap_prof_heavy)
+                    else -> lsString(R.string.hap_prof_crisp)
                 }
                 Text(
                     text = shortLabel,

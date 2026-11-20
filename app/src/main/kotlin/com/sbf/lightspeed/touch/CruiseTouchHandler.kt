@@ -53,6 +53,11 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
             currentDetectedGesture = MacroGesture.NONE
             overScrollBoundaryAccumulator = 0f
             settingsCategoryAppended = false
+            settingsRevealedByHold = false
+            settingsRevealHapticFired = false
+            cancelBottomHoldReveal()
+            categoryFilteredAnchorY = rawY
+            overScrollAnchorRawY = -1f
 
             currentActiveZone = when {
                 centerTouchBounds.contains(x, y) -> TouchZone.CENTER_CRUISE
@@ -233,8 +238,7 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                     val launchTarget = activeItem
                     if (launchTarget != null) {
                         val placed = placedAppsList.find { it.app == launchTarget }
-                        val focalX = placed?.bounds?.centerX() ?: (width / 2f)
-                        val focalY = placed?.bounds?.centerY() ?: (height / 2f)
+                        val (focalX, focalY) = resolvePlacedItemIconCenter(placed)
                         triggerHyperdriveWarpLaunch(focalX, focalY) {
                             executeLaunch(launchTarget)
                         }

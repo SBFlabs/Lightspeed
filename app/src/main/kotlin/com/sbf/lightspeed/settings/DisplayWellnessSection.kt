@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.clickable
@@ -49,6 +52,14 @@ fun DisplayWellnessSection(
 
     var airlockEnabled by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ENABLED, false)) }
     var airlockApps by remember { mutableStateOf(prefs.getStringSet(LightspeedPreferences.KEY_CONSCIOUS_DELAY_PACKAGES, emptySet<String>()) ?: emptySet<String>()) }
+    var airlockAbortMode by remember {
+        mutableStateOf(
+            prefs.getString(
+                LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ABORT_MODE,
+                LightspeedPreferences.AIRLOCK_ABORT_MODE_CLOSE_APP
+            ) ?: LightspeedPreferences.AIRLOCK_ABORT_MODE_CLOSE_APP
+        )
+    }
     var showAppPickerDialog by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -60,8 +71,8 @@ fun DisplayWellnessSection(
                     Icon(Icons.Default.Brightness4, contentDescription = null, tint = lsColors.accentInfo, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("EXTRA DIM (SUB-ZERO)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
-                        Text("Extends brightness downward into OLED sub-zero levels", fontSize = 10.sp, color = lsColors.textSecondary)
+                        Text(lsString(R.string.well_dim_hdr), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                        Text(lsString(R.string.well_dim_sub), fontSize = 10.sp, color = lsColors.textSecondary)
                     }
                 }
                 Switch(
@@ -96,8 +107,8 @@ fun DisplayWellnessSection(
                     Icon(Icons.Default.Visibility, contentDescription = null, tint = lsColors.accentWarn, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("EYE CARE & BLUE LIGHT", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
-                        Text("Native / SurfaceFlinger 1015 / Overlay warm filter", fontSize = 10.sp, color = lsColors.textSecondary)
+                        Text(lsString(R.string.well_eye_hdr), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                        Text(lsString(R.string.well_eye_sub), fontSize = 10.sp, color = lsColors.textSecondary)
                     }
                 }
                 Switch(
@@ -124,7 +135,7 @@ fun DisplayWellnessSection(
                 )
                 Spacer(Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("native" to "Native", "overlay" to "Overlay", "surfaceflinger" to "Compositor").forEach { (m, label) ->
+                    listOf("native" to lsString(R.string.well_native), "overlay" to lsString(R.string.well_overlay), "surfaceflinger" to lsString(R.string.well_compositor)).forEach { (m, label) ->
                         val isSelected = eyeCareMode == m
                         OutlinedButton(
                             onClick = {
@@ -144,7 +155,7 @@ fun DisplayWellnessSection(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = lsColors.borderSubtle)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("20-20-20 Eye Rest Timer", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
+                        Text(lsString(R.string.well_2020_title), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
                         Text("Every ${eyeRestInterval.toInt()} min of continuous screen time", fontSize = 9.5.sp, color = lsColors.textSecondary)
                     }
                     Switch(
@@ -159,13 +170,13 @@ fun DisplayWellnessSection(
                 }
                 if (eyeRestEnabled) {
                     Spacer(Modifier.height(6.dp))
-                    Text("Reminder Strength Mode", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                    Text(lsString(R.string.well_rem_mode), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
                     Spacer(Modifier.height(4.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf(
-                            "fullscreen" to "Full-Screen",
-                            "floating" to "Floating",
-                            "notification" to "Notification"
+                            "fullscreen" to lsString(R.string.well_fullscreen),
+                            "floating" to lsString(R.string.tp_st_floating),
+                            "notification" to lsString(R.string.well_notif)
                         ).forEach { (m, label) ->
                             val isSel = (eyeRestStrength == m)
                             OutlinedButton(
@@ -184,7 +195,7 @@ fun DisplayWellnessSection(
                     }
                     Spacer(Modifier.height(6.dp))
                     DeckButton(
-                        text = "Test 20-20-20 Reminder Now",
+                        text = lsString(R.string.well_test_2020),
                         onClick = {
                             LightspeedEyeCareEngine.triggerReminder(context)
                         },
@@ -201,8 +212,8 @@ fun DisplayWellnessSection(
                     Icon(Icons.Default.GridOn, contentDescription = null, tint = lsColors.accentOk, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("OLED SMART PIXELS", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
-                        Text("Subpixel burn-in safe mesh + installer bypass", fontSize = 10.sp, color = lsColors.textSecondary)
+                        Text(lsString(R.string.well_sp_hdr), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                        Text(lsString(R.string.well_sp_sub), fontSize = 10.sp, color = lsColors.textSecondary)
                     }
                 }
                 Switch(
@@ -217,7 +228,7 @@ fun DisplayWellnessSection(
             if (smartPixelsEnabled) {
                 Spacer(Modifier.height(10.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Mesh Density", fontSize = 11.sp, color = lsColors.textSecondary)
+                    Text(lsString(R.string.well_mesh_dens), fontSize = 11.sp, color = lsColors.textSecondary)
                     Text("$smartPixelsPattern%", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = lsColors.accentOk)
                 }
                 Slider(
@@ -238,8 +249,8 @@ fun DisplayWellnessSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Auto-Disable on Record / Cast", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
-                        Text("Hides pixel mesh during screen recording or wireless mirroring", fontSize = 9.5.sp, color = lsColors.textSecondary)
+                        Text(lsString(R.string.well_autodis_rec), fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
+                        Text(lsString(R.string.well_autodis_sub), fontSize = 9.5.sp, color = lsColors.textSecondary)
                     }
                     Switch(
                         checked = smartPixelsDisableOnCast,
@@ -261,7 +272,7 @@ fun DisplayWellnessSection(
                     Icon(Icons.Default.LockClock, contentDescription = null, tint = lsColors.accentAlert, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("ASTROGATION AIRLOCK (5s DELAY)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                        Text(lsString(R.string.well_airlock_hdr), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
                         Text("${airlockApps.size} apps gated with conscious pause", fontSize = 10.sp, color = lsColors.textSecondary)
                     }
                 }
@@ -281,6 +292,31 @@ fun DisplayWellnessSection(
                     onClick = { showAppPickerDialog = true },
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(Modifier.height(8.dp))
+                Text(lsString(R.string.well_abort_act), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
+                Spacer(Modifier.height(4.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DeckSubChip(
+                        text = "Close App",
+                        isActive = airlockAbortMode != LightspeedPreferences.AIRLOCK_ABORT_MODE_GO_HOME,
+                        onClick = {
+                            airlockAbortMode = LightspeedPreferences.AIRLOCK_ABORT_MODE_CLOSE_APP
+                            prefs.edit().putString(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ABORT_MODE, airlockAbortMode).apply()
+                            onStateChanged()
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    DeckSubChip(
+                        text = lsString(R.string.well_go_home),
+                        isActive = airlockAbortMode == LightspeedPreferences.AIRLOCK_ABORT_MODE_GO_HOME,
+                        onClick = {
+                            airlockAbortMode = LightspeedPreferences.AIRLOCK_ABORT_MODE_GO_HOME
+                            prefs.edit().putString(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ABORT_MODE, airlockAbortMode).apply()
+                            onStateChanged()
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }

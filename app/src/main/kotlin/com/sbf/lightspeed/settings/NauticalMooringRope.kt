@@ -56,7 +56,7 @@ private val _leftCordPath  = Path()   // SeveredMooringPairCard: left hanging co
 private val _rightCordPath = Path()   // SeveredMooringPairCard: right hanging cord
 
 /**
- * Compact Material 3 Expressive braided cord spanning across the top of any gesture row.
+ * Compact Material 3 braided cord spanning across the top of any gesture row.
  * Directly toggles between Unified (Tied/Knotted) and Dual Control (Cut/Severed).
  * 100% text-free and emoji-free: purely visual braided rope with directional arrows and knot state.
  */

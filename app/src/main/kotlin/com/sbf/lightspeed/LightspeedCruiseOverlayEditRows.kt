@@ -21,11 +21,11 @@ internal fun LightspeedCruiseOverlay.drawEditModeCategoryRows(
 ) {
     val tintColor = categoryAccentOverride() ?: snapshot.tintArgb.toInt()
     val borderColor = categoryBorderOverride() ?: snapshot.borderColorArgb.toInt()
-    val textSize = (actualRowH * 0.38f).coerceIn(10f * dp, 12.5f * dp)
+    val textSize = (actualRowH * 0.38f).coerceIn(10f * dp, 12.5f * dp) * overlayTextScale()
     paint.style = Paint.Style.FILL
     paint.textSize = textSize
     paint.textAlign = Paint.Align.LEFT
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.typeface = overlayTypeface(isBold = true)
 
     val fontMetrics = paint.fontMetrics
     val textYOffset = (fontMetrics.descent + fontMetrics.ascent) / 2f
@@ -76,7 +76,7 @@ internal fun LightspeedCruiseOverlay.drawEditModeCategoryRows(
         paint.style = Paint.Style.FILL
         paint.textSize = textSize
         paint.textAlign = Paint.Align.LEFT
-        paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        paint.typeface = overlayTypeface(isBold = true)
         paint.color = Color.argb(245, 240, 245, 255)
         canvas.drawText(cat.label, textX, rowCenterY - textYOffset, paint)
 
@@ -136,7 +136,7 @@ internal fun LightspeedCruiseOverlay.drawEditModeCategoryRows(
         paint.style = Paint.Style.FILL
         paint.textSize = textSize
         paint.textAlign = Paint.Align.LEFT
-        paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        paint.typeface = overlayTypeface(isBold = true)
         paint.color = Color.argb(255, 255, 255, 255)
         canvas.drawText(draggedCat.label, textX, clampedCenterY - textYOffset, paint)
 

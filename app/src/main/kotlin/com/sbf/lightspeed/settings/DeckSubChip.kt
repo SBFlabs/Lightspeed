@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -81,6 +82,7 @@ fun DeckSubChip(
     val contentColor = when {
         !isEnabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
         isActive -> tintColor.copy(alpha = 1f)
+        panelColor.luminance() > 0.5f -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f)
         else -> Color.White.copy(alpha = 0.88f)
     }
 

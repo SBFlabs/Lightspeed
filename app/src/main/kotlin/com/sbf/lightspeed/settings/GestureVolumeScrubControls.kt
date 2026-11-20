@@ -20,9 +20,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlin.math.roundToInt
 
@@ -51,7 +53,7 @@ fun GestureVolumeScrubControls(
     var showVolSliderDialog by remember { mutableStateOf(false) }
 
     DeckSubChip(
-        text = if (hudEnabled) "Hud: ON" else "Hud: OFF",
+        text = if (hudEnabled) lsString(R.string.chip_hud_on) else lsString(R.string.chip_hud_off),
         isActive = hudEnabled,
         snapshot = activeSnapshot,
         onClick = {
@@ -62,7 +64,7 @@ fun GestureVolumeScrubControls(
     )
 
     DeckSubChip(
-        text = if (nativeSliderEnabled) "Native: ON" else "Native: OFF",
+        text = if (nativeSliderEnabled) lsString(R.string.chip_native_on) else lsString(R.string.chip_native_off),
         isActive = nativeSliderEnabled,
         snapshot = activeSnapshot,
         onClick = {
@@ -73,7 +75,7 @@ fun GestureVolumeScrubControls(
     )
 
     DeckSubChip(
-        text = "Res: ${volResolution} ▾",
+        text = lsString(R.string.chip_res, volResolution),
         isActive = false,
         snapshot = activeSnapshot,
         onClick = { showVolSliderDialog = true }
@@ -91,7 +93,7 @@ fun GestureVolumeScrubControls(
             onDismissRequest = { showVolSliderDialog = false },
             title = {
                 Text(
-                    text = "Volume Scrub Resolution",
+                    text = lsString(R.string.dlg_vol_res_title),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = lsColors.textPrimary
@@ -103,7 +105,7 @@ fun GestureVolumeScrubControls(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Graduation steps mapped across the audio volume range (5 to 100 steps / 100th precision).",
+                        text = lsString(R.string.dlg_vol_res_desc),
                         fontSize = 12.sp,
                         color = lsColors.textSecondary.copy(alpha = 0.75f)
                     )
@@ -113,7 +115,7 @@ fun GestureVolumeScrubControls(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Scrub Steps",
+                            text = lsString(R.string.dlg_vol_res_label),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = lsColors.textPrimary
@@ -144,7 +146,7 @@ fun GestureVolumeScrubControls(
                                 )
                         ) {
                             Text(
-                                text = "$curRes Steps (~$pct%)",
+                                text = lsString(R.string.dlg_steps_fmt, curRes, pct),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace,
@@ -178,19 +180,19 @@ fun GestureVolumeScrubControls(
                         showVolSliderDialog = false
                     }
                 ) {
-                    Text("APPLY", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(lsString(R.string.cc_common_apply), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showVolSliderDialog = false }) {
-                    Text("CANCEL", color = lsColors.textSecondary)
+                    Text(lsString(R.string.cc_common_cancel), color = lsColors.textSecondary)
                 }
             }
         )
 
         if (isVolFlyoutOpen) {
             SliderCalibrationFlyoutDialog(
-                title = "Volume Scrub Resolution",
+                title = lsString(R.string.dlg_vol_res_title),
                 sliderKey = volKey,
                 currentValueStr = "${tempRes.roundToInt().coerceIn(5, 100)}",
                 defaultValueStr = "100",

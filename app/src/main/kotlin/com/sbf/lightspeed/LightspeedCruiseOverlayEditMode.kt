@@ -47,8 +47,8 @@ internal val CATEGORY_COLOR_ENGINE_OPTIONS = listOf(
 internal fun LightspeedCruiseOverlay.categoryColorMode(): String =
     context.defaultPrefs().getString(
         LightspeedPreferences.KEY_CATEGORY_CRUISE_COLOR_MODE,
-        LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12
-    ) ?: LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12
+        LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
+    ) ?: LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
 
 /** Accent ARGB for Category Cruise highlights, or null in 12-Theme mode (keep legacy per-element theme colors). */
 internal fun LightspeedCruiseOverlay.categoryAccentOverride(): Int? {
@@ -56,6 +56,15 @@ internal fun LightspeedCruiseOverlay.categoryAccentOverride(): Int? {
     if (mode == LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12) return null
     return com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
         .resolveCanvasPalette(context, mode).primaryAccentArgb
+}
+
+/**
+ * Ensures the focused Category Cruise icon + label always share one unmistakable non-white chromatic accent
+ * across 12-Theme, Hybrid, and Material 3 modes (so focused categories stand out sharply from white neighbors).
+ */
+internal fun LightspeedCruiseOverlay.categoryFocusAccentColor(fallbackAccent: Int): Int {
+    val rawAccent = categoryAccentOverride() ?: fallbackAccent
+    return com.sbf.lightspeed.settings.ensureChromaticAccentColor(rawAccent)
 }
 
 /** Border ARGB for Category Cruise panels & dividers, or null if using 12-theme borders. */
@@ -83,6 +92,20 @@ internal val CATEGORY_HUD_RADIUS_OPTIONS = listOf(
     16 to "ROUNDED",
     26 to "PILL"
 )
+
+internal val CATEGORY_LAUNCH_SPARK_OPTIONS = listOf(
+    "photon_burst" to "PHOTON",
+    "nova_bloom" to "HALO",
+    "quantum_cross" to "FLARE",
+    "ion_embers" to "EMBERS",
+    "clean_fade" to "MINIMAL"
+)
+
+internal fun LightspeedCruiseOverlay.categoryLaunchSparkStyle(): String =
+    context.defaultPrefs().getString(
+        LightspeedPreferences.KEY_CATEGORY_CRUISE_LAUNCH_SPARK_STYLE,
+        LightspeedPreferences.DEFAULT_CATEGORY_CRUISE_LAUNCH_SPARK_STYLE
+    ) ?: LightspeedPreferences.DEFAULT_CATEGORY_CRUISE_LAUNCH_SPARK_STYLE
 
 internal fun LightspeedCruiseOverlay.categoryHudCornerRadiusPx(): Float {
     val dp = resources.displayMetrics.density
@@ -149,7 +172,7 @@ internal fun LightspeedCruiseOverlay.getUnsavedPromptBounds(): RectF {
 }
 
 internal fun LightspeedCruiseOverlay.getEditModeRowCount(): Int =
-    if (editModeTab == EditModeTab.HUD) 9 else (editModeCategories.size + 2)
+    if (editModeTab == EditModeTab.HUD) 10 else (editModeCategories.size + 2)
 
 internal fun LightspeedCruiseOverlay.getEditModePanelBounds(): RectF {
     val dp = resources.displayMetrics.density
@@ -180,7 +203,9 @@ internal data class HudStyleTabLayout(
     val feelPills: List<Pair<String, RectF>>,
     val feelLabelY: Float,
     val radiusPills: List<Pair<Int, RectF>>,
-    val radiusLabelY: Float
+    val radiusLabelY: Float,
+    val sparkPills: List<Pair<String, RectF>>,
+    val sparkLabelY: Float
 )
 
 internal fun computeHudStyleTabLayout(
@@ -192,12 +217,12 @@ internal fun computeHudStyleTabLayout(
     val margin = 10f * dp
     val contentW = (bounds.width() - margin * 2f).coerceAtLeast(1f)
     val contentTop = tabRowBottom + 10f * dp
-    val contentH = (btnRowTop - contentTop - 8f * dp).coerceAtLeast(160f * dp)
-    val scaleY = (contentH / 236f / dp).coerceIn(0.76f, 1.15f)
-    val pillH = 24f * dp * scaleY
+    val contentH = (btnRowTop - contentTop - 8f * dp).coerceAtLeast(180f * dp)
+    val scaleY = (contentH / 288f / dp).coerceIn(0.68f, 1.15f)
+    val pillH = 23f * dp * scaleY
     val gap = 4f * dp
-    val sectionGap = 11f * dp * scaleY
-    val labelHeight = 14f * dp * scaleY
+    val sectionGap = 9.5f * dp * scaleY
+    val labelHeight = 13.5f * dp * scaleY
 
     var y = contentTop
     val openInPlaceRect = RectF(bounds.left + margin, y, bounds.right - margin, y + pillH * 1.12f)
@@ -220,6 +245,7 @@ internal fun computeHudStyleTabLayout(
     val (spacingLabelY, spacingPills) = buildRow(CATEGORY_SPACING_OPTIONS)
     val (feelLabelY, feelPills) = buildRow(CATEGORY_PHYSICS_OPTIONS)
     val (radiusLabelY, radiusPills) = buildRow(CATEGORY_HUD_RADIUS_OPTIONS)
+    val (sparkLabelY, sparkPills) = buildRow(CATEGORY_LAUNCH_SPARK_OPTIONS)
 
     return HudStyleTabLayout(
         openInPlaceRect = openInPlaceRect,
@@ -230,7 +256,9 @@ internal fun computeHudStyleTabLayout(
         feelPills = feelPills,
         feelLabelY = feelLabelY,
         radiusPills = radiusPills,
-        radiusLabelY = radiusLabelY
+        radiusLabelY = radiusLabelY,
+        sparkPills = sparkPills,
+        sparkLabelY = sparkLabelY
     )
 }
 
@@ -343,8 +371,8 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
     // Tab labels
     paint.style = Paint.Style.FILL
     paint.textAlign = Paint.Align.CENTER
-    paint.textSize = (actualRowH * 0.36f).coerceIn(10f * dp, 12.5f * dp)
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.textSize = (actualRowH * 0.36f).coerceIn(10f * dp, 12.5f * dp) * overlayTextScale()
+    paint.typeface = overlayTypeface(isBold = true)
     val tabFontMetrics = paint.fontMetrics
     val tabTextYOffset = (tabFontMetrics.descent + tabFontMetrics.ascent) / 2f
 
@@ -353,11 +381,11 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
 
     // "Page" tab
     paint.color = if (editModeTab == EditModeTab.PAGE) m3Accent else unselectedTabColor
-    canvas.drawText("Page", bounds.left + (tabW * 0.5f), tabRowCenterY - tabTextYOffset, paint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_tab_page).ifBlank { "Page" }, bounds.left + (tabW * 0.5f), tabRowCenterY - tabTextYOffset, paint)
 
     // "HUD Style" tab
     paint.color = if (editModeTab == EditModeTab.HUD) m3Accent else unselectedTabColor
-    canvas.drawText("HUD Style", bounds.left + (tabW * 1.5f), tabRowCenterY - tabTextYOffset, paint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_tab_hud_style).ifBlank { "HUD Style" }, bounds.left + (tabW * 1.5f), tabRowCenterY - tabTextYOffset, paint)
 
     // Active indicator underline
     paint.style = Paint.Style.STROKE
@@ -387,11 +415,11 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
     paint.color = Color.argb(50, Color.red(borderColor), Color.green(borderColor), Color.blue(borderColor))
     canvas.drawLine(bounds.left, btnRowTop, bounds.right, btnRowTop, paint)
 
-    val btnTextSize = (actualRowH * 0.32f).coerceIn(8.5f * dp, 11f * dp)
+    val btnTextSize = (actualRowH * 0.32f).coerceIn(8.5f * dp, 11f * dp) * overlayTextScale()
     paint.style = Paint.Style.FILL
     paint.textAlign = Paint.Align.CENTER
     paint.textSize = btnTextSize
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.typeface = overlayTypeface(isBold = true)
 
     if (editModeTab == EditModeTab.PAGE) {
         // Vertical dividers between buttons
@@ -415,15 +443,15 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
 
         // "Most used"
         paint.color = Color.argb(225, 235, 240, 255)
-        canvas.drawText("Most used", bounds.left + (btnW * 1.5f), btnRowCenterY - btnTextYOffset, paint)
+        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_btn_most_used).ifBlank { "Most used" }, bounds.left + (btnW * 1.5f), btnRowCenterY - btnTextYOffset, paint)
 
         // "Default"
         paint.color = Color.argb(225, 235, 240, 255)
-        canvas.drawText("Default", bounds.left + (btnW * 2.5f), btnRowCenterY - btnTextYOffset, paint)
+        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_btn_default).ifBlank { "Default" }, bounds.left + (btnW * 2.5f), btnRowCenterY - btnTextYOffset, paint)
 
         // "Save"
         paint.color = m3Accent
-        canvas.drawText("Save", bounds.left + (btnW * 3.5f), btnRowCenterY - btnTextYOffset, paint)
+        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_btn_save).ifBlank { "Save" }, bounds.left + (btnW * 3.5f), btnRowCenterY - btnTextYOffset, paint)
     } else {
         // Vertical divider before Save
         paint.color = Color.argb(40, Color.red(borderColor), Color.green(borderColor), Color.blue(borderColor))
@@ -434,7 +462,7 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
 
         // "Save"
         paint.color = m3Accent
-        canvas.drawText("Save", bounds.left + (btnW * 3.5f), btnRowCenterY - btnTextYOffset, paint)
+        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_btn_save).ifBlank { "Save" }, bounds.left + (btnW * 3.5f), btnRowCenterY - btnTextYOffset, paint)
     }
 
     if (isCategoryIconPickerOpen) {
@@ -467,12 +495,16 @@ private fun LightspeedCruiseOverlay.drawHudStyleTabBody(
 
     paint.style = Paint.Style.FILL
     paint.textAlign = Paint.Align.CENTER
-    paint.textSize = 8.4f * dp
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.textSize = 8.4f * dp * overlayTextScale()
+    paint.typeface = overlayTypeface(isBold = true)
+    val editInPlaceLabel = com.sbf.lightspeed.system.lsString(R.string.ed_btn_edit_inplace).ifBlank { "EDIT HUD WIDGETS IN-PLACE" }
+    while (paint.measureText(editInPlaceLabel) > shortcutRect.width() - 8f * dp && paint.textSize > 6f * dp) {
+        paint.textSize -= 0.4f * dp
+    }
     paint.color = Color.WHITE
     val sfm = paint.fontMetrics
     canvas.drawText(
-        "EDIT HUD WIDGETS IN-PLACE",
+        editInPlaceLabel,
         shortcutRect.centerX(),
         shortcutRect.centerY() - ((sfm.descent + sfm.ascent) / 2f),
         paint
@@ -482,14 +514,14 @@ private fun LightspeedCruiseOverlay.drawHudStyleTabBody(
     drawHudStyleOptionGroup(
         canvas = canvas,
         paint = paint,
-        title = "COLOR ENGINE",
+        title = com.sbf.lightspeed.system.lsString(R.string.ed_lbl_color_engine).ifBlank { "COLOR ENGINE" },
         titleX = bounds.left + 12f * dp,
         titleY = layout.colorLabelY,
         options = CATEGORY_COLOR_ENGINE_OPTIONS,
         pills = layout.colorPills,
         selectedValue = currentColorMode,
         tintColor = tintColor,
-        textSizePx = 7.5f * dp,
+        textSizePx = 7.5f * dp * overlayTextScale(),
         dp = dp
     )
 
@@ -500,14 +532,14 @@ private fun LightspeedCruiseOverlay.drawHudStyleTabBody(
     drawHudStyleOptionGroup(
         canvas = canvas,
         paint = paint,
-        title = "CATEGORY NAME SPACING",
+        title = com.sbf.lightspeed.system.lsString(R.string.ed_lbl_cat_spacing).ifBlank { "CATEGORY NAME SPACING" },
         titleX = bounds.left + 12f * dp,
         titleY = layout.spacingLabelY,
         options = CATEGORY_SPACING_OPTIONS,
         pills = layout.spacingPills,
         selectedValue = currentSpacing,
         tintColor = tintColor,
-        textSizePx = 7.5f * dp,
+        textSizePx = 7.5f * dp * overlayTextScale(),
         dp = dp
     )
 
@@ -518,14 +550,14 @@ private fun LightspeedCruiseOverlay.drawHudStyleTabBody(
     drawHudStyleOptionGroup(
         canvas = canvas,
         paint = paint,
-        title = "CATEGORY SLIDER FEEL",
+        title = com.sbf.lightspeed.system.lsString(R.string.ed_lbl_slider_feel).ifBlank { "CATEGORY SLIDER FEEL" },
         titleX = bounds.left + 12f * dp,
         titleY = layout.feelLabelY,
         options = CATEGORY_PHYSICS_OPTIONS,
         pills = layout.feelPills,
         selectedValue = currentFeel,
         tintColor = tintColor,
-        textSizePx = 8f * dp,
+        textSizePx = 8f * dp * overlayTextScale(),
         dp = dp
     )
 
@@ -536,19 +568,34 @@ private fun LightspeedCruiseOverlay.drawHudStyleTabBody(
     drawHudStyleOptionGroup(
         canvas = canvas,
         paint = paint,
-        title = "WIDGET CORNER ROUNDNESS",
+        title = com.sbf.lightspeed.system.lsString(R.string.ed_lbl_corner_round).ifBlank { "WIDGET CORNER ROUNDNESS" },
         titleX = bounds.left + 12f * dp,
         titleY = layout.radiusLabelY,
         options = CATEGORY_HUD_RADIUS_OPTIONS,
         pills = layout.radiusPills,
         selectedValue = currentRadius,
         tintColor = tintColor,
-        textSizePx = 7.8f * dp,
+        textSizePx = 7.8f * dp * overlayTextScale(),
+        dp = dp
+    )
+
+    val currentSparkStyle = categoryLaunchSparkStyle()
+    drawHudStyleOptionGroup(
+        canvas = canvas,
+        paint = paint,
+        title = com.sbf.lightspeed.system.lsString(R.string.ed_lbl_spark_style).ifBlank { "LAUNCH SPARK STYLE" },
+        titleX = bounds.left + 12f * dp,
+        titleY = layout.sparkLabelY,
+        options = CATEGORY_LAUNCH_SPARK_OPTIONS,
+        pills = layout.sparkPills,
+        selectedValue = currentSparkStyle,
+        tintColor = tintColor,
+        textSizePx = 6.8f * dp * overlayTextScale(),
         dp = dp
     )
 }
 
-private fun <T> drawHudStyleOptionGroup(
+private fun <T> LightspeedCruiseOverlay.drawHudStyleOptionGroup(
     canvas: Canvas,
     paint: Paint,
     title: String,
@@ -563,8 +610,8 @@ private fun <T> drawHudStyleOptionGroup(
 ) {
     paint.style = Paint.Style.FILL
     paint.textAlign = Paint.Align.LEFT
-    paint.textSize = 9.2f * dp
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.textSize = 9.2f * dp * overlayTextScale()
+    paint.typeface = overlayTypeface(isBold = true)
     paint.color = Color.argb(220, 200, 220, 255)
     canvas.drawText(title, titleX, titleY, paint)
 
@@ -589,7 +636,10 @@ private fun <T> drawHudStyleOptionGroup(
         paint.style = Paint.Style.FILL
         paint.textAlign = Paint.Align.CENTER
         paint.textSize = textSizePx
-        paint.typeface = if (isSelected) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+        paint.typeface = overlayTypeface(isBold = isSelected)
+        while (paint.measureText(label) > pRect.width() - 4f * dp && paint.textSize > 5.5f * dp) {
+            paint.textSize -= 0.4f * dp
+        }
         paint.color = if (isSelected) Color.WHITE else Color.argb(235, 226, 232, 240)
         val pfm = paint.fontMetrics
         canvas.drawText(label, pRect.centerX(), pRect.centerY() - ((pfm.descent + pfm.ascent) / 2f), paint)

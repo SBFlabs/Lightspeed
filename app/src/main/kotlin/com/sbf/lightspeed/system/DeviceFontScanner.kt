@@ -1,25 +1,31 @@
 package com.sbf.lightspeed.system
 
+import com.sbf.lightspeed.R
+
+import android.content.Context
 import android.graphics.Typeface
 import androidx.compose.ui.text.font.FontFamily
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 object DeviceFontScanner {
 
+    private val androidTypefaceCache = ConcurrentHashMap<String, Typeface>()
+
     fun getInstalledFonts(): List<Pair<String, String>> {
         val list = mutableListOf(
-            "system_default" to "📱 Follow Device (System Default)",
-            "sans-serif-condensed" to "✈️ Tactical Condensed (Cockpit HUD)",
-            "sans-serif" to "Standard Sans-Serif",
-            "sans-serif-medium" to "Sans-Serif Medium",
-            "sans-serif-black" to "Sans-Serif Black (Heavy)",
-            "sans-serif-light" to "Sans-Serif Light",
-            "monospace" to "📟 Monospace Terminal",
-            "serif" to "📰 Serif (Editorial)",
-            "casual" to "✍️ Casual Hand",
-            "cursive" to "🖋️ Cursive Script"
+            "system_default" to lsString(R.string.font_follow_device),
+            "sans-serif-condensed" to lsString(R.string.font_tactical),
+            "sans-serif" to lsString(R.string.font_sans),
+            "sans-serif-medium" to lsString(R.string.font_sans_med),
+            "sans-serif-black" to lsString(R.string.font_sans_black),
+            "sans-serif-light" to lsString(R.string.font_sans_light),
+            "monospace" to lsString(R.string.font_mono),
+            "serif" to lsString(R.string.font_serif),
+            "casual" to lsString(R.string.font_casual),
+            "cursive" to lsString(R.string.font_cursive)
         )
 
         try {
@@ -61,8 +67,8 @@ object DeviceFontScanner {
                 .replace(Regex("[\\uD83C-\\uDBFF\\uDC00-\\uDFFF\\u2600-\\u27BF\\uFE0F]"), "")
                 .trim()
             val label = when (key) {
-                "system_default" -> "System Default"
-                "sans-serif-condensed" -> "Tactical Condensed (Cockpit HUD)"
+                "system_default" -> lsString(R.string.font_sys_default)
+                "sans-serif-condensed" -> lsString(R.string.font_tactical)
                 else -> stripped.ifBlank { key }
             }
             key to label
@@ -71,16 +77,16 @@ object DeviceFontScanner {
 
     /** Looks up a single friendly label for a saved font key without loading all system fonts. */
     fun getFontLabel(fontKey: String): String = when (fontKey) {
-        "", "system_default" -> "System Default"
-        "sans-serif-condensed" -> "Tactical Condensed (Cockpit HUD)"
-        "sans-serif" -> "Standard Sans-Serif"
-        "sans-serif-medium" -> "Sans-Serif Medium"
-        "sans-serif-black" -> "Sans-Serif Black (Heavy)"
-        "sans-serif-light" -> "Sans-Serif Light"
-        "monospace" -> "Monospace Terminal"
-        "serif" -> "Serif (Editorial)"
-        "casual" -> "Casual Hand"
-        "cursive" -> "Cursive Script"
+        "", "system_default" -> lsString(R.string.font_sys_default)
+        "sans-serif-condensed" -> lsString(R.string.font_tactical)
+        "sans-serif" -> lsString(R.string.font_sans)
+        "sans-serif-medium" -> lsString(R.string.font_sans_med)
+        "sans-serif-black" -> lsString(R.string.font_sans_black)
+        "sans-serif-light" -> lsString(R.string.font_sans_light)
+        "monospace" -> lsString(R.string.font_mono)
+        "serif" -> lsString(R.string.font_serif)
+        "casual" -> lsString(R.string.font_casual)
+        "cursive" -> lsString(R.string.font_cursive)
         else -> {
             val rawName = File(fontKey).nameWithoutExtension
                 .replace("-Regular", "")
@@ -98,6 +104,38 @@ object DeviceFontScanner {
                 Triple(key, label, resolveComposeFontFamily(key))
             }
         }
+
+    /** Resolves an installed Android [Typeface] for [fontKey] with optional bold styling. */
+    fun resolveAndroidTypeface(fontKey: String, isBold: Boolean = false): Typeface? {
+        if (fontKey.isBlank() || fontKey == "system_default") return null
+        val cacheKey = "$fontKey|$isBold"
+        return androidTypefaceCache.getOrPut(cacheKey) {
+            try {
+                val base = if (fontKey.startsWith("/")) {
+                    Typeface.createFromFile(fontKey)
+                } else {
+                    Typeface.create(fontKey, if (isBold) Typeface.BOLD else Typeface.NORMAL)
+                }
+                if (isBold) Typeface.create(base, Typeface.BOLD) else base
+            } catch (_: Exception) {
+                if (isBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            }
+        }
+    }
+
+    /**
+     * Resolves the global overlay/HUD [Typeface] when "Apply Font Across Overlays & HUDs" is enabled,
+     * falling back to [fallback] otherwise.
+     */
+    fun resolveGlobalOverlayTypeface(
+        context: Context,
+        isBold: Boolean = false,
+        fallback: Typeface = if (isBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+    ): Typeface {
+        if (!LightspeedPreferences.getApplyFontGlobally(context)) return fallback
+        val key = LightspeedPreferences.getCentralCommandFontFamily(context)
+        return resolveAndroidTypeface(key, isBold) ?: fallback
+    }
 
     /** Resolves a Compose [FontFamily] on demand without maintaining a global font cache. */
     fun resolveComposeFontFamily(fontKey: String): FontFamily? {

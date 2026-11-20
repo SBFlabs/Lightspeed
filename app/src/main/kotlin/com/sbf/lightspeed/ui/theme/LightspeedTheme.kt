@@ -23,6 +23,8 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
+import com.sbf.lightspeed.MainActivity
+import com.sbf.lightspeed.settings.CentralCommandActivity
 import com.sbf.lightspeed.settings.DeckStylePresets
 import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.system.DeviceFontScanner
@@ -105,14 +107,31 @@ fun LightspeedTheme(
     val userFontScale = savedFontScale ?: remember { LightspeedPreferences.getCentralCommandFontScale(context) }
     val savedFontFamilyKey by LightspeedPreferences.centralCommandFontFamilyFlow.collectAsState()
     val userFontFamilyKey = savedFontFamilyKey ?: remember { LightspeedPreferences.getCentralCommandFontFamily(context) }
-    val resolvedFontFamily = remember(userFontFamilyKey) {
-        DeviceFontScanner.resolveComposeFontFamily(userFontFamilyKey)
+    val savedApplyGlobally by LightspeedPreferences.applyFontGloballyFlow.collectAsState()
+    val applyFontGlobally = savedApplyGlobally ?: remember { LightspeedPreferences.getApplyFontGlobally(context) }
+    val isSettingsHost = context is CentralCommandActivity || context is MainActivity
+    val effectiveFontFamilyKey = if (isSettingsHost || applyFontGlobally) userFontFamilyKey else "system_default"
+    val resolvedFontFamily = remember(effectiveFontFamilyKey) {
+        DeviceFontScanner.resolveComposeFontFamily(effectiveFontFamilyKey)
     }
     val typography = remember(resolvedFontFamily) {
         buildLightspeedTypography(resolvedFontFamily)
     }
-    val independentDensity = remember(currentDensity.density, userFontScale) {
-        Density(density = currentDensity.density, fontScale = userFontScale)
+    // Smart Automatic Display Size Guard: protects against inflated OS Display Size magnification
+    // or ultra-narrow 720p density scaling so Lightspeed cards, dialogs, and controls never crush.
+    val smartDensity = remember(currentDensity.density, context) {
+        val dm = context.resources.displayMetrics
+        val shortSidePx = minOf(dm.widthPixels, dm.heightPixels).toFloat()
+        val rawShortestDp = if (currentDensity.density > 0f) shortSidePx / currentDensity.density else 384f
+        val targetMinShortestDp = if (shortSidePx in 1f..760f) 384f else 368f
+        if (shortSidePx > 0f && rawShortestDp < targetMinShortestDp) {
+            (shortSidePx / targetMinShortestDp).coerceIn(1.25f, currentDensity.density)
+        } else {
+            currentDensity.density
+        }
+    }
+    val independentDensity = remember(smartDensity, userFontScale) {
+        Density(density = smartDensity, fontScale = userFontScale)
     }
     val isDark = forceDark || when (themeMode) {
         "light" -> false
@@ -125,9 +144,9 @@ fun LightspeedTheme(
     }
     val snapshot by DeckThemeManager.snapshotFlow.collectAsState()
     val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val isMaterial3 = snapshot.styleId == DeckStylePresets.MATERIAL_3.styleId
     val useDynamic = snapshot.usesSystemDynamicColor &&
-        isApi31Plus &&
-        snapshot.styleId == DeckStylePresets.ADAPTIVE.styleId
+        (isMaterial3 || (isApi31Plus && snapshot.styleId == DeckStylePresets.ADAPTIVE.styleId))
 
     val baseColorScheme = when {
         dynamicColor && isApi31Plus -> {
@@ -139,8 +158,18 @@ fun LightspeedTheme(
 
     val baseLsColors = if (isDark) DarkLightspeedColors else LightLightspeedColors
 
-    val (colorScheme, lsColors) = remember(baseColorScheme, baseLsColors, snapshot, useDynamic) {
-        if (useDynamic) {
+    val (colorScheme, lsColors) = remember(baseColorScheme, baseLsColors, snapshot, useDynamic, isMaterial3) {
+        if (isMaterial3) {
+            val ls = baseLsColors.copy(
+                textPrimary = baseColorScheme.onSurface,
+                textSecondary = baseColorScheme.onSurfaceVariant,
+                textDisabled = baseColorScheme.onSurface.copy(alpha = 0.45f),
+                dialogSurface = baseColorScheme.surfaceContainer,
+                borderSubtle = baseColorScheme.outlineVariant,
+                accentInfo = baseColorScheme.primary
+            )
+            baseColorScheme to ls
+        } else if (useDynamic) {
             val panel = baseColorScheme.surfaceContainerHigh
             val onPanel = if (panel.luminance() > 0.5f) Color.Black else Color.White
             val alpha = snapshot.panelAlpha.coerceIn(0.55f, 0.92f)

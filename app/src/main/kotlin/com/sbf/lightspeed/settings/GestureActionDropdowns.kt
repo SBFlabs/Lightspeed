@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.*
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
@@ -49,9 +50,9 @@ fun GestureOrientationModeControl(
 
     Box {
         val modeLabel = when (currentBehavior) {
-            "button" -> if (currentRawValue == "system:auto_rotate_toggle") "One-Way ON ▾" else "One-Way ▾"
-            "button_off" -> "One-Way OFF ▾"
-            else -> "Toggle ▾"
+            "button" -> if (currentRawValue == "system:auto_rotate_toggle") lsString(R.string.chip_one_way_on) else lsString(R.string.chip_one_way)
+            "button_off" -> lsString(R.string.chip_one_way_off)
+            else -> lsString(R.string.chip_toggle)
         }
         DeckSubChip(
             text = modeLabel,
@@ -67,13 +68,13 @@ fun GestureOrientationModeControl(
             snapshotOverride = activeSnapshot
         ) {
             val options = mutableListOf(
-                "toggle" to "Interactive Toggle (Tap to engage/disengage)"
+                "toggle" to lsString(R.string.opt_interactive_toggle)
             )
             if (currentRawValue == "system:auto_rotate_toggle") {
-                options.add("button" to "One-Way ON (Always turns ON)")
-                options.add("button_off" to "One-Way OFF (Always turns OFF)")
+                options.add("button" to lsString(R.string.opt_one_way_on))
+                options.add("button_off" to lsString(R.string.opt_one_way_off))
             } else {
-                options.add("button" to "One-Way Button (Reaffirm & never disengage)")
+                options.add("button" to lsString(R.string.opt_one_way_btn))
             }
 
             options.forEach { (modeKey, modeTitle) ->
@@ -116,7 +117,7 @@ fun GestureGravityAppControl(
     }
 
     DeckSubChip(
-        text = if (!isGravityEnabled) "Apps (Off) ▾" else "Apps: $assignedAppsCount ▾",
+        text = if (!isGravityEnabled) lsString(R.string.chip_apps_off) else lsString(R.string.chip_apps_count, assignedAppsCount),
         icon = when (gravityBucket) {
             LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT -> Icons.Default.StayCurrentPortrait
             LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT -> Icons.Default.ScreenRotationAlt
@@ -128,7 +129,7 @@ fun GestureGravityAppControl(
         snapshot = activeSnapshot,
         onClick = {
             if (!isGravityEnabled) {
-                Toast.makeText(context, "Synthetic Gravity Engine is disabled", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, lsString(R.string.toast_gravity_disabled), Toast.LENGTH_SHORT).show()
             } else {
                 showAttitudeSheet = true
             }
@@ -163,7 +164,7 @@ fun GestureToolsQuickAccessControl(
 
     Box {
         DeckSubChip(
-            text = "Actions ▾",
+            text = lsString(R.string.chip_actions),
             icon = Icons.Default.Bolt,
             isActive = currentRawValue.startsWith("system:") || currentRawValue.startsWith("app:") || currentRawValue.startsWith("shortcut:"),
             snapshot = activeSnapshot,
@@ -257,14 +258,14 @@ fun GestureScrubActionMenu(
         ) {
             options.forEach { opt ->
                 val optLabel = when (opt) {
-                    "none" -> "None"
-                    "system:screen_timeout" -> "Screen Timeout (Ship Goes Dark)"
-                    "system:volume" -> "Volume (Media Stream)"
-                    "system:brightness" -> "Screen Brightness"
-                    "system:scroll_scrub" -> "Scroll Scrubbing"
-                    "system:media_scrubber" -> "Media Timeline Scrubber (HUD)"
-                    "system:scroll_to_top" -> "Scroll to Top"
-                    "system:scroll_to_bottom" -> "Scroll to Bottom"
+                    "none" -> lsString(R.string.cc_common_none)
+                    "system:screen_timeout" -> lsString(R.string.act_screen_timeout_menu)
+                    "system:volume" -> lsString(R.string.act_volume_menu)
+                    "system:brightness" -> lsString(R.string.act_brightness_menu)
+                    "system:scroll_scrub" -> lsString(R.string.act_scroll_scrub)
+                    "system:media_scrubber" -> lsString(R.string.act_media_scrubber)
+                    "system:scroll_to_top" -> lsString(R.string.act_scroll_to_top)
+                    "system:scroll_to_bottom" -> lsString(R.string.act_scroll_to_bottom)
                     else -> labelCache[opt] ?: opt
                 }
                 DropdownMenuItem(
@@ -317,20 +318,20 @@ fun GestureHudThemeToggleChip(
     }
 
     val modeShort = when (colorMode) {
-        LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC -> "Material 3"
-        LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION -> "Hybrid"
-        else -> "12-Theme"
+        LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC -> lsString(R.string.ce_material_3)
+        LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION -> lsString(R.string.ce_hybrid)
+        else -> lsString(R.string.ce_theme_12)
     }
 
     val colorModes = listOf(
-        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12, "◈ 12-Theme", "12-Theme"),
-        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC, "✦ Material 3", "Material 3"),
-        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION, ":: Hybrid Fusion", "Hybrid Fusion")
+        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12, "◈ ${lsString(R.string.ce_theme_12)}", lsString(R.string.ce_theme_12)),
+        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC, "✦ ${lsString(R.string.ce_material_3)}", lsString(R.string.ce_material_3)),
+        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION, ":: ${lsString(R.string.ce_hybrid_fusion)}", lsString(R.string.ce_hybrid_fusion))
     )
 
     Box {
         DeckSubChip(
-            text = "Color Engine: $modeShort ▾",
+            text = lsString(R.string.chip_color_engine, modeShort),
             icon = Icons.Default.Palette,
             isActive = true,
             snapshot = activeSnapshot,
@@ -375,7 +376,7 @@ fun GestureHudThemeToggleChip(
                                 LightspeedHapticEngine.heavyClick(actualContext)
                                 Toast.makeText(
                                     actualContext,
-                                    "✦ Applied $modeSimpleTitle to all flight surfaces",
+                                    lsString(R.string.ce_toast_applied_all, modeSimpleTitle),
                                     Toast.LENGTH_SHORT
                                 ).show()
                                 showColorEngineMenu = false
@@ -395,7 +396,7 @@ fun GestureHudThemeToggleChip(
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
-                            text = "HOLD TO APPLY TO ALL ↗",
+                            text = lsString(R.string.ce_hold_apply_all),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
                             color = (if (isSelected) MaterialTheme.colorScheme.primary else lsColors.textSecondary).copy(alpha = 0.75f),

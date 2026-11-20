@@ -489,7 +489,7 @@ fun PrefDottedSliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = LightspeedStyle.colors.textPrimary, modifier = Modifier.weight(1f), maxLines = 1)
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp, lineHeight = 18.sp, color = LightspeedStyle.colors.textPrimary, modifier = Modifier.weight(1f).padding(end = 8.dp), maxLines = 2)
 
             // Interactive Tactile Value Pill
             Surface(
@@ -620,7 +620,7 @@ fun PrefFloatDottedSliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = LightspeedStyle.colors.textPrimary, modifier = Modifier.weight(1f), maxLines = 1)
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp, lineHeight = 18.sp, color = LightspeedStyle.colors.textPrimary, modifier = Modifier.weight(1f).padding(end = 8.dp), maxLines = 2)
 
             // Interactive Tactile Value Pill
             Surface(

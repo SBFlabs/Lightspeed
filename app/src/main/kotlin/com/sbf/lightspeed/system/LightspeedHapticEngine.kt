@@ -508,6 +508,39 @@ object LightspeedHapticEngine {
         pulseClick(context, normalized)
     }
 
+    /**
+     * Unmistakable two-beat unlock waveform ("tuk-TUK") fired once when the hidden
+     * `⚙ Central Command` entry reveals at the bottom of Category Cruise.
+     * Distinct from single-beat [cruiseCategoryTick] and [cruiseLayerJump] even when
+     * triggered right after the bottommost category tick.
+     */
+    fun cruiseSettingsReveal(context: Context) {
+        val prefs = context.defaultPrefs()
+        val pref = prefs.getString(LightspeedPreferences.KEY_CRUISE_LAYER_JUMP_HAPTICS, "")?.takeIf { it.isNotEmpty() }
+            ?: (prefs.getString(LightspeedPreferences.KEY_CRUISE_HAPTICS, "full") ?: "full")
+        val normalized = when (pref) {
+            "soft" -> "soft_low_freq"
+            "full" -> "tactical"
+            else -> pref
+        }
+        if (normalized == "off") return
+        val scale = getSystemScale(context)
+        if (scale <= 0f) return
+        val vib = getVibrator(context) ?: return
+        try {
+            val beat1Ms = (22L * scale).toLong().coerceIn(16L, 38L)
+            val gapMs = 44L
+            val beat2Ms = (38L * scale).toLong().coerceIn(26L, 62L)
+            val amp1 = (205 * scale).toInt().coerceIn(130, 240)
+            val amp2 = (255 * scale).toInt().coerceIn(180, 255)
+            val timings = longArrayOf(0L, beat1Ms, gapMs, beat2Ms)
+            val amplitudes = intArrayOf(0, amp1, 0, amp2)
+            vib.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
+        } catch (_: Exception) {
+            pulseClick(context, normalized)
+        }
+    }
+
     fun cruiseAppFocusTick(context: Context) {
         val prefs = context.defaultPrefs()
         val pref = prefs.getString(LightspeedPreferences.KEY_CRUISE_APP_FOCUS_HAPTICS, "")?.takeIf { it.isNotEmpty() }

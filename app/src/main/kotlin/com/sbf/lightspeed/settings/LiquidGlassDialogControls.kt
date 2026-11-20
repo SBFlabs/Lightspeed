@@ -67,7 +67,7 @@ internal fun CalibrationSliderRow(
                     text = title,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = colorScheme.onSurface
                 )
                 Text(
                     text = subtitle,

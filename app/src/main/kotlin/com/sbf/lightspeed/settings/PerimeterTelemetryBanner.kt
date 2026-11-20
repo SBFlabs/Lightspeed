@@ -1,5 +1,9 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -60,7 +64,7 @@ fun PerimeterShizukuBanner(
             Spacer(modifier = Modifier.width(8.dp))
             Column {
                 Text(
-                    text = if (isShizukuActive) "SHIZUKU PRIVILEGED BRIDGE: ACTIVE" else "SHIZUKU PRIVILEGED BRIDGE: STANDBY",
+                    text = if (isShizukuActive) lsString(R.string.per_bridge_active) else lsString(R.string.per_bridge_standby),
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.5.sp,
                     color = if (isShizukuActive) successGreen else cautionAmber,
@@ -68,7 +72,7 @@ fun PerimeterShizukuBanner(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = if (isShizukuActive) "Sub-100ms instant toggles armed without settings page" else "Standby. Toggles will launch system settings page",
+                    text = if (isShizukuActive) lsString(R.string.per_bridge_active_sub) else lsString(R.string.per_bridge_standby_sub),
                     fontSize = 9.5.sp,
                     color = lsColors.textSecondary.copy(alpha = 0.75f),
                     maxLines = 1,
@@ -115,7 +119,7 @@ fun PerimeterTelemetrySummaryCard(
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("TOTAL", fontSize = 8.5.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text(lsString(R.string.per_stat_total), fontSize = 8.5.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         Text("$totalCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary, maxLines = 1)
                     }
                 }
@@ -131,7 +135,7 @@ fun PerimeterTelemetrySummaryCard(
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("ACTIVE", fontSize = 8.5.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text(lsString(R.string.per_stat_active), fontSize = 8.5.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         Text("$activeCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = successGreen, maxLines = 1)
                     }
                 }
@@ -147,7 +151,7 @@ fun PerimeterTelemetrySummaryCard(
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("SHIELDED", fontSize = 8.5.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text(lsString(R.string.per_stat_shielded), fontSize = 8.5.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         Text("$shieldedCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1)
                     }
                 }
@@ -163,7 +167,7 @@ fun PerimeterTelemetrySummaryCard(
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("PINNED", fontSize = 8.5.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text(lsString(R.string.per_stat_pinned), fontSize = 8.5.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         Text("$pinnedCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LightspeedTokens.StatusGold, maxLines = 1)
                     }
                 }
@@ -179,7 +183,7 @@ fun PerimeterTelemetrySummaryCard(
                             val count = LightspeedWatchdogEngine.pulsePerimeterServices(context)
                             withContext(Dispatchers.Main) {
                                 LightspeedHapticEngine.heavyClick(context)
-                                Toast.makeText(context, "Perimeter pulse: $count sentinels verified & revivified", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, lsString(R.string.wd_perim_pulse_rev, count), Toast.LENGTH_SHORT).show()
                                 onRefreshTrigger()
                                 onRefreshNeeded()
                             }
@@ -193,7 +197,7 @@ fun PerimeterTelemetrySummaryCard(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                         Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(13.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Pulse Sentinels", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(lsString(R.string.per_btn_pulse), fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
 
@@ -210,7 +214,7 @@ fun PerimeterTelemetrySummaryCard(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                         Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = lsColors.accentInfo, modifier = Modifier.size(13.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Exempt More Apps", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = lsColors.accentInfo, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(lsString(R.string.per_btn_exempt), fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = lsColors.accentInfo, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }

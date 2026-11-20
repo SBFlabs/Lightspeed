@@ -79,6 +79,123 @@ internal object TopAppCloser {
         }
     }
 
+    /**
+     * Closes [targetPkg] specifically and removes its task from Recents so Android naturally
+     * reveals whatever app or window was underneath prior to opening [targetPkg]. Uses Shizuku
+     * direct task eviction when active, otherwise falls back to Accessibility Recents dismissal
+     * (invoking [onFallbackHome] only if eviction cannot succeed).
+     */
+    fun closePackageWithReturn(
+        context: Context,
+        targetPkg: String,
+        onFallbackHome: () -> Unit
+    ) {
+        val myPkg = context.packageName
+        if (targetPkg.isBlank() || targetPkg == myPkg || TaskInspector.isLauncherOrSystem(context, targetPkg)) {
+            onFallbackHome()
+            return
+        }
+        val a11yOnly = ShizukuGate.isAccessibilityOnly()
+        val useShizuku = !a11yOnly && ElevatedTaskCloser.isShizukuActive
+        if (useShizuku) {
+            ElevatedTaskCloser.executor.execute {
+                val evicted = closeSpecificPackageViaShizuku(context, targetPkg)
+                if (evicted) {
+                    com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.onAppClosedFromRecents(context, targetPkg)
+                    com.sbf.lightspeed.LightspeedAccessibilityService.instance?.scheduleGeometryResync()
+                } else {
+                    Handler(Looper.getMainLooper()).post(onFallbackHome)
+                }
+            }
+            return
+        }
+        val service = com.sbf.lightspeed.LightspeedAccessibilityService.instance
+        if (service != null) {
+            com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.onAppClosedFromRecents(context, targetPkg)
+            RecentsFallbackCloser.closeViaRecentsFallback(
+                context = context,
+                service = service,
+                targetPkgOverride = targetPkg,
+                returnBackAfterDismiss = true,
+                onFailed = { Handler(Looper.getMainLooper()).post(onFallbackHome) }
+            )
+        } else {
+            onFallbackHome()
+        }
+    }
+
+    private fun extractTaskPackage(item: Any?): String? {
+        if (item == null) return null
+        val baseIntent = try { item.javaClass.getField("baseIntent").get(item) as? Intent } catch (_: Exception) { null }
+        val topActivity = try { item.javaClass.getField("topActivity").get(item) as? ComponentName } catch (_: Exception) { null }
+        val realActivity = try { item.javaClass.getField("realActivity").get(item) as? ComponentName } catch (_: Exception) { null }
+        val resolvedComp = realActivity ?: topActivity ?: baseIntent?.component
+        return resolvedComp?.packageName ?: baseIntent?.`package`
+    }
+
+    private fun evictTaskViaShizuku(
+        targetPkg: String,
+        targetTaskId: Int?,
+        atm: Any?
+    ): Boolean {
+        var evicted = false
+        if (targetTaskId != null && targetTaskId > 0 && atm != null) {
+            try {
+                val removeTask = atm.javaClass.getMethod("removeTask", Int::class.javaPrimitiveType)
+                val res = removeTask.invoke(atm, targetTaskId) as? Boolean
+                Log.i(TAG, "IActivityTaskManager.removeTask($targetTaskId) executed: $res")
+                evicted = (res == true)
+            } catch (e: Exception) {
+                Log.d(TAG, "Direct removeTask binder failed", e)
+            }
+        }
+        if (!evicted && targetTaskId != null && targetTaskId > 0) {
+            try {
+                val cliProc = ElevatedTaskCloser.execShizuku("am task remove $targetTaskId 2>/dev/null || am stack remove $targetTaskId 2>/dev/null")
+                val cliCode = cliProc.waitForOrKill(3000L)
+                evicted = (cliCode == 0)
+                Log.i(TAG, "CLI task remove exit code: $cliCode")
+            } catch (e: Exception) { logSwallowed(TAG, "closeViaShizuku:223", e) }
+        }
+        var forceStopped = false
+        if (!evicted && (targetTaskId == null || targetTaskId <= 0)) {
+            try {
+                val fsProc = ElevatedTaskCloser.execShizuku("am force-stop $targetPkg")
+                val fsCode = fsProc.waitForOrKill(3000L)
+                forceStopped = (fsCode == 0)
+                Log.i(TAG, "force-stop exit code: $fsCode")
+            } catch (e: Exception) { logSwallowed(TAG, "closeViaShizuku:230", e) }
+        }
+        return evicted || forceStopped
+    }
+
+    private fun closeSpecificPackageViaShizuku(context: Context, packageName: String): Boolean {
+        return try {
+            ElevatedTaskCloser.exemptHiddenApis()
+            val atm = ElevatedTaskCloser.getActivityTaskManager()
+            var targetTaskId: Int? = null
+            if (atm != null) {
+                val getRecentTasksMethod = atm.javaClass.methods.firstOrNull { it.name == "getRecentTasks" }
+                if (getRecentTasksMethod != null) {
+                    val rawResult = when (getRecentTasksMethod.parameterTypes.size) {
+                        2 -> getRecentTasksMethod.invoke(atm, 12, 0x0002)
+                        3 -> getRecentTasksMethod.invoke(atm, 12, 0x0002, 0)
+                        else -> null
+                    }
+                    val recentTasks = rawResult?.let { res ->
+                        res.javaClass.getMethod("getList").invoke(res) as? List<*>
+                    }.orEmpty()
+                    val matched = recentTasks.firstOrNull { extractTaskPackage(it) == packageName }
+                    targetTaskId = try { matched?.javaClass?.getField("taskId")?.getInt(matched) } catch (_: Exception) { null }
+                }
+            }
+            evictTaskViaShizuku(packageName, targetTaskId, atm)
+        } catch (e: Exception) {
+            Log.e(TAG, "closeSpecificPackageViaShizuku error", e)
+            false
+        }
+    }
+
     private fun closeViaShizuku(context: Context, outPkg: Array<String?>? = null): Boolean {
         return try {
             val myPkg = context.packageName
@@ -176,43 +293,7 @@ internal object TopAppCloser {
             }
 
             Log.i(TAG, "Targeting focused app: $targetPkg (TaskId: $targetTaskId)")
-
-            var evicted = false
-
-            // 2. Ultra-fast direct Binder task eviction (<2ms)
-            if (targetTaskId != null && targetTaskId > 0 && atm != null) {
-                try {
-                    val removeTask = atm.javaClass.getMethod("removeTask", Int::class.javaPrimitiveType)
-                    val res = removeTask.invoke(atm, targetTaskId) as? Boolean
-                    Log.i(TAG, "IActivityTaskManager.removeTask($targetTaskId) executed: $res")
-                    evicted = (res == true)
-                } catch (e: Exception) {
-                    Log.d(TAG, "Direct removeTask binder failed", e)
-                }
-            }
-
-            // 3. Secondary fallback: CLI remove (waits for the result)
-            if (!evicted && targetTaskId != null && targetTaskId > 0) {
-                try {
-                    val cliProc = ElevatedTaskCloser.execShizuku("am task remove $targetTaskId 2>/dev/null || am stack remove $targetTaskId 2>/dev/null")
-                    val cliCode = cliProc.waitForOrKill(3000L)
-                    evicted = (cliCode == 0)
-                    Log.i(TAG, "CLI task remove exit code: $cliCode")
-                } catch (e: Exception) { logSwallowed(TAG, "closeViaShizuku:223", e) }
-            }
-
-            // 4. Ultimate fallback: force-stop (only when no task id was found, as before)
-            var forceStopped = false
-            if (!evicted && (targetTaskId == null || targetTaskId <= 0)) {
-                try {
-                    val fsProc = ElevatedTaskCloser.execShizuku("am force-stop $targetPkg")
-                    val fsCode = fsProc.waitForOrKill(3000L)
-                    forceStopped = (fsCode == 0)
-                    Log.i(TAG, "force-stop exit code: $fsCode")
-                } catch (e: Exception) { logSwallowed(TAG, "closeViaShizuku:230", e) }
-            }
-
-            val success = evicted || forceStopped
+            val success = evictTaskViaShizuku(targetPkg, targetTaskId, atm)
             if (success && outPkg != null && outPkg.isNotEmpty()) {
                 outPkg[0] = targetPkg
             }

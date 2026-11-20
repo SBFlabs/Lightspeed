@@ -1,5 +1,7 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+
 import android.content.Context
 import com.sbf.lightspeed.system.logSwallowed
 import android.content.SharedPreferences
@@ -35,24 +37,12 @@ fun HudSyntheticGravitySection(
     prefs: SharedPreferences,
     isExpanded: Boolean,
     onToggle: () -> Unit,
-    onRefreshNeeded: () -> Unit
+    onRefreshNeeded: () -> Unit,
+    languageMode: LightspeedLanguageEngine.LanguageMode = LightspeedLanguageEngine.modeFlow.value
 ) {
     val lsColors = LightspeedStyle.colors
     val cautionAmber = lsColors.accentWarn
-    var isAutoRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isAutoRotateEnabled(context)) }
-    var isFaceRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isFaceRotateEnabled(context)) }
     var selectedAttitudeBucketForAppPicker by remember { mutableStateOf<LightspeedOrientationEngine.AttitudeBucket?>(null) }
-
-    DisposableEffect(Unit) {
-        val observer = LightspeedOrientationEngine.registerObserver(
-            context,
-            onAutoRotateChanged = { isAutoRotateActive = it },
-            onFaceRotateChanged = { isFaceRotateActive = it }
-        )
-        onDispose {
-            try { context.contentResolver.unregisterContentObserver(observer) } catch (e: Exception) { logSwallowed("HudSensorGravityComponents", "HudSyntheticGravitySection:206", e) }
-        }
-    }
 
     if (selectedAttitudeBucketForAppPicker != null) {
         AttitudeAppAssignmentSheet(
@@ -63,8 +53,7 @@ fun HudSyntheticGravitySection(
         )
     }
 
-    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
-    val (gravityTitle, gravitySub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.GRAVITY_ENGINE, currentLanguageMode)
+    val (gravityTitle, gravitySub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.GRAVITY_ENGINE, languageMode)
     var showGravityInfoDialog by remember { mutableStateOf(false) }
 
     if (showGravityInfoDialog) {
@@ -80,7 +69,7 @@ fun HudSyntheticGravitySection(
             },
             title = {
                 Text(
-                    text = "SYNTHETIC GRAVITY ENGINE",
+                    text = lsString(R.string.grav_title),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = lsColors.textPrimary,
@@ -93,19 +82,19 @@ fun HudSyntheticGravitySection(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "• Overview: Automates device orientation per application (Strict Portrait, Sensor Portrait 0°/180°, Landscape, or 360° Gyro). Manual gesture triggers override these rules on demand. Bucket app assignments are synchronized with the customization options in the Action Selection Menu.",
+                        text = lsString(R.string.grav_b1),
                         fontSize = 11.5.sp,
                         color = lsColors.textSecondary.copy(alpha = 0.95f),
                         lineHeight = 15.5.sp
                     )
                     Text(
-                        text = "• Recommended: Manual Actions Preferred: Keep this automatic engine toggled OFF for 0% battery usage and clean transitions. We recommend mapping orientation actions ('Force Landscape', 'Force Portrait', '360° Gyro') directly to Deflector gestures or launching them from the System Actions menu on demand.",
+                        text = lsString(R.string.grav_b2),
                         fontSize = 11.5.sp,
                         color = lsColors.textSecondary.copy(alpha = 0.95f),
                         lineHeight = 15.5.sp
                     )
                     Text(
-                        text = "• Action Independence: Actions from the Action Selection Menu operate completely independently from this toggle, acting as transient manual overrides that yield automatically back upon switching apps or screen-off. Turning this toggle OFF disables per-app automation buckets only; manual gestures STILL work on demand at all times.",
+                        text = lsString(R.string.grav_b3),
                         fontSize = 11.5.sp,
                         color = lsColors.textSecondary.copy(alpha = 0.95f),
                         lineHeight = 15.5.sp
@@ -114,7 +103,7 @@ fun HudSyntheticGravitySection(
             },
             confirmButton = {
                 DeckButton(
-                    text = "GOT IT",
+                    text = lsString(R.string.cc_dlg_got_it_caps),
                     onClick = { showGravityInfoDialog = false },
                     isActive = true
                 )
@@ -149,6 +138,18 @@ fun HudSyntheticGravitySection(
         isExpanded = isExpanded,
         onToggle = onToggle
     ) {
+        var isAutoRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isAutoRotateEnabled(context)) }
+        var isFaceRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isFaceRotateEnabled(context)) }
+        DisposableEffect(Unit) {
+            val observer = LightspeedOrientationEngine.registerObserver(
+                context,
+                onAutoRotateChanged = { isAutoRotateActive = it },
+                onFaceRotateChanged = { isFaceRotateActive = it }
+            )
+            onDispose {
+                try { context.contentResolver.unregisterContentObserver(observer) } catch (e: Exception) { logSwallowed("HudSensorGravityComponents", "HudSyntheticGravitySection:206", e) }
+            }
+        }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // 0. Permission Warning Interlock
             val hasPermission = remember(context) {
@@ -209,9 +210,9 @@ fun HudSyntheticGravitySection(
             val currentEngineMode = prefs.getString(LightspeedPreferences.KEY_GRAVITY_ENFORCEMENT_ENGINE, LightspeedPreferences.GRAVITY_ENGINE_DUAL_HYBRID) ?: LightspeedPreferences.GRAVITY_ENGINE_DUAL_HYBRID
             var isEngineDropdownOpen by remember { mutableStateOf(false) }
             val engineOptions = listOf(
-                LightspeedPreferences.GRAVITY_ENGINE_DUAL_HYBRID to "Dual Hybrid (Instant Settings + Window Anchor)",
-                LightspeedPreferences.GRAVITY_ENGINE_SYSTEM_SETTINGS to "Settings.System Only (Instantaneous & 100% Leak-Free)",
-                LightspeedPreferences.GRAVITY_ENGINE_WINDOW_ANCHOR to "Window Anchor Only (Strict Manifest Override)"
+                LightspeedPreferences.GRAVITY_ENGINE_DUAL_HYBRID to lsString(R.string.grav_dual),
+                LightspeedPreferences.GRAVITY_ENGINE_SYSTEM_SETTINGS to lsString(R.string.grav_sys_only),
+                LightspeedPreferences.GRAVITY_ENGINE_WINDOW_ANCHOR to lsString(R.string.grav_win_only)
             )
 
             DeckCard(
@@ -261,7 +262,7 @@ fun HudSyntheticGravitySection(
                             }
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                "Master switch for per-app automation buckets. Action menu items remain independent.",
+                                lsString(R.string.grav_master_sub),
                                 fontSize = 11.5.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                             )
@@ -293,7 +294,7 @@ fun HudSyntheticGravitySection(
                             .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 14.dp)
                     ) {
                         Text(
-                            "ENFORCEMENT ENGINE DRIVER",
+                            lsString(R.string.grav_driver_hdr),
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
@@ -301,7 +302,7 @@ fun HudSyntheticGravitySection(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Choose how orientation is forced: 'Settings.System Only' writes directly to Android OS rotation (instantaneous, zero window allocations, completely leak-free). 'Dual Hybrid' additionally maintains an invisible 1x1 overlay anchor window to override stubborn locked manifests (like Infinix XOSLauncher).",
+                            text = lsString(R.string.grav_driver_desc),
                             fontSize = 10.sp,
                             color = lsColors.textSecondary.copy(alpha = 0.75f),
                             lineHeight = 13.sp
@@ -320,10 +321,11 @@ fun HudSyntheticGravitySection(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = engineOptions.firstOrNull { it.first == currentEngineMode }?.second ?: "Dual Hybrid",
+                                        text = engineOptions.firstOrNull { it.first == currentEngineMode }?.second ?: lsString(R.string.grav_dual_short),
                                         color = lsColors.textPrimary,
                                         fontSize = 11.5.sp,
-                                        maxLines = 1,
+                                        lineHeight = 14.5.sp,
+                                        maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f).padding(end = 8.dp)
                                     )
@@ -365,7 +367,7 @@ fun HudSyntheticGravitySection(
                             Column(modifier = Modifier.padding(10.dp)) {
                                 when (currentEngineMode) {
                                     LightspeedPreferences.GRAVITY_ENGINE_SYSTEM_SETTINGS -> {
-                                        Text("Settings.System Only", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
+                                        Text(lsString(R.string.grav_sys_short), fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
                                         Spacer(modifier = Modifier.height(3.dp))
                                         Text("Mechanism: Directly toggles Android OS user_rotation & accelerometer_rotation. Zero overlay windows.", fontSize = 10.sp, color = lsColors.textSecondary)
                                         Spacer(modifier = Modifier.height(4.dp))
@@ -373,7 +375,7 @@ fun HudSyntheticGravitySection(
                                         Text("• Cons: Cannot rotate 180° inverted portrait (blocked by Android OS). Ignored by locked launchers (e.g. Infinix).", fontSize = 10.sp, color = LightspeedTokens.StatusWarningOrange)
                                     }
                                     LightspeedPreferences.GRAVITY_ENGINE_WINDOW_ANCHOR -> {
-                                        Text("Window Anchor Only", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
+                                        Text(lsString(R.string.grav_win_short), fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
                                         Spacer(modifier = Modifier.height(3.dp))
                                         Text("Mechanism: Uses a 1x1 hardware accessibility overlay (screenOrientation) without touching system settings.", fontSize = 10.sp, color = lsColors.textSecondary)
                                         Spacer(modifier = Modifier.height(4.dp))
@@ -381,7 +383,7 @@ fun HudSyntheticGravitySection(
                                         Text("• Cons: WindowManager surface transitions can feel laggy during rapid app switching.", fontSize = 10.sp, color = LightspeedTokens.StatusWarningOrange)
                                     }
                                     else -> { // Dual Hybrid
-                                        Text("Dual Hybrid (Default)", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
+                                        Text(lsString(R.string.grav_dual_def), fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
                                         Spacer(modifier = Modifier.height(3.dp))
                                         Text("Mechanism: Writes to Settings.System AND maintains the 1x1 hardware overlay window simultaneously.", fontSize = 10.sp, color = lsColors.textSecondary)
                                         Spacer(modifier = Modifier.height(4.dp))
@@ -411,7 +413,7 @@ fun HudSyntheticGravitySection(
                         },
                         title = {
                             Text(
-                                text = "FACE ORIENTATION & PRIVACY",
+                                text = lsString(R.string.grav_face_hdr),
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = lsColors.textPrimary,
@@ -446,7 +448,7 @@ fun HudSyntheticGravitySection(
                         if (ok) {
                             isFaceRotateActive = !isFaceRotateActive
                         } else {
-                            Toast.makeText(context, "Elevated permission needed. Opening system settings...", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, lsString(R.string.grav_perm_toast), Toast.LENGTH_SHORT).show()
                             LightspeedOrientationEngine.openAutoRotateSettings(context)
                         }
                         onRefreshNeeded()
@@ -461,7 +463,7 @@ fun HudSyntheticGravitySection(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.Face, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Face-Oriented Auto-Rotate", modifier = Modifier.weight(1f, fill = false), fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = lsColors.textPrimary)
+                                Text(lsString(R.string.grav_face_title), modifier = Modifier.weight(1f, fill = false), fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = lsColors.textPrimary)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Box(
                                     modifier = Modifier
@@ -481,7 +483,7 @@ fun HudSyntheticGravitySection(
                                 }
                             }
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text("Native OS sensor posture check. Lightspeed requires 0 camera permissions (100% offline & private).", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f))
+                            Text(lsString(R.string.grav_face_sub), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f))
                         }
                         Switch(
                             checked = isFaceRotateActive,

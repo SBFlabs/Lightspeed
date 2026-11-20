@@ -31,7 +31,7 @@ internal fun LightspeedCruiseOverlay.drawUnsavedPrompt(canvas: Canvas, paint: Pa
 
     paint.style = Paint.Style.FILL
     paint.textAlign = Paint.Align.CENTER
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.typeface = overlayTypeface(isBold = true)
     paint.textSize = 13f * dp
     paint.color = Color.argb(245, 240, 245, 255)
     val fontMetrics = paint.fontMetrics
@@ -40,7 +40,7 @@ internal fun LightspeedCruiseOverlay.drawUnsavedPrompt(canvas: Canvas, paint: Pa
     canvas.drawText("Unsaved Changes", promptBounds.centerX(), titleY, paint)
 
     paint.textSize = 10.5f * dp
-    paint.typeface = android.graphics.Typeface.DEFAULT
+    paint.typeface = overlayTypeface(isBold = false)
     paint.color = Color.argb(180, 200, 220, 255)
     val subFontMetrics = paint.fontMetrics
     val subTextYOffset = (subFontMetrics.descent + subFontMetrics.ascent) / 2f
@@ -64,7 +64,7 @@ internal fun LightspeedCruiseOverlay.drawUnsavedPrompt(canvas: Canvas, paint: Pa
     // Button labels
     paint.style = Paint.Style.FILL
     paint.textAlign = Paint.Align.CENTER
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.typeface = overlayTypeface(isBold = true)
     var btnTextSize = 10.5f * dp
     paint.textSize = btnTextSize
     while (paint.measureText("Keep editing") > btnW - 6f * dp && btnTextSize > 7.5f * dp) {

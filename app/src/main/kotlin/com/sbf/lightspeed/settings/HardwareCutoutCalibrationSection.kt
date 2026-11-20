@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.layout.padding
@@ -27,7 +30,7 @@ fun HardwareCutoutCalibrationSection(
     if (!isCapsuleEnabled) {
         // Orbital Capsule is disabled — beacon test requires it to be enabled
         androidx.compose.material3.Text(
-            text = "ℹ Live Alignment Beacon requires Orbital Capsule to be enabled in Experimental Labs.",
+            text = lsString(R.string.cap_beacon_req),
             fontSize = 11.sp,
             color = LightspeedStyle.colors.textDisabled,
             modifier = androidx.compose.ui.Modifier.padding(vertical = 6.dp)
@@ -40,8 +43,8 @@ fun HardwareCutoutCalibrationSection(
     }
 
     CollapsibleSubSection(
-        title = "Hardware Cutout & Punch-Hole Calibration",
-        subtitle = "Physical camera hole diameter & alignment shared across Horizon Rail and Orbital Capsule",
+        title = lsString(R.string.sec_hardware_cutout_punch_hole_cal),
+        subtitle = lsString(R.string.secd_physical_camera_hole_diameter),
         isExpanded = isCutoutCalibExpanded,
         onToggle = {
             isCutoutCalibExpanded = !isCutoutCalibExpanded
@@ -76,8 +79,8 @@ fun HardwareCutoutCalibrationSection(
             prefs = prefs,
             prefKey = LightspeedPreferences.KEY_NOTCH_TEST_BEACON,
             defaultVal = false,
-            title = "Live Alignment Test Beacon",
-            subtitle = "Renders a live HUD calibration reticle over the camera hole while calibrating.",
+            title = lsString(R.string.cap_beacon_title),
+            subtitle = lsString(R.string.cap_beacon_sub),
             onChanged = { onRefreshNeeded() }
         )
     }

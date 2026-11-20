@@ -1,5 +1,9 @@
 package com.sbf.lightspeed.system
 
+import com.sbf.lightspeed.R
+
+import com.sbf.lightspeed.settings.verticalScrollWithEdgeFade
+
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.graphics.PixelFormat
@@ -151,7 +155,7 @@ object SonicDeckManager {
             val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return@post
             windowManager = wm
 
-            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(wm)
+            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(wm, ignoreZeroThemeBlur = true)
             val blurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.getMode(service)
             val nativeSupported = com.sbf.lightspeed.settings.BackdropBlurModeManager.isNativeBlurSupported(wm)
             com.sbf.lightspeed.settings.CentralCommandActivity.updateCrossWindowBlurState(
@@ -317,14 +321,15 @@ object SonicDeckManager {
                         .heightIn(max = 680.dp)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
                     snapshotOverride = snapshot,
-                    isFlyout = false
+                    isFlyout = false,
+                    useLightweightHudBlur = true
                 ) {
                     if (isBlueprintMode) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp)
-                                .verticalScroll(rememberScrollState())
+                                .verticalScrollWithEdgeFade()
                         ) {
                             BlueprintWireframeView(
                                 tabTitle = "SONIC DECK",
@@ -367,7 +372,7 @@ object SonicDeckManager {
                                 .fillMaxWidth()
                                 .wrapContentHeight()
                                 .padding(16.dp)
-                                .verticalScroll(rememberScrollState()),
+                                .verticalScrollWithEdgeFade(),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             // Header
@@ -414,8 +419,8 @@ object SonicDeckManager {
                                 when (secId) {
                                     "mixer" -> {
                                         CollapsibleSubSection(
-                                            title = "Per-App Audio Mixer & Routing",
-                                            subtitle = "Hardware gain (0..200%) & multi-channel routing",
+                                            title = lsString(R.string.sec_per_app_audio_mixer_routing),
+                                            subtitle = lsString(R.string.secd_hardware_gain_0_200_multi_chan),
                                             isExpanded = isMixerExpanded,
                                             onToggle = {
                                                 isMixerExpanded = !isMixerExpanded
@@ -427,8 +432,8 @@ object SonicDeckManager {
                                     }
                                     "dialogue" -> {
                                         CollapsibleSubSection(
-                                            title = "Voice Isolation & Background Muffler",
-                                            subtitle = "Real-time speech clarity & background sound muffle",
+                                            title = lsString(R.string.sec_voice_isolation_background_muf),
+                                            subtitle = lsString(R.string.secd_real_time_speech_clarity_backg),
                                             isExpanded = isDialogueExpanded,
                                             onToggle = {
                                                 isDialogueExpanded = !isDialogueExpanded
@@ -440,8 +445,8 @@ object SonicDeckManager {
                                     }
                                     "streams" -> {
                                         CollapsibleSubSection(
-                                            title = "Master & System Streams",
-                                            subtitle = "Media, Ring, Notification, Alarm, Voice Call & System",
+                                            title = lsString(R.string.sec_master_system_streams),
+                                            subtitle = lsString(R.string.secd_media_ring_notification_alarm),
                                             isExpanded = isStreamsExpanded,
                                             onToggle = {
                                                 isStreamsExpanded = !isStreamsExpanded

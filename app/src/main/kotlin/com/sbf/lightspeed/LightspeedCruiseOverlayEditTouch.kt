@@ -213,6 +213,24 @@ private fun LightspeedCruiseOverlay.handleHudTabTap(
             return
         }
     }
+
+    for ((sparkId, rect) in layout.sparkPills) {
+        if (rect.contains(x, y)) {
+            triggerHardwareHaptic(20, 100)
+            context.defaultPrefs().edit()
+                .putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_LAUNCH_SPARK_STYLE, sparkId)
+                .apply()
+            // Brief live preview on the center icon focal area
+            deepSpaceRenderer.reactorRenderer.startWarp(bounds.centerX(), bounds.top - 24f * dp)
+            uiHandler.postDelayed({
+                deepSpaceRenderer.reactorRenderer.cancelWarp()
+                invalidate()
+            }, 140L)
+            invalidate()
+            postInvalidateOnAnimation()
+            return
+        }
+    }
 }
 
 private fun LightspeedCruiseOverlay.handleMostUsedSort() {

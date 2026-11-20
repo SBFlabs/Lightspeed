@@ -22,10 +22,10 @@ fun HudSystemOverridesSection(
     context: Context,
     prefs: SharedPreferences,
     isExpanded: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    languageMode: LightspeedLanguageEngine.LanguageMode = LightspeedLanguageEngine.modeFlow.value
 ) {
-    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
-    val (overrideTitle, overrideSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.SYSTEM_OVERRIDES, currentLanguageMode)
+    val (overrideTitle, overrideSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.SYSTEM_OVERRIDES, languageMode)
 
     CompactAccordionSection(
         title = overrideTitle,

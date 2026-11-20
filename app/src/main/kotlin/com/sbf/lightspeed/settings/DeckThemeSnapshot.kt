@@ -49,6 +49,29 @@ data class DeckThemeSnapshot(
 }
 
 object DeckStylePresets {
+    val MATERIAL_3 = DeckThemeSnapshot(
+        styleId = "material3",
+        displayName = "Material 3",
+        panelColorArgb = 0xFF1D1B20L,
+        tintArgb = 0xFFD0BCFFL,
+        panelAlpha = 1.0f,
+        borderColorArgb = 0xFF49454FL,
+        borderWidthDp = 1.0f,
+        cornerRadiusDp = 28f,
+        windowBlurRadiusPx = 0,
+        inAppBlurRadiusDp = 0f,
+        dimAmount = 0.45f,
+        glowColorArgb = 0x00000000L,
+        glowStrength = 0.0f,
+        highlightStrength = 0.0f,
+        noiseStrength = 0.0f,
+        shadowLayers = 1,
+        isProgressive = false,
+        usesSystemDynamicColor = true,
+        minApiForFullEffect = 26,
+        freeTier = true
+    )
+
     val PRISM = DeckThemeSnapshot(
         styleId = "prism",
         displayName = "Glass Lava",
@@ -117,7 +140,7 @@ object DeckStylePresets {
         isProgressive = false,
         usesSystemDynamicColor = false,
         minApiForFullEffect = 31,
-        freeTier = true
+        freeTier = false
     )
 
     val BLUR = DeckThemeSnapshot(
@@ -140,7 +163,7 @@ object DeckStylePresets {
         isProgressive = false,
         usesSystemDynamicColor = false,
         minApiForFullEffect = 31,
-        freeTier = true
+        freeTier = false
     )
 
     val PROGRESSIVE = DeckThemeSnapshot(
@@ -165,7 +188,7 @@ object DeckStylePresets {
         progressiveEndBlurPx = 95,
         usesSystemDynamicColor = true,
         minApiForFullEffect = 33,
-        freeTier = true
+        freeTier = false
     )
 
     val GLASSMORPHISM = DeckThemeSnapshot(
@@ -188,7 +211,7 @@ object DeckStylePresets {
         isProgressive = false,
         usesSystemDynamicColor = false,
         minApiForFullEffect = 31,
-        freeTier = true
+        freeTier = false
     )
 
     val NEON = DeckThemeSnapshot(
@@ -330,6 +353,7 @@ object DeckStylePresets {
     )
 
     val ALL: List<DeckThemeSnapshot> = listOf(
+        MATERIAL_3,
         PRISM,
         JELLY,
         FROSTED,
@@ -345,7 +369,7 @@ object DeckStylePresets {
     )
 
     fun resolve(styleId: String): DeckThemeSnapshot {
-        return ALL.find { it.styleId == styleId } ?: PRISM
+        return ALL.find { it.styleId == styleId } ?: MATERIAL_3
     }
 }
 
@@ -366,6 +390,112 @@ data class CanvasThemePalette(
     val glassBorderArgb: Int get() = borderArgb
 }
 
+private val FALLBACK_CHROMATIC_ACCENT = 0xFF38BDF8.toInt()
+private val FALLBACK_CHROMATIC_SECONDARY = 0xFFC084FC.toInt()
+
+/**
+ * Ensures an ARGB accent is chromatic and bright enough to contrast sharply against dark backdrops
+ * and white labels (preventing Android Go neutral Monet or white Prism tints from washing out focus).
+ */
+fun ensureChromaticAccentColor(argb: Int, fallbackArgb: Int = FALLBACK_CHROMATIC_ACCENT): Int {
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(argb or (0xFF shl 24), hsv)
+    if (hsv[1] < 0.22f) {
+        android.graphics.Color.colorToHSV(fallbackArgb or (0xFF shl 24), hsv)
+        if (hsv[1] < 0.22f) return FALLBACK_CHROMATIC_ACCENT
+    }
+    hsv[1] = hsv[1].coerceAtLeast(0.42f)
+    hsv[2] = hsv[2].coerceIn(0.76f, 0.98f)
+    return android.graphics.Color.HSVToColor(0xFF, hsv)
+}
+
+/**
+ * Resolves a vivid wallpaper/Monet accent pair with zero storage permissions.
+ * Falls back from system Monet tokens (S+) -> WallpaperManager.getWallpaperColors (API 27+,
+ * which recovers true wallpaper colors on Android Go builds where Monet resources stay neutral)
+ * -> chromatic 12-theme tint -> luminous cyan fallback.
+ */
+internal fun resolveVibrantDynamicAccentPair(
+    context: android.content.Context?,
+    themeTintArgb: Long
+): Pair<Int, Int> {
+    val hsv = FloatArray(3)
+    var primary: Int? = null
+    var secondary: Int? = null
+
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && context != null) {
+        val accentTokens = intArrayOf(
+            android.R.color.system_accent1_300,
+            android.R.color.system_accent1_400,
+            android.R.color.system_accent1_500,
+            android.R.color.system_accent1_200
+        )
+        for (resId in accentTokens) {
+            try {
+                val c = context.getColor(resId) or (0xFF shl 24)
+                android.graphics.Color.colorToHSV(c, hsv)
+                if (hsv[1] >= 0.22f) {
+                    hsv[2] = hsv[2].coerceIn(0.76f, 0.98f)
+                    primary = android.graphics.Color.HSVToColor(0xFF, hsv)
+                    break
+                }
+            } catch (_: Exception) {}
+        }
+        val secTokens = intArrayOf(
+            android.R.color.system_accent3_300,
+            android.R.color.system_accent3_400,
+            android.R.color.system_accent2_300
+        )
+        for (resId in secTokens) {
+            try {
+                val c = context.getColor(resId) or (0xFF shl 24)
+                android.graphics.Color.colorToHSV(c, hsv)
+                if (hsv[1] >= 0.20f) {
+                    hsv[2] = hsv[2].coerceIn(0.74f, 0.98f)
+                    secondary = android.graphics.Color.HSVToColor(0xFF, hsv)
+                    break
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    if ((primary == null || secondary == null) &&
+        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1 &&
+        context != null
+    ) {
+        try {
+            val wm = android.app.WallpaperManager.getInstance(context)
+            val wpColors = wm?.getWallpaperColors(android.app.WallpaperManager.FLAG_SYSTEM)
+            if (wpColors != null) {
+                val candidates = listOfNotNull(
+                    wpColors.primaryColor?.toArgb(),
+                    wpColors.secondaryColor?.toArgb(),
+                    wpColors.tertiaryColor?.toArgb()
+                )
+                for (raw in candidates) {
+                    val opaque = raw or (0xFF shl 24)
+                    android.graphics.Color.colorToHSV(opaque, hsv)
+                    if (hsv[1] >= 0.20f) {
+                        hsv[1] = hsv[1].coerceAtLeast(0.45f)
+                        hsv[2] = hsv[2].coerceIn(0.76f, 0.98f)
+                        val boosted = android.graphics.Color.HSVToColor(0xFF, hsv)
+                        if (primary == null) {
+                            primary = boosted
+                        } else if (secondary == null && boosted != primary) {
+                            secondary = boosted
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    val themeOpaque = (themeTintArgb.toInt() and 0x00FFFFFF) or (0xFF shl 24)
+    val resolvedPrimary = primary ?: ensureChromaticAccentColor(themeOpaque, FALLBACK_CHROMATIC_ACCENT)
+    val resolvedSecondary = secondary ?: ensureChromaticAccentColor(resolvedPrimary, FALLBACK_CHROMATIC_SECONDARY)
+    return resolvedPrimary to resolvedSecondary
+}
+
 fun DeckThemeSnapshot.resolveCanvasPalette(
     context: android.content.Context? = null,
     colorMode: String = "theme_12"
@@ -374,45 +504,55 @@ fun DeckThemeSnapshot.resolveCanvasPalette(
 
     // Full Material 3 Dynamic Wallpaper Mode ("m3_dynamic")
     if (colorMode == "m3_dynamic") {
-        if (isSPlus && context != null) {
+        val (p, s) = resolveVibrantDynamicAccentPair(context, effectiveTintArgb)
+        if (isSPlus) {
             try {
-                val p = context.getColor(android.R.color.system_accent1_300)
-                val s = context.getColor(android.R.color.system_accent3_300)
                 val bgIn = context.getColor(android.R.color.system_neutral1_800)
                 val bgOut = context.getColor(android.R.color.system_neutral1_900)
-                val bdr = context.getColor(android.R.color.system_accent1_200)
+                val bdrRaw = context.getColor(android.R.color.system_accent1_200)
+                val bdrHsv = FloatArray(3)
+                android.graphics.Color.colorToHSV(bdrRaw or (0xFF shl 24), bdrHsv)
+                val bdr = if (bdrHsv[1] >= 0.18f) (bdrRaw or (0xFF shl 24)) else p
                 return CanvasThemePalette(
                     panelInnerArgb = (bgIn and 0x00FFFFFF) or (0xE4 shl 24),
                     panelOuterArgb = (bgOut and 0x00FFFFFF) or (0xF0 shl 24),
-                    primaryAccentArgb = p or (0xFF shl 24),
-                    secondaryAccentArgb = s or (0xFF shl 24),
-                    borderArgb = bdr or (0xFF shl 24)
+                    primaryAccentArgb = p,
+                    secondaryAccentArgb = s,
+                    borderArgb = bdr
                 )
             } catch (_: Exception) {}
         }
         return CanvasThemePalette(
             panelInnerArgb = 0xE41A2234.toInt(),
             panelOuterArgb = 0xF0101522.toInt(),
-            primaryAccentArgb = 0xFF8AB4F8.toInt(),
-            secondaryAccentArgb = 0xFFC58AF9.toInt(),
-            borderArgb = 0xFFA8C7FA.toInt()
+            primaryAccentArgb = p,
+            secondaryAccentArgb = s,
+            borderArgb = p
         )
     }
 
-    if (styleId == "adaptive" && usesSystemDynamicColor && isSPlus && context != null) {
-        try {
-            val p = context.getColor(android.R.color.system_accent1_300)
-            val s = context.getColor(android.R.color.system_accent2_300)
-            val bgIn = context.getColor(android.R.color.system_neutral1_800)
-            val bgOut = context.getColor(android.R.color.system_neutral1_900)
-            return CanvasThemePalette(
-                panelInnerArgb = (bgIn and 0x00FFFFFF) or (0xE0 shl 24),
-                panelOuterArgb = (bgOut and 0x00FFFFFF) or (0xEE shl 24),
-                primaryAccentArgb = p or (0xFF shl 24),
-                secondaryAccentArgb = s or (0xFF shl 24),
-                borderArgb = p or (0xFF shl 24)
-            )
-        } catch (_: Exception) {}
+    if ((styleId == "adaptive" || styleId == "material3") && usesSystemDynamicColor && context != null) {
+        val (p, s) = resolveVibrantDynamicAccentPair(context, effectiveTintArgb)
+        if (isSPlus) {
+            try {
+                val bgIn = context.getColor(android.R.color.system_neutral1_800)
+                val bgOut = context.getColor(android.R.color.system_neutral1_900)
+                return CanvasThemePalette(
+                    panelInnerArgb = (bgIn and 0x00FFFFFF) or (0xE0 shl 24),
+                    panelOuterArgb = (bgOut and 0x00FFFFFF) or (0xEE shl 24),
+                    primaryAccentArgb = p,
+                    secondaryAccentArgb = s,
+                    borderArgb = p
+                )
+            } catch (_: Exception) {}
+        }
+        return CanvasThemePalette(
+            panelInnerArgb = 0xE01A2234.toInt(),
+            panelOuterArgb = 0xEE101522.toInt(),
+            primaryAccentArgb = p,
+            secondaryAccentArgb = s,
+            borderArgb = p
+        )
     }
 
     val pR = ((panelColorArgb shr 16) and 0xFF).toInt()
@@ -432,6 +572,7 @@ fun DeckThemeSnapshot.resolveCanvasPalette(
         "gaussian" -> 0.20f
         "progressive" -> 0.22f
         "adaptive" -> 0.26f
+        "material3" -> 0.14f
         "depth" -> 0.24f
         "acrylic" -> 0.20f
         "neon" -> 0.18f
@@ -480,14 +621,7 @@ fun DeckThemeSnapshot.resolveCanvasPalette(
 
     // Hybrid Fusion Mode ("hybrid_fusion"): Genius Merge of 12-Theme Optical Glass + M3 Dynamic Neon Seams
     if (colorMode == "hybrid_fusion") {
-        var m3Accent = 0xFF7C4DFF.toInt()
-        var m3Tertiary = 0xFF00E5FF.toInt()
-        if (isSPlus && context != null) {
-            try {
-                m3Accent = context.getColor(android.R.color.system_accent1_300) or (0xFF shl 24)
-                m3Tertiary = context.getColor(android.R.color.system_accent3_300) or (0xFF shl 24)
-            } catch (_: Exception) {}
-        }
+        val (m3Accent, m3Tertiary) = resolveVibrantDynamicAccentPair(context, effectiveTintArgb)
         val m3R = (m3Accent shr 16) and 0xFF
         val m3G = (m3Accent shr 8) and 0xFF
         val m3B = m3Accent and 0xFF

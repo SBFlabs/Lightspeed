@@ -1,7 +1,12 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -57,18 +62,19 @@ import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 private val STYLE_CAPTIONS: Map<String, String> = mapOf(
-    "prism" to "Glossy translucent surface with bright rim highlights and glare.",
-    "jelly" to "Soft, saturated, bouncy-looking translucent material.",
-    "frosted" to "Matte translucent surface that blurs what is behind it.",
-    "blur" to "Heavy blur on a dark panel; content stays in focus.",
-    "progressive" to "Blur grows with distance for a natural depth effect.",
-    "glassmorphism" to "Transparency, blur and a subtle border.",
-    "neon" to "Translucent glass with glowing neon edges.",
-    "adaptive" to "Adapts to your system colors and wallpaper.",
-    "acrylic" to "Translucent tint with a fine noise texture.",
-    "gaussian" to "Soft, uniform blur for a smooth, dreamy backdrop.",
-    "depth" to "Several translucent layers with shadows for 3D depth.",
-    "dark" to "Subtle dark glass that is easy on the eyes."
+    "material3" to lsString(R.string.slab_desc_m3),
+    "prism" to lsString(R.string.slab_desc_lava),
+    "jelly" to lsString(R.string.slab_desc_jelly),
+    "frosted" to lsString(R.string.slab_desc_frosted),
+    "blur" to lsString(R.string.slab_desc_dark),
+    "progressive" to lsString(R.string.slab_desc_prog),
+    "glassmorphism" to lsString(R.string.slab_desc_glass),
+    "neon" to lsString(R.string.slab_desc_neon),
+    "adaptive" to lsString(R.string.slab_desc_adapt),
+    "acrylic" to lsString(R.string.slab_desc_acrylic),
+    "gaussian" to lsString(R.string.slab_desc_gauss),
+    "depth" to lsString(R.string.slab_desc_depth),
+    "dark" to lsString(R.string.slab_desc_prism)
 )
 
 internal fun captionForStyle(styleId: String): String {
@@ -83,14 +89,22 @@ fun StyleLabPreviewDialog(
     onCustomizeStyle: ((styleId: String) -> Unit)? = null
 ) {
     val lsColors = LightspeedStyle.colors
-    val presets = DeckStylePresets.ALL
+    val basePresets = DeckStylePresets.ALL
     val activeStyleId by DeckThemeManager.styleIdFlow.collectAsState()
+    val customizations by ThemeCustomizationManager.customizationsFlow.collectAsState()
+    val presets = remember(basePresets, customizations, activeStyleId) {
+        basePresets.map { base ->
+            ThemeCustomizationManager.getCustomization(context, base.styleId).toSnapshot(base)
+        }
+    }
     val isInfinityUnlocked = com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)
+    val activeDensity = LocalDensity.current
 
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        CompositionLocalProvider(LocalDensity provides activeDensity) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = Color(0xFF070913)
@@ -126,14 +140,14 @@ fun StyleLabPreviewDialog(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "OPTICAL STYLE LAB",
+                                text = lsString(R.string.slab_title),
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White,
                                 letterSpacing = 0.6.sp
                             )
                             Text(
-                                text = "Tap any style card to apply • Long-press to calibrate",
+                                text = lsString(R.string.slab_sub),
                                 fontSize = 10.5.sp,
                                 color = lsColors.textSecondary.copy(alpha = 0.80f)
                             )
@@ -162,11 +176,14 @@ fun StyleLabPreviewDialog(
                 )
 
                 // Scrollable 2-column grid of the 12 style preview tiles
+                val styleGridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
                 LazyVerticalGrid(
+                    state = styleGridState,
                     columns = GridCells.Fixed(2),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .verticalEdgeFade(styleGridState),
                     contentPadding = PaddingValues(bottom = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -189,7 +206,7 @@ fun StyleLabPreviewDialog(
                                         onDismiss()
                                         onLockedClick()
                                     } else {
-                                        Toast.makeText(context, "Requires Lightspeed Infinity", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, lsString(R.string.slab_req_inf), Toast.LENGTH_SHORT).show()
                                     }
                                 } else if (isSelected) {
                                     LightspeedHapticEngine.tick(context)
@@ -210,7 +227,7 @@ fun StyleLabPreviewDialog(
                                         onDismiss()
                                         onLockedClick()
                                     } else {
-                                        Toast.makeText(context, "Requires Lightspeed Infinity", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, lsString(R.string.slab_req_inf), Toast.LENGTH_SHORT).show()
                                     }
                                 } else {
                                     LightspeedHapticEngine.tick(context)
@@ -224,6 +241,7 @@ fun StyleLabPreviewDialog(
                     }
                 }
             }
+        }
         }
     }
 }
@@ -289,7 +307,7 @@ private fun StyleLabTileCard(
                         border = BorderStroke(0.8.dp, primaryColor.copy(alpha = 0.75f))
                     ) {
                         Text(
-                            text = "Active",
+                            text = lsString(R.string.slab_active),
                             fontSize = 8.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = primaryColor,
@@ -303,7 +321,7 @@ private fun StyleLabTileCard(
                         border = BorderStroke(0.7.dp, lsColors.accentOk.copy(alpha = 0.55f))
                     ) {
                         Text(
-                            text = "Free",
+                            text = lsString(R.string.slab_free),
                             fontSize = 8.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = lsColors.accentOk,

@@ -27,7 +27,11 @@ internal data class AppMemoryEntry(
     val ramMb: Float,
     val swapMb: Float,
     val subtitleOverride: String? = null,
-    val isHighRisk: Boolean = false
+    val isHighRisk: Boolean = false,
+    val cpuPct: Float = 0f,
+    val cpuTimeSec: Long = 0L,
+    val activeLocks: Int = 0,
+    val heldMinutes: Float = 0f
 )
 
 internal object LightspeedVitalsHistoryStore {
@@ -245,17 +249,28 @@ internal object LightspeedVitalsHistoryStore {
 
         if (statsByPkg.isEmpty()) {
             // Non-Shizuku fallback: combine running processes + usage stats background activity
-            for (mem in queryRunningAppMemory(context).take(20)) {
-                if (!isTrackableAppPackage(mem.packageName)) continue
-                val fgMin = fgMinByPkg[mem.packageName] ?: 0L
-                val isBgSuspect = fgMin <= 2L && mem.ramMb >= 140f
-                val sub = if (isBgSuspect) {
-                    "BG ACTIVE · ${mem.ramMb.toInt()}MB RAM · 0m SCREEN (HEAT RISK)"
-                } else {
-                    "RAM: ${mem.ramMb.toInt()}MB · FG TODAY: ${fgMin}m"
+            return queryRunningAppMemory(context).take(30)
+                .filter { isTrackableAppPackage(it.packageName) }
+                .map { mem ->
+                    val fgMin = fgMinByPkg[mem.packageName] ?: 0L
+                    val isBgSuspect = fgMin <= 2L && mem.ramMb >= 140f
+                    val estPct = if (isBgSuspect) 5.0f else 1.0f
+                    val sub = if (isBgSuspect) {
+                        "BG ACTIVE · ${mem.ramMb.toInt()}MB RAM · 0m FG (HEAT RISK)"
+                    } else {
+                        "RAM: ${mem.ramMb.toInt()}MB · FG TODAY: ${fgMin}m"
+                    }
+                    AppMemoryEntry(
+                        packageName = mem.packageName,
+                        label = mem.label,
+                        ramMb = mem.ramMb + if (isBgSuspect) 500f else 0f,
+                        swapMb = estPct,
+                        subtitleOverride = sub,
+                        isHighRisk = isBgSuspect,
+                        cpuPct = estPct,
+                        cpuTimeSec = 0L
+                    )
                 }
-                statsByPkg[mem.packageName] = CpuStat(cpuPct = if (isBgSuspect) 5f else 1f, cpuTimeSec = mem.ramMb.toLong())
-            }
         }
 
         return statsByPkg.entries
@@ -269,7 +284,7 @@ internal object LightspeedVitalsHistoryStore {
                 val sub = buildString {
                     append(String.format(java.util.Locale.US, "CPU: %.1f%% · TIME: %s", st.cpuPct, timeStr))
                     if (isHiddenHog) {
-                        append(" · BG HEAT/CHG HOG")
+                        append(" · BG HEAT HOG")
                     } else {
                         append(" · FG: ${fgMin}m")
                     }
@@ -281,11 +296,13 @@ internal object LightspeedVitalsHistoryStore {
                     ramMb = score,
                     swapMb = st.cpuPct,
                     subtitleOverride = sub,
-                    isHighRisk = isHiddenHog
+                    isHighRisk = isHiddenHog,
+                    cpuPct = st.cpuPct,
+                    cpuTimeSec = st.cpuTimeSec
                 )
             }
-            .sortedByDescending { it.ramMb }
-            .take(30)
+            .sortedByDescending { it.cpuPct }
+            .take(40)
     }
 
     /**
@@ -337,11 +354,16 @@ internal object LightspeedVitalsHistoryStore {
         }
 
         // Supplement with background CPU/service holders so list is always actionable even when no instant lock is active
-        for (cpuEntry in queryRogueCpuApps(context).take(15)) {
+        for (cpuEntry in queryRogueCpuApps(context).take(20)) {
             if (!byPkg.containsKey(cpuEntry.packageName)) {
+                val estMins = if (cpuEntry.cpuTimeSec > 0L) {
+                    (cpuEntry.cpuTimeSec / 60f).coerceAtLeast(0.5f)
+                } else {
+                    (cpuEntry.cpuPct * 2f).coerceAtLeast(0.5f)
+                }
                 byPkg[cpuEntry.packageName] = WakeStat(
                     activeLocks = 0,
-                    heldMinutes = (cpuEntry.ramMb / 60f).coerceAtLeast(0.5f)
+                    heldMinutes = estMins
                 )
             }
         }
@@ -352,7 +374,8 @@ internal object LightspeedVitalsHistoryStore {
                 val isLiveLock = st.activeLocks > 0
                 val sub = if (isLiveLock) {
                     val tags = st.lockNames.take(2).joinToString(",")
-                    "ACTIVE WAKELOCK (${st.activeLocks}) · $tags · BLOCKS SLEEP"
+                    val durTag = if (st.heldMinutes > 0f) String.format(java.util.Locale.US, " · HELD %.1fM", st.heldMinutes) else ""
+                    "ACTIVE WAKELOCK (${st.activeLocks})$durTag · $tags"
                 } else {
                     String.format(java.util.Locale.US, "BG AWAKE ACTIVITY · EST %.1f MIN", st.heldMinutes)
                 }
@@ -363,11 +386,16 @@ internal object LightspeedVitalsHistoryStore {
                     ramMb = sortScore,
                     swapMb = st.activeLocks.toFloat(),
                     subtitleOverride = sub,
-                    isHighRisk = isLiveLock
+                    isHighRisk = isLiveLock,
+                    activeLocks = st.activeLocks,
+                    heldMinutes = st.heldMinutes
                 )
             }
-            .sortedByDescending { it.ramMb }
-            .take(30)
+            .sortedWith(
+                compareByDescending<AppMemoryEntry> { it.activeLocks }
+                    .thenByDescending { it.heldMinutes }
+            )
+            .take(40)
     }
 
     private fun readPidVmSwapKb(pid: Int): Float {

@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -229,8 +232,8 @@ fun SystemOverrideDeckContents(
 
         // (1) Touches
         CollapsibleSubSection(
-            title = "Touches",
-            subtitle = "Native edge gesture neutralization & custom long-press delay",
+            title = lsString(R.string.sec_touches),
+            subtitle = lsString(R.string.secd_native_edge_gesture_neutraliza),
             icon = { Icon(Icons.Default.TouchApp, contentDescription = null, tint = lsColors.accentWarn, modifier = Modifier.size(18.dp)) },
             isExpanded = isTouchExpanded,
             onToggle = {
@@ -254,8 +257,8 @@ fun SystemOverrideDeckContents(
                     sliderKey = "sys_override_edge_gesture",
                     defaultValue = 1.0f,
                     icon = Icons.Default.VerticalDistribute,
-                    title = "Native Edge Gesture Sovereignty",
-                    subtitle = "Force back-gesture insets to 0 to allow Lightspeed full edge control",
+                    title = lsString(R.string.sys_edge_title),
+                    subtitle = lsString(R.string.sys_edge_sub),
                     value = edgeGestureScale,
                     valueRange = 0.0f..2.0f,
                     steps = 19,
@@ -278,8 +281,8 @@ fun SystemOverrideDeckContents(
                     sliderKey = "sys_override_long_press_delay",
                     defaultValue = 400f,
                     icon = Icons.Default.TouchApp,
-                    title = "Long-Press Delay",
-                    subtitle = "Override system-wide touch latency (Settings.Secure.LONG_PRESS_TIMEOUT)",
+                    title = lsString(R.string.sys_lp_title),
+                    subtitle = lsString(R.string.sys_lp_sub),
                     value = longPressDelay,
                     valueRange = 150f..1000f,
                     steps = 84, // 10ms increments
@@ -299,8 +302,8 @@ fun SystemOverrideDeckContents(
 
         // (2) Display & Animations
         CollapsibleSubSection(
-            title = "Display & Animations",
-            subtitle = "Animation speed, display DPI & font scale",
+            title = lsString(R.string.sec_display_animations),
+            subtitle = lsString(R.string.secd_animation_speed_display_dpi_fo),
             icon = { Icon(Icons.Default.Tune, contentDescription = null, tint = lsColors.accentInfo, modifier = Modifier.size(18.dp)) },
             isExpanded = isDisplayExpanded,
             onToggle = {
@@ -324,8 +327,8 @@ fun SystemOverrideDeckContents(
                     sliderKey = "sys_override_animation_speed",
                     defaultValue = 1.0f,
                     icon = Icons.Default.Speed,
-                    title = "Animation Speeds",
-                    subtitle = "Global master scale & Window/Transition/Animator subdomains",
+                    title = lsString(R.string.sys_anim_title),
+                    subtitle = lsString(R.string.sys_anim_sub),
                     value = animationScale,
                     valueRange = 0.0f..2.0f,
                     steps = 19,
@@ -346,8 +349,8 @@ fun SystemOverrideDeckContents(
 
         // (3) Lock Screen & Phone Call Protocols
         CollapsibleSubSection(
-            title = "Lock Screen & Phone Call Protocols",
-            subtitle = "Lockscreen overlay behavior & during phone calls",
+            title = lsString(R.string.sec_lock_screen_phone_call_protoco),
+            subtitle = lsString(R.string.secd_lockscreen_overlay_behavior_du),
             icon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) },
             isExpanded = isLockscreenExpanded,
             onToggle = {

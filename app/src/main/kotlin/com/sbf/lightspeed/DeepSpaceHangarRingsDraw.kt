@@ -395,7 +395,8 @@ internal fun DeepSpaceRenderer.drawFlightLockReticleImpl(
         m3Secondary: Int,
         appName: String,
         density: Float,
-        reticleStyle: String = "tactical"
+        reticleStyle: String = "tactical",
+        context: android.content.Context? = null
     ) {
         val half = bracketSize / 2f
         val armLen = bracketSize * 0.28f
@@ -459,10 +460,11 @@ internal fun DeepSpaceRenderer.drawFlightLockReticleImpl(
         elementPaint.color = Color.argb(120, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
         canvas.drawLine(0f, targetCY, targetCX - half - 10f, targetCY, elementPaint)
 
-        textPaint.textSize = 12f * density
+        val ts = context?.let { hangarTextScale(it) } ?: 1f
+        textPaint.textSize = 14f * density * ts
         textPaint.color = Color.WHITE
         textPaint.textAlign = Paint.Align.LEFT
-        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        textPaint.typeface = context?.let { hangarTypeface(it, isBold = true) } ?: android.graphics.Typeface.DEFAULT_BOLD
 
         val maxBadgeWidth = 160f * density
         var cleanAppName = appName
@@ -473,12 +475,12 @@ internal fun DeepSpaceRenderer.drawFlightLockReticleImpl(
             cleanAppName = "$cleanAppName…"
         }
 
-        val subText = "TARGET LOCKED"
-        textPaint.textSize = 8.5f * density
-        textPaint.typeface = android.graphics.Typeface.DEFAULT
+        val subText = com.sbf.lightspeed.system.lsString(R.string.ck_target_locked).ifBlank { "TARGET LOCKED" }
+        textPaint.textSize = 10.5f * density * ts
+        textPaint.typeface = context?.let { hangarTypeface(it, isBold = false) } ?: android.graphics.Typeface.DEFAULT
         val subWidth = textPaint.measureText(subText)
-        textPaint.textSize = 12f * density
-        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        textPaint.textSize = 14f * density * ts
+        textPaint.typeface = context?.let { hangarTypeface(it, isBold = true) } ?: android.graphics.Typeface.DEFAULT_BOLD
         val titleWidth = textPaint.measureText(cleanAppName)
         val finalBadgeWidth = maxOf(titleWidth, subWidth).coerceAtLeast(54f * density)
 
@@ -494,13 +496,13 @@ internal fun DeepSpaceRenderer.drawFlightLockReticleImpl(
         highlightPaint.color = m3Primary
         canvas.drawRoundRect(flightBadgeRect, 8f * density, 8f * density, highlightPaint)
 
-        textPaint.textSize = 12f * density
-        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        textPaint.textSize = 14f * density * ts
+        textPaint.typeface = context?.let { hangarTypeface(it, isBold = true) } ?: android.graphics.Typeface.DEFAULT_BOLD
         textPaint.color = Color.WHITE
         canvas.drawText(cleanAppName, badgeX, badgeY + 1f * density, textPaint)
 
-        textPaint.textSize = 8f * density
-        textPaint.typeface = android.graphics.Typeface.DEFAULT
+        textPaint.textSize = 10f * density * ts
+        textPaint.typeface = context?.let { hangarTypeface(it, isBold = false) } ?: android.graphics.Typeface.DEFAULT
         textPaint.color = Color.argb(220, Color.red(m3Secondary), Color.green(m3Secondary), Color.blue(m3Secondary))
         canvas.drawText(subText, badgeX, badgeY + 12.5f * density, textPaint)
     }

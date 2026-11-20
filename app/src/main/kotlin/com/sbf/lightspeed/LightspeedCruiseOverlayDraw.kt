@@ -148,7 +148,7 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
 
         if (currentLayer == CruiseLayer.CATEGORY) {
             val density = resources.displayMetrics.density
-            val catAccent = categoryAccentOverride() ?: m3Primary
+            val catAccent = categoryFocusAccentColor(m3Primary)
             val decelerationFactor = sin(((System.currentTimeMillis() - entranceStartTime) / 220f).coerceIn(0f, 1f) * PI / 2.0).toFloat()
             
             // 1. Deep Space Astrogation Void Backdrop
@@ -163,18 +163,19 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
             // 4. Galactic Horizon: Cruising Through Nebulae & Star Systems
             if (cachedCategories.isNotEmpty()) {
                 val startYArea = h * 0.25f; val endYArea = h * 0.75f
-                val catLineH = ((endYArea - startYArea) / cachedCategories.size) * categorySpacingScale()
+                val baseCatCount = cachedCategories.count { it.id != "launcher_settings_virtual_id" }.coerceAtLeast(1)
+                val catLineH = ((endYArea - startYArea) / baseCatCount) * categorySpacingScale()
 
                 cachedCategories.forEachIndexed { idx, cat ->
                     val centerY = startYArea + (idx * catLineH) + (catLineH / 2f) + categoryVisualOffset
                     val relativeDistanceFromCenter = centerY - (h / 2f)
                     val sweepAngleRad = (relativeDistanceFromCenter / ((endYArea - startYArea) / 2f)).coerceIn(-1.2f, 1.2f) * (PI / 2.6f)
                     
-                    // Symmetrical anchor based on flank origin
+                    // Symmetrical anchor based on flank origin (closer to thumb while preserving 3D arc)
                     val targetTextX = if (isOpenedFromLeftFlank) {
-                        (28f * density) + (cos(sweepAngleRad).toFloat() * 100f * density)
+                        (20f * density) + (cos(sweepAngleRad).toFloat() * 58f * density)
                     } else {
-                        w - (28f * density) - (cos(sweepAngleRad).toFloat() * 100f * density)
+                        w - (20f * density) - (cos(sweepAngleRad).toFloat() * 58f * density)
                     }
                     val distanceRatio = (abs(relativeDistanceFromCenter) / ((endYArea - startYArea) / 2f)).coerceIn(0f, 1f)
                     val zoom = 0.70f + Math.pow(1.0 - distanceRatio, 2.5).toFloat() * 1.35f
@@ -215,13 +216,13 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                     val currentTextSize = 13f * density + (baseTargetSize - 13f * density) * focusFactor
                     catTextPaint.textSize = currentTextSize
                     catTextPaint.textAlign = if (isOpenedFromLeftFlank) Paint.Align.LEFT else Paint.Align.RIGHT
-                    catTextPaint.typeface = if (focusFactor > 0.6f) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+                    catTextPaint.typeface = overlayTypeface(isBold = focusFactor > 0.6f)
 
-                    // Color interpolation: Dim starlight (#9EA7B8) to blazing white (or Material 3 accent on focused category in M3 mode)
+                    // Color interpolation: Dim starlight (#9EA7B8) to white for unselected categories,
+                    // or shared chromatic accent on the focused category across all color engines.
                     val isFocusedCat = (idx == activeCatIndex)
-                    val isM3Mode = (categoryColorMode() == LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC)
                     val alpha = ((35 + 220 * focusFactor) * decelerationFactor).toInt().coerceIn(0, 255)
-                    if (isFocusedCat && isM3Mode) {
+                    if (isFocusedCat) {
                         val m3R = Color.red(catAccent); val m3G = Color.green(catAccent); val m3B = Color.blue(catAccent)
                         val rCol = (158 + (m3R - 158) * focusFactor).toInt()
                         val gCol = (167 + (m3G - 167) * focusFactor).toInt()
@@ -242,7 +243,7 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                         val measuredLabelW = catTextPaint.measureText(labelText)
                         val beaconAlpha = ((focusFactor - 0.25f) / 0.75f).coerceIn(0f, 1f)
                         textPaint.textAlign = if (isOpenedFromLeftFlank) Paint.Align.LEFT else Paint.Align.RIGHT
-                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        textPaint.typeface = overlayTypeface(isBold = true)
                         textPaint.textSize = (currentTextSize * 0.75f).coerceAtLeast(8.5f * density)
                         // In Hybrid or M3 mode: Only the focused category's star receives the accent color.
                         // Non-focused stars keep standard 12-theme white.
@@ -271,5 +272,8 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
 
         drawHyperdriveWarpSurge(canvas, m3Primary, resources.displayMetrics.density)
         drawCruiseCentralPill(canvas, m3Primary)
+        if (deepSpaceRenderer.isWarpLaunching) {
+            postInvalidateOnAnimation()
+        }
 }
 

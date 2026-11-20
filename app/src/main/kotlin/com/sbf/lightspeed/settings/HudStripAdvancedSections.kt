@@ -43,11 +43,12 @@ fun LazyListScope.renderHudStripAdvancedSection(
     onSinglePressTapCountChange: (Int) -> Unit,
     installedTacticalTools: List<TacticalToolItem>,
     dynamicActionTokens: List<String>,
-    tokenLabelCache: Map<String, String>
+    tokenLabelCache: Map<String, String>,
+    languageMode: com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode = com.sbf.lightspeed.system.LightspeedLanguageEngine.modeFlow.value
 ) {
     when (sectionId) {
         "synthetic_gravity" -> {
-            item(key = "synthetic_gravity") {
+            item(key = "synthetic_gravity", contentType = "accordion") {
                 HudSyntheticGravitySection(
                     context = context,
                     prefs = prefs,
@@ -57,55 +58,59 @@ fun LazyListScope.renderHudStripAdvancedSection(
                         prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED, !isSyntheticGravityExpanded).apply()
                         safeReloadPreferences()
                     },
-                    onRefreshNeeded = onRefreshNeeded
+                    onRefreshNeeded = onRefreshNeeded,
+                    languageMode = languageMode
                 )
             }
         }
         "refueling_bay" -> {
-            item(key = "refueling_bay") {
+            item(key = "refueling_bay", contentType = "accordion") {
                 HudRefuelingBaySection(
                     context = context,
                     prefs = prefs,
                     isExpanded = isRefuelingExpanded,
                     onToggle = {
                         toggleSection(1, "refueling_bay", isRefuelingExpanded) { onToggleRefueling(it) }
-                        prefs.edit().putBoolean("pref_section_refueling_expanded", !isRefuelingExpanded).apply()
+                        prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_REFUELING_EXPANDED, !isRefuelingExpanded).apply()
                     },
                     onShowAmoledWarning = onShowAmoledWarning,
-                    onRefreshNeeded = onRefreshNeeded
+                    onRefreshNeeded = onRefreshNeeded,
+                    languageMode = languageMode
                 )
             }
         }
         "config_vault" -> {
-            item(key = "config_vault") {
+            item(key = "config_vault", contentType = "accordion") {
                 HudConfigVaultSection(
                     isExpanded = isConfigVaultExpanded,
                     onToggle = {
                         toggleSection(1, "config_vault", isConfigVaultExpanded) { onToggleConfigVault(it) }
-                        prefs.edit().putBoolean("pref_section_backup_expanded", !isConfigVaultExpanded).apply()
+                        prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_BACKUP_EXPANDED, !isConfigVaultExpanded).apply()
                     },
                     onExportClicked = { exportLauncher.launch("lightspeed-backup.json") },
                     onShowImportOptions = onShowImportOptions,
-                    onShowResetConfirm = onShowResetConfirm
+                    onShowResetConfirm = onShowResetConfirm,
+                    languageMode = languageMode
                 )
             }
         }
         "system_overrides" -> {
-            item(key = "system_overrides") {
+            item(key = "system_overrides", contentType = "accordion") {
                 HudSystemOverridesSection(
                     context = context,
                     prefs = prefs,
                     isExpanded = isSystemOverridesExpanded,
                     onToggle = {
                         toggleSection(1, "system_overrides", isSystemOverridesExpanded) { onToggleSystemOverrides(it) }
-                        prefs.edit().putBoolean("pref_section_system_overrides_expanded", !isSystemOverridesExpanded).apply()
+                        prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_SYSTEM_OVERRIDES_EXPANDED, !isSystemOverridesExpanded).apply()
                         safeReloadPreferences()
-                    }
+                    },
+                    languageMode = languageMode
                 )
             }
         }
         "experimental_labs" -> {
-            item(key = "experimental_labs") {
+            item(key = "experimental_labs", contentType = "hazard_accordion") {
                 HudExperimentalLabsSection(
                     context = context,
                     prefs = prefs,
@@ -135,10 +140,11 @@ fun LazyListScope.renderHudStripAdvancedSection(
                     onToggleRefueling = {
                         val next = !isRefuelingExpanded
                         onToggleRefueling(next)
-                        prefs.edit().putBoolean("pref_section_refueling_expanded", next).apply()
+                        prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_REFUELING_EXPANDED, next).apply()
                     },
                     onShowAmoledWarning = onShowAmoledWarning,
-                    onRefreshNeeded = onRefreshNeeded
+                    onRefreshNeeded = onRefreshNeeded,
+                    languageMode = languageMode
                 )
             }
         }

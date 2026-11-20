@@ -23,9 +23,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlin.math.roundToInt
 
@@ -74,7 +76,7 @@ fun GestureHoldDurationControl(
             onDismissRequest = { showHoldDialog = false },
             title = {
                 Text(
-                    text = "Hold Trigger Delay",
+                    text = lsString(R.string.dlg_hold_title),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = lsColors.textPrimary
@@ -86,7 +88,7 @@ fun GestureHoldDurationControl(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "Duration to pause and hold before the hold modifier action activates.",
+                        text = lsString(R.string.dlg_hold_desc),
                         fontSize = 12.sp,
                         color = lsColors.textSecondary.copy(alpha = 0.75f)
                     )
@@ -96,7 +98,7 @@ fun GestureHoldDurationControl(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Trigger Delay",
+                            text = lsString(R.string.dlg_hold_label),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = lsColors.textPrimary
@@ -156,7 +158,7 @@ fun GestureHoldDurationControl(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Apply as global default to all hold gestures",
+                            text = lsString(R.string.dlg_hold_apply_all),
                             fontSize = 11.sp,
                             color = lsColors.textSecondary
                         )
@@ -178,19 +180,19 @@ fun GestureHoldDurationControl(
                         showHoldDialog = false
                     }
                 ) {
-                    Text("APPLY", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(lsString(R.string.cc_common_apply), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showHoldDialog = false }) {
-                    Text("CANCEL", color = lsColors.textSecondary)
+                    Text(lsString(R.string.cc_common_cancel), color = lsColors.textSecondary)
                 }
             }
         )
 
         if (isHoldFlyoutOpen) {
             SliderCalibrationFlyoutDialog(
-                title = "Hold Trigger Delay",
+                title = lsString(R.string.dlg_hold_title),
                 sliderKey = perGestureHoldKey,
                 currentValueStr = "${tempHoldVal.roundToInt()}",
                 defaultValueStr = "300",

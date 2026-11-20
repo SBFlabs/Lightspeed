@@ -1,5 +1,9 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
@@ -141,17 +145,13 @@ internal fun LightspeedCruiseOverlay.drawHudEditModeOverlay(
     val starCx = toolbarRect.left + 13f * dp
     LightspeedHudVectorIcons.drawVectorDiamondStar(canvas, starCx, toolbarRect.centerY(), 4.5f * dp, accent)
     textPaint.textAlign = Paint.Align.LEFT
-    textPaint.typeface = Typeface.MONOSPACE
-    textPaint.textSize = if (isCompactPhone) 9f * dp else 10f * dp
+    textPaint.typeface = overlayTypeface(isBold = true, fallback = Typeface.MONOSPACE)
+    textPaint.textSize = (if (isCompactPhone) 8.8f * dp else 10f * dp) * overlayTextScale()
     textPaint.color = Color.WHITE
     textPaint.alpha = 240
     val fm = textPaint.fontMetrics
     val textY = toolbarRect.centerY() - ((fm.descent + fm.ascent) / 2f)
-    val titleText = when {
-        isCompactPhone -> "AVIONICS"
-        else -> "AVIONICS HUD"
-    }
-    canvas.drawText(titleText, toolbarRect.left + 21f * dp, textY, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_hud_edit_mode).ifBlank { "HUD EDIT MODE" }, toolbarRect.left + 21f * dp, textY, textPaint)
 
     // Right Action Buttons: [+ ADD] and [DONE]
     val btnH = 26f * dp
@@ -166,11 +166,11 @@ internal fun LightspeedCruiseOverlay.drawHudEditModeOverlay(
     canvas.drawRoundRect(doneBtnRect, 5f * dp, 5f * dp, highlightPaint)
 
     textPaint.textAlign = Paint.Align.CENTER
-    textPaint.typeface = Typeface.DEFAULT_BOLD
-    textPaint.textSize = 9.5f * dp
+    textPaint.typeface = overlayTypeface(isBold = true)
+    textPaint.textSize = 9.5f * dp * overlayTextScale()
     textPaint.color = Color.BLACK
     textPaint.alpha = 255
-    canvas.drawText("DONE", doneBtnRect.centerX(), doneBtnRect.centerY() - ((fm.descent + fm.ascent) / 2f), textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_done).ifBlank { "DONE" }, doneBtnRect.centerX(), doneBtnRect.centerY() - ((fm.descent + fm.ascent) / 2f), textPaint)
 
     val addW = if (isCompactPhone) 68f * dp else 86f * dp
     val addLeft = doneLeft - addW - 5f * dp
@@ -185,7 +185,7 @@ internal fun LightspeedCruiseOverlay.drawHudEditModeOverlay(
     canvas.drawRoundRect(addBtnRect, 5f * dp, 5f * dp, highlightPaint)
 
     textPaint.color = Color.WHITE
-    canvas.drawText("+ ADD", addBtnRect.centerX(), addBtnRect.centerY() - ((fm.descent + fm.ascent) / 2f), textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_add).ifBlank { "+ ADD" }, addBtnRect.centerX(), addBtnRect.centerY() - ((fm.descent + fm.ascent) / 2f), textPaint)
 
     // 2. Empty state card if no widgets exist
     if (items.isEmpty()) {
@@ -200,21 +200,23 @@ internal fun LightspeedCruiseOverlay.drawHudEditModeOverlay(
         canvas.drawRoundRect(emptyRect, 10f * dp, 10f * dp, highlightPaint)
 
         textPaint.textAlign = Paint.Align.CENTER
-        textPaint.typeface = Typeface.DEFAULT_BOLD
-        textPaint.textSize = 11.5f * dp
+        textPaint.typeface = overlayTypeface(isBold = true)
+        textPaint.textSize = 11.5f * dp * overlayTextScale()
         textPaint.color = Color.WHITE
-        canvas.drawText("[ NO HUD WIDGETS CONFIGURED ]", emptyRect.centerX(), emptyRect.centerY() - 6f * dp, textPaint)
-        textPaint.typeface = Typeface.DEFAULT
-        textPaint.textSize = 9.5f * dp
+        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_no_widgets).ifBlank { "[ NO HUD WIDGETS CONFIGURED ]" }, emptyRect.centerX(), emptyRect.centerY() - 6f * dp, textPaint)
+        textPaint.typeface = overlayTypeface(isBold = false)
+        textPaint.textSize = 9.5f * dp * overlayTextScale()
         textPaint.color = accent
-        canvas.drawText("Tap here or '+ ADD' above to mount Widgets", emptyRect.centerX(), emptyRect.centerY() + 12f * dp, textPaint)
+        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_tap_add_widgets).ifBlank { "Tap here or '+ ADD' above to mount Widgets" }, emptyRect.centerX(), emptyRect.centerY() + 12f * dp, textPaint)
     } else {
         hudEmptyCardRect.set(0f, 0f, 0f, 0f)
 
         // 3. In-place header controls over each widget card (no W-/W+/H-/H+ bars)
-        canvas.save()
+        val scrollTop = toolbarTop + toolbarH + 2f * dp
         val scrollBottom = height.toFloat() * 0.96f
-        canvas.clipRect(tStartX, toolbarTop + toolbarH + 2f * dp, tEndX, scrollBottom)
+        val editLayerCount = canvas.saveLayer(tStartX, scrollTop, tEndX, scrollBottom, null)
+        canvas.clipRect(tStartX, scrollTop, tEndX, scrollBottom)
+        canvas.save()
         canvas.translate(0f, -hudScrollOffset)
         for ((index, item) in items.withIndex()) {
             val b = item.bounds
@@ -244,8 +246,8 @@ internal fun LightspeedCruiseOverlay.drawHudEditModeOverlay(
 
                 val typeLabel = hudWidgetDisplayName(item.type, short = geom.isCompact && geom.tagRect.width() < 110f * dp)
                 textPaint.textAlign = Paint.Align.LEFT
-                textPaint.typeface = Typeface.MONOSPACE
-                textPaint.textSize = (8.5f * dp).coerceAtMost(geom.tagRect.height() * 0.45f)
+                textPaint.typeface = overlayTypeface(isBold = true, fallback = Typeface.MONOSPACE)
+                textPaint.textSize = (8.5f * dp * overlayTextScale()).coerceAtMost(geom.tagRect.height() * 0.45f)
                 textPaint.color = accent
                 textPaint.alpha = 240
                 canvas.drawText(typeLabel, geom.tagRect.left + 5f * dp, geom.tagRect.centerY() - ((fm.descent + fm.ascent) / 2f), textPaint)
@@ -313,6 +315,18 @@ internal fun LightspeedCruiseOverlay.drawHudEditModeOverlay(
             }
         }
         canvas.restore()
+        LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+            canvas = canvas,
+            left = tStartX,
+            top = scrollTop,
+            right = tEndX,
+            bottom = scrollBottom,
+            featherTopPx = if (hudScrollOffset > 0.5f) 18f * dp else 0f,
+            featherBottomPx = if (hudScrollOffset < hudMaxScroll - 0.5f) 24f * dp else 0f,
+            density = dp,
+            seed = 8606
+        )
+        canvas.restoreToCount(editLayerCount)
     }
 
     // 4. Modal dialog if [+ ADD] was tapped
@@ -334,22 +348,22 @@ internal fun LightspeedCruiseOverlay.drawHudEditModeOverlay(
 internal fun hudWidgetDisplayName(type: String, short: Boolean = false): String {
     return if (short) {
         when (type) {
-            LightspeedCruiseHudPods.MODE_LS_SCREEN_TIME -> "TIME"
-            LightspeedCruiseHudPods.MODE_LS_BATTERY_SYSTEM -> "BATTERY"
+            LightspeedCruiseHudPods.MODE_LS_SCREEN_TIME -> com.sbf.lightspeed.system.lsString(R.string.hud_short_time).ifBlank { "TIME" }
+            LightspeedCruiseHudPods.MODE_LS_BATTERY_SYSTEM -> com.sbf.lightspeed.system.lsString(R.string.hud_short_battery).ifBlank { "BATTERY" }
             LightspeedCruiseHudPods.MODE_APP_AND_CAT,
             LightspeedCruiseHudPods.MODE_APP_ONLY,
-            LightspeedCruiseHudPods.MODE_LS_PRIVACY -> "INSPECT"
-            LightspeedCruiseHudPods.MODE_ANDROID_WIDGET -> "WIDGET"
+            LightspeedCruiseHudPods.MODE_LS_PRIVACY -> com.sbf.lightspeed.system.lsString(R.string.hud_short_inspect).ifBlank { "INSPECT" }
+            LightspeedCruiseHudPods.MODE_ANDROID_WIDGET -> com.sbf.lightspeed.system.lsString(R.string.hud_short_widget).ifBlank { "WIDGET" }
             else -> "HUD"
         }
     } else {
         when (type) {
-            LightspeedCruiseHudPods.MODE_LS_SCREEN_TIME -> "SCREEN TIME"
-            LightspeedCruiseHudPods.MODE_LS_BATTERY_SYSTEM -> "BATTERY & SYS"
+            LightspeedCruiseHudPods.MODE_LS_SCREEN_TIME -> com.sbf.lightspeed.system.lsString(R.string.hud_screen_time).ifBlank { "SCREEN TIME" }
+            LightspeedCruiseHudPods.MODE_LS_BATTERY_SYSTEM -> com.sbf.lightspeed.system.lsString(R.string.hud_battery_sys).ifBlank { "BATTERY & SYS" }
             LightspeedCruiseHudPods.MODE_APP_AND_CAT,
             LightspeedCruiseHudPods.MODE_APP_ONLY,
-            LightspeedCruiseHudPods.MODE_LS_PRIVACY -> "FOCUS INSPECTOR"
-            LightspeedCruiseHudPods.MODE_ANDROID_WIDGET -> "APP WIDGET"
+            LightspeedCruiseHudPods.MODE_LS_PRIVACY -> com.sbf.lightspeed.system.lsString(R.string.hud_focus_inspector).ifBlank { "FOCUS INSPECTOR" }
+            LightspeedCruiseHudPods.MODE_ANDROID_WIDGET -> com.sbf.lightspeed.system.lsString(R.string.hud_app_widget).ifBlank { "APP WIDGET" }
             else -> type.uppercase()
         }
     }
@@ -372,14 +386,14 @@ internal fun LightspeedCruiseOverlay.drawHudAddWidgetModal(
     val modalW = (320f * dp).coerceAtMost(screenW - 32f * dp)
     val options = if (NightlyFeatures.isCategoryCruiseHudWidgetsEnabled) {
         listOf(
-            LightspeedCruiseHudPods.MODE_LS_SCREEN_TIME to "SCREEN TIME TELEMETRY",
-            LightspeedCruiseHudPods.MODE_LS_BATTERY_SYSTEM to "BATTERY & SYSTEM VITALS",
-            LightspeedCruiseHudPods.MODE_APP_AND_CAT to "FOCUSED APP INSPECTOR",
-            LightspeedCruiseHudPods.MODE_ANDROID_WIDGET to "ANDROID APP WIDGET · BROWSE..."
+            LightspeedCruiseHudPods.MODE_LS_SCREEN_TIME to lsString(R.string.hud_opt_st_tel),
+            LightspeedCruiseHudPods.MODE_LS_BATTERY_SYSTEM to lsString(R.string.hud_opt_bat_vit),
+            LightspeedCruiseHudPods.MODE_APP_AND_CAT to lsString(R.string.hud_opt_app_insp),
+            LightspeedCruiseHudPods.MODE_ANDROID_WIDGET to lsString(R.string.hud_opt_wid_browse)
         )
     } else {
         listOf(
-            LightspeedCruiseHudPods.MODE_APP_AND_CAT to "SECTOR + FOCUSED APP STRIP"
+            LightspeedCruiseHudPods.MODE_APP_AND_CAT to lsString(R.string.hud_opt_sec_strip)
         )
     }
 
@@ -402,10 +416,10 @@ internal fun LightspeedCruiseOverlay.drawHudAddWidgetModal(
 
     drawDeckThemedFlyoutSurface(canvas, modalRect, colors.snapshot, colors.cornerRadiusPx, dp, highlightPaint)
 
-    val modalTitle = "ADD HUD MODULE"
+    val modalTitle = lsString(R.string.hud_add_module)
     textPaint.textAlign = Paint.Align.CENTER
-    textPaint.typeface = Typeface.MONOSPACE
-    textPaint.textSize = 11.5f * dp
+    textPaint.typeface = overlayTypeface(isBold = true, fallback = Typeface.MONOSPACE)
+    textPaint.textSize = 11.5f * dp * overlayTextScale()
     textPaint.color = colors.textPrimary
     val titleHalfW = textPaint.measureText(modalTitle) * 0.5f
     LightspeedHudVectorIcons.drawVectorDiamondStar(canvas, modalRect.centerX() - titleHalfW - 10f * dp, top + 24f * dp, 4.2f * dp, themeAccent)
@@ -428,8 +442,8 @@ internal fun LightspeedCruiseOverlay.drawHudAddWidgetModal(
         canvas.drawRoundRect(rowRect, 7f * dp, 7f * dp, highlightPaint)
 
         textPaint.textAlign = Paint.Align.LEFT
-        textPaint.typeface = Typeface.DEFAULT_BOLD
-        textPaint.textSize = 10f * dp
+        textPaint.typeface = overlayTypeface(isBold = true)
+        textPaint.textSize = 10f * dp * overlayTextScale()
         textPaint.color = if (type == LightspeedCruiseHudPods.MODE_ANDROID_WIDGET) themeAccent else colors.textPrimary
         val fm = textPaint.fontMetrics
         canvas.drawText(label, rowRect.left + 12f * dp, rowRect.centerY() - ((fm.descent + fm.ascent) / 2f), textPaint)
@@ -448,10 +462,10 @@ internal fun LightspeedCruiseOverlay.drawHudAddWidgetModal(
     highlightPaint.color = Color.argb(115, 255, 115, 125)
     canvas.drawRoundRect(cancelRect, 7f * dp, 7f * dp, highlightPaint)
     textPaint.textAlign = Paint.Align.CENTER
-    textPaint.textSize = 10.5f * dp
+    textPaint.textSize = 10.5f * dp * overlayTextScale()
     textPaint.color = Color.argb(235, 255, 180, 185)
     val fm = textPaint.fontMetrics
-    canvas.drawText("CANCEL", cancelRect.centerX(), cancelRect.centerY() - ((fm.descent + fm.ascent) / 2f), textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_cancel).ifBlank { "CANCEL" }, cancelRect.centerX(), cancelRect.centerY() - ((fm.descent + fm.ascent) / 2f), textPaint)
 }
 
 private fun LightspeedCruiseOverlay.drawHudDeleteConfirmModal(canvas: Canvas, accent: Int) {
@@ -482,13 +496,13 @@ private fun LightspeedCruiseOverlay.drawHudDeleteConfirmModal(canvas: Canvas, ac
 
     val fm = textPaint.fontMetrics
     textPaint.textAlign = Paint.Align.CENTER
-    textPaint.typeface = Typeface.DEFAULT_BOLD
-    textPaint.textSize = 12.5f * dp
+    textPaint.typeface = overlayTypeface(isBold = true)
+    textPaint.textSize = 12.5f * dp * overlayTextScale()
     textPaint.color = colors.textPrimary
-    canvas.drawText("REMOVE WIDGET?", deleteModalRect.centerX(), top + 30f * dp, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_remove_widget).ifBlank { "REMOVE WIDGET?" }, deleteModalRect.centerX(), top + 30f * dp, textPaint)
 
-    textPaint.typeface = Typeface.MONOSPACE
-    textPaint.textSize = 9.5f * dp
+    textPaint.typeface = overlayTypeface(isBold = true, fallback = Typeface.MONOSPACE)
+    textPaint.textSize = 9.5f * dp * overlayTextScale()
     textPaint.color = colors.accentColor
     canvas.drawText(hudWidgetDisplayName(item.type, short = false), deleteModalRect.centerX(), top + 52f * dp, textPaint)
 
@@ -504,17 +518,17 @@ private fun LightspeedCruiseOverlay.drawHudDeleteConfirmModal(canvas: Canvas, ac
     highlightPaint.strokeWidth = 0.9f * dp
     highlightPaint.color = colors.pillBorder
     canvas.drawRoundRect(deleteCancelBtnRect, 7f * dp, 7f * dp, highlightPaint)
-    textPaint.typeface = Typeface.DEFAULT_BOLD
-    textPaint.textSize = 10.5f * dp
+    textPaint.typeface = overlayTypeface(isBold = true)
+    textPaint.textSize = 10.5f * dp * overlayTextScale()
     textPaint.color = colors.textPrimary
-    canvas.drawText("CANCEL", deleteCancelBtnRect.centerX(), deleteCancelBtnRect.centerY() - ((fm.descent + fm.ascent) / 2f), textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_cancel).ifBlank { "CANCEL" }, deleteCancelBtnRect.centerX(), deleteCancelBtnRect.centerY() - ((fm.descent + fm.ascent) / 2f), textPaint)
 
     deleteConfirmBtnRect.set(deleteCancelBtnRect.right + 8f * dp, btnY, left + modalW - 14f * dp, btnY + btnH)
     highlightPaint.style = Paint.Style.FILL
     highlightPaint.color = Color.argb(235, 220, 38, 38)
     canvas.drawRoundRect(deleteConfirmBtnRect, 7f * dp, 7f * dp, highlightPaint)
     textPaint.color = Color.WHITE
-    canvas.drawText("DELETE", deleteConfirmBtnRect.centerX(), deleteConfirmBtnRect.centerY() - ((fm.descent + fm.ascent) / 2f), textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_delete).ifBlank { "DELETE" }, deleteConfirmBtnRect.centerX(), deleteConfirmBtnRect.centerY() - ((fm.descent + fm.ascent) / 2f), textPaint)
 }
 
 internal fun LightspeedCruiseOverlay.handleHudEditModeTap(x: Float, y: Float): Boolean {
@@ -534,10 +548,7 @@ internal fun LightspeedCruiseOverlay.handleHudEditModeTap(x: Float, y: Float): B
                 closeHudTuneModal()
             }
             pendingDeleteHudItem = null
-            computeHudSlotBounds()
-            updateCategoryAppWidgetView()
-            categoryGridCache.clear()
-            invalidate()
+            refreshHudAndAppGridLayout()
             return true
         }
         if (deleteCancelBtnRect.contains(x, y) || !deleteModalRect.contains(x, y)) {
@@ -571,10 +582,7 @@ internal fun LightspeedCruiseOverlay.handleHudEditModeTap(x: Float, y: Float): B
                     openCategoryWidgetPickerDialog(catId, cat.label, -1)
                 } else {
                     CategoryHudManager.addHudItem(context, catId, type, isLandscape = isLandscape)
-                    computeHudSlotBounds()
-                    updateCategoryAppWidgetView()
-                    categoryGridCache.clear()
-                    invalidate()
+                    refreshHudAndAppGridLayout()
                 }
                 return true
             }
@@ -588,9 +596,7 @@ internal fun LightspeedCruiseOverlay.handleHudEditModeTap(x: Float, y: Float): B
         triggerHardwareHaptic(20, 90)
         isHudEditMode = false
         closeHudTuneModal()
-        computeHudSlotBounds()
-        categoryGridCache.clear()
-        invalidate()
+        refreshHudAndAppGridLayout()
         return true
     }
 
@@ -615,8 +621,10 @@ internal fun LightspeedCruiseOverlay.handleHudEditModeTap(x: Float, y: Float): B
     // 4. Per-widget in-place header controls
     computeHudSlotBounds()
     val items = activeCategoryHudItems
+    val editClipTop = getSafeHudTopOffset() + 34f * dp
+    val editClipBottom = height.toFloat() * 0.96f
     val cardY = y + hudScrollOffset
-    for (i in items.indices) {
+    if (y in editClipTop..editClipBottom) for (i in items.indices) {
         val item = items[i]
         val b = item.bounds
         if (b.width() < 10f || b.height() < 10f) continue
@@ -677,8 +685,7 @@ internal fun LightspeedCruiseOverlay.handleHudEditModeTap(x: Float, y: Float): B
         triggerHardwareHaptic(15, 60)
         isHudEditMode = false
         closeHudTuneModal()
-        categoryGridCache.clear()
-        invalidate()
+        refreshHudAndAppGridLayout()
         return true
     }
 
@@ -790,9 +797,7 @@ private fun LightspeedCruiseOverlay.executeHudItemSwap(
     val (allItems, idx, targetIdx) = swapInfo ?: return null
     Collections.swap(allItems, idx, targetIdx)
     CategoryHudManager.saveHudItems(context, catId, allItems)
-    computeHudSlotBounds()
-    updateCategoryAppWidgetView()
-    categoryGridCache.clear()
+    refreshHudAndAppGridLayout()
     val updated = activeCategoryHudItems.firstOrNull { it.id == itemId }
         ?: allItems.firstOrNull { it.id == itemId }
     if (hudTuneTargetItem?.id == itemId && updated != null) {
@@ -836,17 +841,20 @@ private fun LightspeedCruiseOverlay.openExistingWidgetConfigureActivity(widgetId
     }, 50L)
 }
 
+private val editGlyphStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    style = Paint.Style.STROKE
+    strokeCap = Paint.Cap.ROUND
+    strokeJoin = Paint.Join.ROUND
+}
+private val editGlyphFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    style = Paint.Style.FILL
+}
+private val editGlyphPath = Path()
+
 private fun drawSlidersGlyph(canvas: Canvas, rect: RectF, dp: Float, accent: Int) {
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 1.2f * dp
-        strokeCap = Paint.Cap.ROUND
-        color = Color.WHITE
-    }
-    val knobPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = accent
-    }
+    editGlyphStrokePaint.strokeWidth = 1.2f * dp
+    editGlyphStrokePaint.color = Color.WHITE
+    editGlyphFillPaint.color = accent
 
     val padX = rect.width() * 0.22f
     val startX = rect.left + padX
@@ -856,31 +864,25 @@ private fun drawSlidersGlyph(canvas: Canvas, rect: RectF, dp: Float, accent: Int
     val line1Y = rect.top + rect.height() * 0.32f
     val line2Y = rect.top + rect.height() * 0.68f
 
-    canvas.drawLine(startX, line1Y, endX, line1Y, paint)
-    canvas.drawCircle(startX + trackLen * 0.35f, line1Y, 2.2f * dp, knobPaint)
+    canvas.drawLine(startX, line1Y, endX, line1Y, editGlyphStrokePaint)
+    canvas.drawCircle(startX + trackLen * 0.35f, line1Y, 2.2f * dp, editGlyphFillPaint)
 
-    canvas.drawLine(startX, line2Y, endX, line2Y, paint)
-    canvas.drawCircle(startX + trackLen * 0.70f, line2Y, 2.2f * dp, knobPaint)
+    canvas.drawLine(startX, line2Y, endX, line2Y, editGlyphStrokePaint)
+    canvas.drawCircle(startX + trackLen * 0.70f, line2Y, 2.2f * dp, editGlyphFillPaint)
 }
 
 private fun drawPencilGlyph(canvas: Canvas, rect: RectF, dp: Float, accent: Int) {
-    val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 1.5f * dp
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-        color = accent
-    }
+    editGlyphStrokePaint.strokeWidth = 1.5f * dp
+    editGlyphStrokePaint.color = accent
     val cx = rect.centerX()
     val cy = rect.centerY()
     val r = rect.width() * 0.24f
-    val path = Path().apply {
-        moveTo(cx - r, cy + r)
-        lineTo(cx - r * 0.3f, cy + r * 0.9f)
-        lineTo(cx + r, cy - r * 0.4f)
-        lineTo(cx + r * 0.4f, cy - r)
-        lineTo(cx - r * 0.9f, cy + r * 0.3f)
-        close()
-    }
-    canvas.drawPath(path, stroke)
+    editGlyphPath.reset()
+    editGlyphPath.moveTo(cx - r, cy + r)
+    editGlyphPath.lineTo(cx - r * 0.3f, cy + r * 0.9f)
+    editGlyphPath.lineTo(cx + r, cy - r * 0.4f)
+    editGlyphPath.lineTo(cx + r * 0.4f, cy - r)
+    editGlyphPath.lineTo(cx - r * 0.9f, cy + r * 0.3f)
+    editGlyphPath.close()
+    canvas.drawPath(editGlyphPath, editGlyphStrokePaint)
 }

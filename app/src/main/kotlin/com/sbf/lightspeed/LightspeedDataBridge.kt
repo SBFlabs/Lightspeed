@@ -30,6 +30,28 @@ class LightspeedDataBridge(rawContext: Context) {
     )
 
     companion object {
+        private val CATEGORY_LABEL_RES = mapOf(
+            "comm" to R.string.cat_comm,
+            "internet" to R.string.cat_internet,
+            "audio" to R.string.cat_audio,
+            "graphics" to R.string.cat_graphics,
+            "games" to R.string.cat_games,
+            "finance" to R.string.cat_finance,
+            "learning" to R.string.cat_learning,
+            "utilities" to R.string.cat_utilities,
+            "security" to R.string.cat_security,
+            "productivity" to R.string.cat_productivity,
+            "stores" to R.string.cat_stores,
+            "health" to R.string.cat_health,
+            "settings" to R.string.cat_settings,
+            "other" to R.string.cat_other
+        )
+
+        fun localizedCategoryLabel(id: String, fallback: String): String {
+            val resId = CATEGORY_LABEL_RES[id] ?: return fallback
+            return com.sbf.lightspeed.system.lsString(resId).ifBlank { fallback }
+        }
+
         val DRAWER_CATEGORIES = listOf(
             CategoryNode("comm", "Communication"),
             CategoryNode("internet", "Internet"),
@@ -67,7 +89,10 @@ class LightspeedDataBridge(rawContext: Context) {
     fun getOrderedCategories(): List<CategoryNode> {
         val order = com.sbf.lightspeed.system.LightspeedPreferences.getCategoryOrder(context)
         val defaultMap = DRAWER_CATEGORIES.associateBy { it.id }
-        return order.mapNotNull { defaultMap[it] }
+        return order.mapNotNull { id ->
+            val base = defaultMap[id] ?: return@mapNotNull null
+            base.copy(label = localizedCategoryLabel(base.id, base.label))
+        }
     }
 
     fun getLiveCategories(): List<CategoryNode> {

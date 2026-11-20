@@ -18,17 +18,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.SonicDeckManager
 import com.sbf.lightspeed.system.VistaDeckManager
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 /**
  * Dedicated sub-chips for Volume (Sonic Deck), Brightness (Wellness & Vista Deck),
  * and Bottom Sensor Area quick actions.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GestureVolumeDualRowControls(
     context: Context,
@@ -38,22 +41,17 @@ fun GestureVolumeDualRowControls(
     activeSnapshot: DeckThemeSnapshot,
     opticalColors: OpticalSurfaceColors,
     readableTint: Color,
-    extraRow1Content: (@Composable RowScope.() -> Unit)? = null
+    extraRow1Content: (@Composable FlowRowScope.() -> Unit)? = null
 ) {
-    val row1Scroll = rememberScrollState()
-    val row2Scroll = rememberScrollState()
-
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // Row 1: Core Scrubber Controls (HUD Toggle, Native Toggle, Resolution, HUD Style + any contextual gesture chips)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(row1Scroll),
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             extraRow1Content?.invoke(this)
             GestureVolumeScrubControls(context, prefs, activeSnapshot, opticalColors, readableTint)
@@ -61,12 +59,10 @@ fun GestureVolumeDualRowControls(
         }
 
         // Row 2: Color Engine dropdown, Haptics selector, and Sonic Deck launcher
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(row2Scroll),
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             GestureHudThemeToggleChip(
                 context = context,
@@ -92,6 +88,7 @@ fun GestureVolumeDualRowControls(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GestureBrightnessDualRowControls(
     context: Context,
@@ -101,22 +98,17 @@ fun GestureBrightnessDualRowControls(
     activeSnapshot: DeckThemeSnapshot,
     opticalColors: OpticalSurfaceColors,
     readableTint: Color,
-    extraRow1Content: (@Composable RowScope.() -> Unit)? = null
+    extraRow1Content: (@Composable FlowRowScope.() -> Unit)? = null
 ) {
-    val row1Scroll = rememberScrollState()
-    val row2Scroll = rememberScrollState()
-
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // Row 1: Core Scrubber Controls (HUD Toggle, Resolution, HUD Style + any contextual gesture chips)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(row1Scroll),
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             extraRow1Content?.invoke(this)
             GestureBrightnessScrubControls(context, prefs, activeSnapshot, opticalColors, readableTint)
@@ -124,12 +116,10 @@ fun GestureBrightnessDualRowControls(
         }
 
         // Row 2: Color Engine dropdown, Haptics selector, and Vista Deck launcher
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(row2Scroll),
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             GestureHudThemeToggleChip(
                 context = context,
@@ -155,6 +145,7 @@ fun GestureBrightnessDualRowControls(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GestureGenericScrubDualRowControls(
     context: Context,
@@ -163,22 +154,17 @@ fun GestureGenericScrubDualRowControls(
     currentRawValue: String,
     activeSnapshot: DeckThemeSnapshot,
     readableTint: Color,
-    extraRow1Content: (@Composable RowScope.() -> Unit)? = null
+    extraRow1Content: (@Composable FlowRowScope.() -> Unit)? = null
 ) {
-    val row1Scroll = rememberScrollState()
-    val row2Scroll = rememberScrollState()
-
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // Row 1: HUD Style + any contextual gesture chips (Hold, Method, Navigation Bar, etc.)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(row1Scroll),
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             extraRow1Content?.invoke(this)
             if (currentRawValue == "system:media_scrubber") {
@@ -188,12 +174,10 @@ fun GestureGenericScrubDualRowControls(
         }
 
         // Row 2: Color Engine dropdown and Haptics selector
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(row2Scroll),
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             GestureHudThemeToggleChip(
                 context = context,
@@ -222,29 +206,29 @@ fun GestureBottomSensorSubChips(
     val navGroups: List<List<Triple<String, String, androidx.compose.ui.graphics.vector.ImageVector>>> = listOf(
         // Group 0: None
         listOf(
-            Triple("None", "none", Icons.Default.Block)
+            Triple(lsString(R.string.cc_common_none), "none", Icons.Default.Block)
         ),
         // Group 1: Tactical Flyout
         listOf(
-            Triple("Tactical Flyout", LightspeedPreferences.ACTION_TACTICAL_FLYOUT, Icons.Default.Dashboard)
+            Triple(lsString(R.string.act_tactical_flyout_short), LightspeedPreferences.ACTION_TACTICAL_FLYOUT, Icons.Default.Dashboard)
         ),
         // Group 2: Core Navigation cluster (Home, Back, Recents, Previous App, Close Current App)
         listOf(
-            Triple("Home", "system:home", Icons.Default.Home),
-            Triple("Back", "system:back", Icons.AutoMirrored.Filled.ArrowBack),
-            Triple("Recents", "system:recents", Icons.Default.History),
-            Triple("Previous App", "system:previous_app", Icons.Default.SwapHoriz),
-            Triple("Close Current App", "system:close_app", Icons.Default.Close)
+            Triple(lsString(R.string.act_home), "system:home", Icons.Default.Home),
+            Triple(lsString(R.string.act_back), "system:back", Icons.AutoMirrored.Filled.ArrowBack),
+            Triple(lsString(R.string.act_recents_short), "system:recents", Icons.Default.History),
+            Triple(lsString(R.string.act_previous_app_short), "system:previous_app", Icons.Default.SwapHoriz),
+            Triple(lsString(R.string.act_close_current_app), "system:close_app", Icons.Default.Close)
         ),
         // Group 3: Search & Assistant
         listOf(
-            Triple("Circle to Search", LightspeedPreferences.ACTION_CIRCLE_TO_SEARCH, Icons.Default.Search),
-            Triple("Assistant", LightspeedPreferences.ACTION_ASSISTANT, Icons.Default.Assistant)
+            Triple(lsString(R.string.act_circle_to_search_short), LightspeedPreferences.ACTION_CIRCLE_TO_SEARCH, Icons.Default.Search),
+            Triple(lsString(R.string.act_assistant_short), LightspeedPreferences.ACTION_ASSISTANT, Icons.Default.Assistant)
         ),
         // Group 4: Multitasking & Windows
         listOf(
-            Triple("Split Screen", "system:split_screen", Icons.Default.VerticalSplit),
-            Triple("Pop-Up Window", "system:popup_window", Icons.Default.PictureInPicture)
+            Triple(lsString(R.string.act_split_screen), "system:split_screen", Icons.Default.VerticalSplit),
+            Triple(lsString(R.string.act_popup_window), "system:popup_window", Icons.Default.PictureInPicture)
         )
     )
 
@@ -252,7 +236,7 @@ fun GestureBottomSensorSubChips(
 
     Box {
         DeckSubChip(
-            text = "Navigation Bar ▾",
+            text = lsString(R.string.chip_nav_bar),
             icon = Icons.Default.Navigation,
             isActive = isNavActive,
             snapshot = activeSnapshot,
@@ -268,7 +252,7 @@ fun GestureBottomSensorSubChips(
                 modifier = Modifier.heightIn(min = 34.dp),
                 text = {
                     Text(
-                        text = "NAVIGATION BAR ACTIONS",
+                        text = lsString(R.string.menu_nav_bar_actions),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary

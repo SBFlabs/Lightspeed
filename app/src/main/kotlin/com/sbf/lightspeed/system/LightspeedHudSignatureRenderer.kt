@@ -143,15 +143,33 @@ object LightspeedHudSignatureRenderer {
             }
             "signature_solar_lux" -> {
                 val segments = 12
-                val gap = 3.2f * d
+                val gap = 3.0f * d
                 val segW = ((vizW - gap * (segments - 1)) / segments).coerceAtLeast(3f * d)
-                val activeSegs = (fraction * segments).roundToInt()
+                val activePos = fraction * segments
+                val activeSegs = activePos.roundToInt()
+                val cy = (vizTop + vizBottom) * 0.5f
+                val maxHalfH = (vizH * 0.5f).coerceAtLeast(4f * d)
                 for (i in 0 until segments) {
                     val sx = contentLeft + i * (segW + gap)
-                    fillRect.set(sx, vizTop + 3f * d, sx + segW, vizBottom - 2f * d)
+                    val isActive = i < activeSegs
+                    // Live photonic light wave tied to slider movement (mirrors EQ Spectrum kinetic feel)
+                    val distFromHead = kotlin.math.abs((i + 0.5f) - activePos)
+                    val headFlare = (1f - (distFromHead / 3.2f)).coerceIn(0f, 1f)
+                    val wave = 0.52f + 0.34f * kotlin.math.abs(kotlin.math.sin(i * 0.65 + fraction * 7.5)).toFloat() + (0.28f * headFlare)
+                    val halfH = if (isActive) {
+                        (maxHalfH * wave).coerceIn(3f * d, maxHalfH)
+                    } else {
+                        (maxHalfH * 0.42f).coerceAtLeast(2.2f * d)
+                    }
+                    fillRect.set(sx, cy - halfH, sx + segW, cy + halfH)
                     fillPaint.shader = null
-                    fillPaint.color = if (i < activeSegs) spec.tintColor else Color.argb(45, 255, 255, 255)
-                    canvas.drawRoundRect(fillRect, 3f * d, 3f * d, fillPaint)
+                    fillPaint.color = if (isActive) {
+                        val glowAlpha = (195 + (60 * headFlare).toInt()).coerceIn(195, 255)
+                        Color.argb(glowAlpha, Color.red(spec.tintColor), Color.green(spec.tintColor), Color.blue(spec.tintColor))
+                    } else {
+                        Color.argb(42, 255, 255, 255)
+                    }
+                    canvas.drawRoundRect(fillRect, segW * 0.45f, segW * 0.45f, fillPaint)
                 }
             }
             "signature_chrono_dial" -> {

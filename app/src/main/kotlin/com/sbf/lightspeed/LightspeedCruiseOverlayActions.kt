@@ -39,6 +39,9 @@ internal fun LightspeedCruiseOverlay.dismissOverlay() {
     uiHandler.removeCallbacks(hudLiveRefreshRunnable)
     uiHandler.removeCallbacks(neutralToCategoryRunnable)
     uiHandler.removeCallbacks(holdTimerRunnable)
+    cancelBottomHoldReveal()
+    settingsRevealedByHold = false
+    settingsRevealHapticFired = false
     LightspeedCruiseHudPods.resetHudEntranceState()
     longPressHangarBayRunnable?.let { removeCallbacks(it) }
     longPressCogRunnable?.let { removeCallbacks(it) }
@@ -153,12 +156,22 @@ fun LightspeedCruiseOverlay.openCategoryCruisePinned(categoryId: String) {
     isStickyPinned = true
     applicationIconCache.clear()
     categoryGridCache.clear()
+    categoryHeightCache.clear()
     categoryAppsCache.clear()
     lastLoadedCategoryId = null
     service?.updateWindowLayout(true)
     updateMetricsDimensions()
+    computeHudSlotBounds()
     loadActiveCategoryGrid()
     invalidate()
+    // Re-sync once WindowManager finishes expanding the overlay from collapsed edge strip to full screen
+    post {
+        if (isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN) {
+            updateMetricsDimensions()
+            refreshHudAndAppGridLayout()
+            preloadActiveCategoryIconsAsync()
+        }
+    }
 }
 
 fun LightspeedCruiseOverlay.openHangarFromFlank(isLeftFlank: Boolean) {
@@ -205,6 +218,20 @@ internal fun LightspeedCruiseOverlay.getGearSetNameByIndex(index: Int): String {
     return com.sbf.lightspeed.system.CockpitGearRepository.getGearSetNameByIndex(context, isOpenedFromLeftFlank, index)
 }
 
+internal fun LightspeedCruiseOverlay.resolvePlacedItemIconCenter(placed: PlacedItem?): Pair<Float, Float> {
+    if (placed == null) return (width / 2f) to (height / 2f)
+    val b = placed.bounds
+    val hasInspector = activeCategoryHudItems.any { it.type == LightspeedCruiseHudPods.MODE_APP_AND_CAT }
+    val hideGridLabels = hasInspector && currentLayer == CruiseLayer.GRID && !isStickyPinned
+    val sz = minOf(b.width() * 0.48f, b.height() * 0.48f)
+    val iconCenterYUnscrolled = if (placed.app.isWidget || hideGridLabels) {
+        b.centerY()
+    } else {
+        b.centerY() - (sz * 0.12f)
+    }
+    return b.centerX() to (iconCenterYUnscrolled - viewportScrollOffset)
+}
+
 internal fun LightspeedCruiseOverlay.triggerHyperdriveWarpLaunch(focalX: Float, focalY: Float, onLaunch: () -> Unit) {
     isCurrentlyTouched = false
     currentActiveZone = TouchZone.NONE
@@ -212,6 +239,7 @@ internal fun LightspeedCruiseOverlay.triggerHyperdriveWarpLaunch(focalX: Float, 
     deepSpaceRenderer.reactorRenderer.startWarp(focalX, focalY)
     triggerHardwareHaptic(50, 255)
     invalidate()
+    postInvalidateOnAnimation()
 
     uiHandler.postDelayed({
         deepSpaceRenderer.reactorRenderer.cancelWarp()

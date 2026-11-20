@@ -279,8 +279,14 @@ internal fun LightspeedCruiseOverlay.updateCategoryAppWidgetView() {
         val targetH = (bounds.height() - padT - padB).toInt().coerceAtLeast(10)
 
         val isFarSplit = isFarHalfSplitMode()
-        val hudTopLimit = getSafeHudTopOffset()
-        val hudBottomLimit = if (isFarSplit) height.toFloat() * 0.96f else (getTopHudStripBounds().bottom + 10f * dp)
+        val hudTopLimit = getSafeHudTopOffset() + if (isHudEditMode) 36f * dp else 0f
+        val hudBottomLimit = if (isFarSplit || isHudEditMode) {
+            height.toFloat() * 0.94f
+        } else if (hudMaxScroll > 0f) {
+            getTopHudStripBounds().bottom + 2f * dp
+        } else {
+            getTopHudStripBounds().bottom + 10f * dp
+        }
         val scrolledT = baseT - hudScrollOffset
 
         if ((scrolledT + targetH) <= hudTopLimit || scrolledT >= hudBottomLimit) {

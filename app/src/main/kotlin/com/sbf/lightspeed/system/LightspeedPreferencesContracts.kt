@@ -115,8 +115,17 @@ interface LightspeedPreferencesFlowsContract {
     val centralCommandFontScaleFlow: StateFlow<Float?>
     fun getCentralCommandFontScale(context: Context): Float
     fun setCentralCommandFontScale(context: Context, scale: Float)
+    val categoryCruiseFontScaleFlow: StateFlow<Float?>
+    fun getCategoryCruiseFontScale(context: Context): Float
+    fun setCategoryCruiseFontScale(context: Context, scale: Float)
+    val cockpitHangarFontScaleFlow: StateFlow<Float?>
+    fun getCockpitHangarFontScale(context: Context): Float
+    fun setCockpitHangarFontScale(context: Context, scale: Float)
     val centralCommandFontFamilyFlow: StateFlow<String?>
     fun getCentralCommandFontFamily(context: Context): String
     fun setCentralCommandFontFamily(context: Context, family: String)
+    val applyFontGloballyFlow: StateFlow<Boolean?>
+    fun getApplyFontGlobally(context: Context): Boolean
+    fun setApplyFontGlobally(context: Context, enabled: Boolean)
     fun refreshCentralCommandTypography(context: Context)
 }

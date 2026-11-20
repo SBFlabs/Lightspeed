@@ -1,5 +1,9 @@
 package com.sbf.lightspeed.system
 
+import com.sbf.lightspeed.R
+
+import com.sbf.lightspeed.settings.verticalScrollWithEdgeFade
+
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.graphics.PixelFormat
@@ -102,7 +106,7 @@ object VistaDeckManager {
             val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return@post
             windowManager = wm
 
-            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(wm)
+            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(wm, ignoreZeroThemeBlur = true)
             val blurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.getMode(service)
             val nativeSupported = com.sbf.lightspeed.settings.BackdropBlurModeManager.isNativeBlurSupported(wm)
             com.sbf.lightspeed.settings.CentralCommandActivity.updateCrossWindowBlurState(
@@ -276,7 +280,8 @@ object VistaDeckManager {
                         .heightIn(max = 680.dp)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
                     snapshotOverride = snapshot,
-                    isFlyout = false
+                    isFlyout = false,
+                    useLightweightHudBlur = true
                 ) {
                     if (showAirlockPicker) {
                         ConsciousAirlockAppPickerContent(
@@ -322,7 +327,7 @@ object VistaDeckManager {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp)
-                                .verticalScroll(rememberScrollState())
+                                .verticalScrollWithEdgeFade()
                         ) {
                             BlueprintWireframeView(
                                 tabTitle = "VISTA DECK",
@@ -366,7 +371,7 @@ object VistaDeckManager {
                                 .fillMaxWidth()
                                 .wrapContentHeight()
                                 .padding(16.dp)
-                                .verticalScroll(rememberScrollState()),
+                                .verticalScrollWithEdgeFade(),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             // Header
@@ -413,7 +418,7 @@ object VistaDeckManager {
                                 when (secId) {
                                     "brightness" -> {
                                         CollapsibleSubSection(
-                                            title = "Brightness and Beyond",
+                                            title = lsString(R.string.sec_brightness_and_beyond),
                                             subtitle = null,
                                             isExpanded = isBrightnessExpanded,
                                             onToggle = {
@@ -429,8 +434,8 @@ object VistaDeckManager {
                                     }
                                     "optics" -> {
                                         CollapsibleSubSection(
-                                            title = "Optics & Eye Care",
-                                            subtitle = "Below 0% targets, Extra Dim, OLED Smart Pixels & Blue Light Filter",
+                                            title = lsString(R.string.sec_optics_eye_care),
+                                            subtitle = lsString(R.string.secd_below_0_targets_extra_dim_oled),
                                             isExpanded = isOpticsExpanded,
                                             onToggle = {
                                                 isOpticsExpanded = !isOpticsExpanded
@@ -442,8 +447,8 @@ object VistaDeckManager {
                                     }
                                     "telemetry" -> {
                                         CollapsibleSubSection(
-                                            title = "Overdrive Hz & Telemetry HUD",
-                                            subtitle = "Hardware refresh rate selector & per-app FPS, CPU, Temp, RAM, Battery, Watts visor",
+                                            title = lsString(R.string.sec_overdrive_hz_telemetry_hud),
+                                            subtitle = lsString(R.string.secd_hardware_refresh_rate_selector),
                                             isExpanded = isTelemetryExpanded,
                                             onToggle = {
                                                 isTelemetryExpanded = !isTelemetryExpanded
@@ -458,8 +463,8 @@ object VistaDeckManager {
                                     }
                                     "airlock" -> {
                                         CollapsibleSubSection(
-                                            title = "Astrogation Airlock & 20-20-20",
-                                            subtitle = "Mindful delay gate & screen-on eye rest breaks",
+                                            title = lsString(R.string.sec_astrogation_airlock_20_20_20),
+                                            subtitle = lsString(R.string.secd_mindful_delay_gate_screen_on_e),
                                             isExpanded = isAirlockExpanded,
                                             onToggle = {
                                                 isAirlockExpanded = !isAirlockExpanded

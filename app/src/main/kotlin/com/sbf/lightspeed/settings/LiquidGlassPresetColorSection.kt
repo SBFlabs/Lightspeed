@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -75,7 +78,7 @@ internal fun ThemeProfileSection(
                     modifier = Modifier.size(15.dp)
                 )
                 Text(
-                    text = "SAVED OPTICAL PROFILES",
+                    text = lsString(R.string.lg_saved_profiles),
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -102,7 +105,7 @@ internal fun ThemeProfileSection(
                         modifier = Modifier.size(13.dp)
                     )
                     Text(
-                        text = "Save Profile",
+                        text = lsString(R.string.lg_save_profile),
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -113,7 +116,7 @@ internal fun ThemeProfileSection(
 
         if (profiles.isEmpty()) {
             Text(
-                text = "No saved profiles yet. Tune the sliders and tap 'Save Profile' to store custom looks.",
+                text = lsString(R.string.lg_no_profiles),
                 fontSize = 11.sp,
                 color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.8f),
                 modifier = Modifier.padding(vertical = 2.dp)
@@ -213,14 +216,14 @@ internal fun ThemeColorTintSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Color Tint Infusion",
+                text = lsString(R.string.lg_tint_infusion),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = LightspeedStyle.colors.textPrimary
             )
             if (customTintArgb != null) {
                 Text(
-                    text = "Reset Tint",
+                    text = lsString(R.string.lg_reset_tint),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -233,15 +236,15 @@ internal fun ThemeColorTintSection(
         }
 
         val tintOptions: List<Pair<Long?, String>> = listOf(
-            null to "Default",
-            0xFFFFFFFFL to "Colorless",
-            0x40FFFFFFL to "Frost",
-            0x3300C3FFL to "Cyan",
-            0x338A2BE2L to "Violet",
-            0x33FF0055L to "Crimson",
-            0x3300E676L to "Emerald",
-            0x33FF9100L to "Amber",
-            0x33E040FBL to "Pink"
+            null to lsString(R.string.col_default),
+            0xFFFFFFFFL to lsString(R.string.col_colorless),
+            0x40FFFFFFL to lsString(R.string.col_frost),
+            0x3300C3FFL to lsString(R.string.col_cyan),
+            0x338A2BE2L to lsString(R.string.col_violet),
+            0x33FF0055L to lsString(R.string.col_crimson),
+            0x3300E676L to lsString(R.string.col_emerald),
+            0x33FF9100L to lsString(R.string.col_amber),
+            0x33E040FBL to lsString(R.string.col_pink)
         )
 
         Row(

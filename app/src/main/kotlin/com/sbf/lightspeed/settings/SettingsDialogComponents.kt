@@ -2,8 +2,6 @@ package com.sbf.lightspeed.settings
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.os.Build
-import android.view.WindowManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
 import kotlin.math.roundToInt
@@ -60,6 +58,8 @@ import kotlin.math.roundToInt
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 @Composable
@@ -94,14 +94,6 @@ fun CentralCommandDeckDialog(
 
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                dialogWindow?.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                val lp = dialogWindow?.attributes
-                if (lp != null) {
-                    lp.blurBehindRadius = activeSnapshot.windowBlurRadiusPx.coerceIn(0, 150)
-                    dialogWindow.attributes = lp
-                }
-            }
             dialogWindow?.setDimAmount(activeSnapshot.dimAmount)
         }
 
@@ -111,7 +103,10 @@ fun CentralCommandDeckDialog(
                 .padding(horizontal = 8.dp, vertical = 18.dp),
             contentAlignment = Alignment.Center
         ) {
-            CompositionLocalProvider(LocalDeckCardDragOffsetY provides { if (isJelly) fluidDragOffsetY else dragOffsetY.value }) {
+            CompositionLocalProvider(
+                LocalDensity provides density,
+                LocalDeckCardDragOffsetY provides { if (isJelly) fluidDragOffsetY else dragOffsetY.value }
+            ) {
                 DeckGlassCardSurface(
                     modifier = Modifier
                         .fillMaxWidth(0.98f)
@@ -215,7 +210,10 @@ fun CentralCommandDeckDialog(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(34.dp)
@@ -233,19 +231,23 @@ fun CentralCommandDeckDialog(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        "FLIGHT CONTROL DECK",
+                                        lsString(R.string.fc_deck_title),
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Black,
                                         color = lsColors.textPrimary,
-                                        letterSpacing = 0.5.sp
+                                        letterSpacing = 0.5.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        "Master avionics & universal shortcuts",
+                                        lsString(R.string.fc_deck_subtitle),
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                                     )
                                 }
                             }
+
+                            Spacer(modifier = Modifier.width(8.dp))
 
                             IconButton(
                                 onClick = onDismiss,
@@ -273,6 +275,7 @@ fun CentralCommandDeckDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
+                        .verticalEdgeFade(scrollState)
                         .verticalScroll(scrollState),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -325,25 +328,29 @@ fun CentralCommandDeckDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    "TITLE LONG-PRESS QUICK ACTION",
+                                    lsString(R.string.fc_lp_title),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary,
                                     letterSpacing = 0.8.sp
                                 )
                             }
+                            val centralCommandLabel = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(
+                                com.sbf.lightspeed.system.LightspeedVocabulary.Key.CENTRAL_COMMAND,
+                                langMode
+                            )
                             Text(
-                                "Holding down '${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CENTRAL_COMMAND, langMode)} ▾' executes this instant shortcut with heavy tactile haptics:",
+                                lsString(R.string.fc_lp_sub, centralCommandLabel),
                                 fontSize = 11.5.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                 lineHeight = 16.sp
                             )
 
                             val actionOptions = listOf(
-                                "toggle_master_flight" to "Toggle Whole Ship (Flight Mode)",
-                                "toggle_all_deflectors" to "Toggle All Deflectors",
-                                "toggle_left_deflector" to "Toggle Left Deflector",
-                                "toggle_right_deflector" to "Toggle Right Deflector"
+                                "toggle_master_flight" to lsString(R.string.fc_lp_opt_flight),
+                                "toggle_all_deflectors" to lsString(R.string.fc_lp_opt_all_def),
+                                "toggle_left_deflector" to lsString(R.string.fc_lp_opt_left_def),
+                                "toggle_right_deflector" to lsString(R.string.fc_lp_opt_right_def)
                             )
 
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -417,8 +424,10 @@ fun ProfileNamingDialog(
 ) {
     val lsColors = LightspeedStyle.colors
     var name by remember { mutableStateOf(initialName) }
+    val activeDensity = LocalDensity.current
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        CompositionLocalProvider(LocalDensity provides activeDensity) {
         val activeSnapshot = LocalDeckTheme.current
         DeckGlassCardSurface(
             modifier = Modifier
@@ -489,6 +498,7 @@ fun ProfileNamingDialog(
                     }
                 }
             }
+        }
         }
     }
 }

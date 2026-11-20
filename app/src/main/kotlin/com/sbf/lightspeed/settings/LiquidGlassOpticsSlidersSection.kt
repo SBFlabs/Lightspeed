@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.view.WindowManager
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -52,14 +55,14 @@ internal fun BackdropBlurModeSelector(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "BACKDROP BLUR ENGINE",
+                text = lsString(R.string.lg_blur_engine),
                 fontSize = 10.5.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
                 letterSpacing = 1.sp
             )
             Text(
-                text = if (isNativeAvailable) "NATIVE HARDWARE READY" else "NATIVE BLUR UNAVAILABLE",
+                text = if (isNativeAvailable) lsString(R.string.lg_hw_ready) else lsString(R.string.lg_hw_unavail),
                 fontSize = 9.5.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
@@ -121,7 +124,7 @@ internal fun BackdropBlurModeSelector(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "HARDWARE BLUR UNAVAILABLE // Device firmware disabled SurfaceFlinger blur",
+                    text = lsString(R.string.lg_hw_disabled),
                     fontSize = 9.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -209,6 +212,8 @@ internal fun ThemeSliderRow(
 internal fun ThemeOpticalSlidersSection(
     opacity: Float,
     onOpacityChange: (Float) -> Unit,
+    backdropOpacity: Float,
+    onBackdropOpacityChange: (Float) -> Unit,
     blurRadius: Int,
     onBlurRadiusChange: (Int) -> Unit,
     cornerRadius: Float,
@@ -222,25 +227,34 @@ internal fun ThemeOpticalSlidersSection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text(
-            text = "OPTICAL PARAMETERS",
+            text = lsString(R.string.lg_optical_params),
             fontSize = 10.5.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
             letterSpacing = 1.sp
         )
 
-        // Opacity Slider
+        // Surface Opacity Slider
         ThemeSliderRow(
-            title = "Surface Opacity",
+            title = lsString(R.string.lg_surface_opacity),
             valueLabel = "${(opacity * 100).roundToInt()}%",
             value = opacity,
-            range = 0.05f..1.0f,
+            range = 0.0f..1.0f,
             onValueChange = onOpacityChange
+        )
+
+        // Backdrop Opacity Slider
+        ThemeSliderRow(
+            title = lsString(R.string.lg_backdrop_opacity),
+            valueLabel = "${(backdropOpacity * 100).roundToInt()}%",
+            value = backdropOpacity,
+            range = 0.0f..1.0f,
+            onValueChange = onBackdropOpacityChange
         )
 
         // Blur Radius Slider
         ThemeSliderRow(
-            title = "Blur Radius",
+            title = lsString(R.string.lg_blur_radius),
             valueLabel = "${blurRadius}px",
             value = blurRadius.toFloat(),
             range = 0f..80f,
@@ -249,7 +263,7 @@ internal fun ThemeOpticalSlidersSection(
 
         // Corner Radius Slider
         ThemeSliderRow(
-            title = "Corner Radius",
+            title = lsString(R.string.lg_corner_radius),
             valueLabel = "${cornerRadius.roundToInt()}dp",
             value = cornerRadius,
             range = 0f..48f,
@@ -258,7 +272,7 @@ internal fun ThemeOpticalSlidersSection(
 
         // Border Width Slider
         ThemeSliderRow(
-            title = "Rim Border Stroke",
+            title = lsString(R.string.lg_rim_stroke),
             valueLabel = String.format(Locale.US, "%.1fdp", borderWidth),
             value = borderWidth,
             range = 0f..4f,
@@ -267,7 +281,7 @@ internal fun ThemeOpticalSlidersSection(
 
         // Bloom / Glow Strength Slider
         ThemeSliderRow(
-            title = "Bloom & Ambient Halo",
+            title = lsString(R.string.lg_bloom_halo),
             valueLabel = "${(glowStrength * 100).roundToInt()}%",
             value = glowStrength,
             range = 0f..1f,
@@ -276,7 +290,7 @@ internal fun ThemeOpticalSlidersSection(
 
         // Specular Gleam / Highlight Slider
         ThemeSliderRow(
-            title = "Specular Gloss & Gleam",
+            title = lsString(R.string.lg_spec_gloss),
             valueLabel = "${(highlightStrength * 100).roundToInt()}%",
             value = highlightStrength,
             range = 0f..1f,

@@ -1,6 +1,9 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -281,7 +284,7 @@ internal fun AttitudeTargetRow(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "ASSIGNED",
+                        text = lsString(R.string.picker_assigned_badge),
                         color = Color.Black,
                         fontSize = 8.sp,
                         fontWeight = FontWeight.ExtraBold

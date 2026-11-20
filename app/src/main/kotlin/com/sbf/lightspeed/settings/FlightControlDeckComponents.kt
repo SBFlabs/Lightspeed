@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -109,7 +112,7 @@ fun FlightControlDeckCard(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "MASTER FLIGHT DECK",
+                            lsString(R.string.fc_master_deck),
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Black,
                             color = lsColors.textPrimary,
@@ -117,8 +120,8 @@ fun FlightControlDeckCard(
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
-                            if (isArmed) "REACTOR ARMED // All systems active"
-                            else "REACTOR CUTOFF // Cold shutdown (tap to resurrect)",
+                            if (isArmed) lsString(R.string.fc_reactor_armed)
+                            else lsString(R.string.fc_reactor_cutoff),
                             fontSize = 11.sp,
                             color = if (isArmed) lsColors.accentOk else lsColors.accentAlert,
                             fontWeight = FontWeight.SemiBold
@@ -182,28 +185,35 @@ fun FlightControlDeckCard(
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(
+                            modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(if (isInfinityUnlocked) "★" else "☕", fontSize = 12.sp, color = if (isInfinityUnlocked) lsColors.accentGold else MaterialTheme.colorScheme.primary)
                             Text(
-                                text = if (isInfinityUnlocked) "LIGHTSPEED INFINITY ACTIVE" else "UPGRADE TO LIGHTSPEED INFINITY",
+                                text = if (isInfinityUnlocked) lsString(R.string.fc_inf_active) else lsString(R.string.fc_inf_short_up),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isInfinityUnlocked) lsColors.accentGold else lsColors.textPrimary.copy(alpha = 0.85f),
-                                letterSpacing = 0.8.sp
+                                letterSpacing = 0.5.sp,
+                                maxLines = 2,
+                                lineHeight = 12.sp
                             )
                         }
                         Text(
-                            text = if (isInfinityUnlocked) "UNLIMITED DECKS" else "2 DECKS (FREE) ▾",
+                            text = if (isInfinityUnlocked) lsString(R.string.fc_unlim_decks) else lsString(R.string.fc_free_decks),
                             fontSize = 9.5.sp,
                             color = if (isInfinityUnlocked) lsColors.accentGold.copy(alpha = 0.85f) else lsColors.textDisabled,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 }
@@ -230,7 +240,7 @@ fun FlightControlDeckCard(
             // Row 3: Home Screen 1-Tap Shortcut Buttons
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    "HOME SCREEN 1-TAP SHORTCUTS",
+                    lsString(R.string.fc_hs_shortcuts),
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -248,7 +258,7 @@ fun FlightControlDeckCard(
                     ) {
                         Icon(Icons.Default.AddCircleOutline, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Pin Flight Mode", fontSize = 11.5.sp)
+                        Text(lsString(R.string.fc_pin_flight), fontSize = 11.5.sp)
                     }
 
                     OutlinedButton(
@@ -259,7 +269,7 @@ fun FlightControlDeckCard(
                     ) {
                         Icon(Icons.Default.AddCircleOutline, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Pin Deflectors", fontSize = 11.5.sp)
+                        Text(lsString(R.string.fc_pin_def), fontSize = 11.5.sp)
                     }
                 }
             }
@@ -280,13 +290,13 @@ fun FlightControlDeckCard(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Flight Control Notification",
+                        lsString(R.string.fc_notif_title),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = lsColors.textPrimary
                     )
                     Text(
-                        "Persistent notification with quick controls",
+                        lsString(R.string.fc_notif_sub),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                     )
@@ -328,7 +338,7 @@ fun FlightControlDeckCard(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    "Quick Settings: Two interactive tiles are available in your Android QS shade: 'Lightspeed' (Master Toggle) and 'Deflectors' (Flanks Toggle).",
+                    lsString(R.string.fc_qs_notice),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                     lineHeight = 15.sp
@@ -338,8 +348,8 @@ fun FlightControlDeckCard(
             // External Automation Opt-In (Tasker, MacroDroid, ADB)
             var isAutomationExpanded by rememberSaveable { mutableStateOf(false) }
             CollapsibleSubSection(
-                title = "External Automation",
-                subtitle = "Tasker, MacroDroid, ADB triggers",
+                title = lsString(R.string.sec_external_automation),
+                subtitle = lsString(R.string.secd_tasker_macrodroid_adb_triggers),
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.Code,
@@ -397,7 +407,7 @@ fun FlightControlDeckCard(
                                     showAutomationWarningDialog = false
                                 }
                             ) {
-                                Text("Enable anyway")
+                                Text(lsString(R.string.fc_enable_anyway))
                             }
                         },
                         dismissButton = {
@@ -406,15 +416,15 @@ fun FlightControlDeckCard(
                                     showAutomationWarningDialog = false
                                 }
                             ) {
-                                Text("Cancel")
+                                Text(lsString(R.string.cc_dlg_cancel))
                             }
                         }
                     )
                 }
 
                 PrefToggleRow(
-                    title = "Allow external automation (Tasker, MacroDroid, ADB)",
-                    subtitle = "Lets any app on this device trigger flight mode, deflectors, auto-rotate and gravity override. Off by default.",
+                    title = lsString(R.string.fc_ext_auto_title),
+                    subtitle = lsString(R.string.fc_ext_auto_sub),
                     isChecked = isAutomationAllowed,
                     onCheckedChange = { newValue ->
                         if (newValue) {
@@ -432,13 +442,13 @@ fun FlightControlDeckCard(
                     Spacer(modifier = Modifier.height(6.dp))
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(
-                            text = "External Automation Security Token",
+                            text = lsString(R.string.fc_ext_tok_title),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = lsColors.textPrimary
                         )
                         Text(
-                            text = "Required extra 'token' for incoming external broadcasts (Tasker, MacroDroid, ADB)",
+                            text = lsString(R.string.fc_ext_tok_sub),
                             fontSize = 9.sp,
                             color = lsColors.textSecondary
                         )
@@ -451,7 +461,7 @@ fun FlightControlDeckCard(
                                     prefs.edit().putString(LightspeedPreferences.KEY_STEALTH_CLOAK_TOKEN, trimmed).apply()
                                 }
                             },
-                            placeholder = { Text("Leave blank to allow unauthenticated broadcast", fontSize = 10.sp, color = lsColors.textDisabled) },
+                            placeholder = { Text(lsString(R.string.fc_ext_tok_hint), fontSize = 10.sp, color = lsColors.textDisabled) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                             singleLine = true,
                             textStyle = LocalTextStyle.current.copy(fontSize = 11.sp, color = lsColors.textPrimary)
@@ -514,8 +524,8 @@ fun FlightControlDeckCard(
                         Text(text = commandText, fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = lsColors.textPrimary, modifier = Modifier.weight(1f))
                         IconButton(onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("Command", commandText))
-                            Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                            clipboard.setPrimaryClip(ClipData.newPlainText(lsString(R.string.fc_cmd), commandText))
+                            Toast.makeText(context, lsString(R.string.fc_copied), Toast.LENGTH_SHORT).show()
                         }) {
                             Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(16.dp))
                         }

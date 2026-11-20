@@ -1,19 +1,20 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
-import com.sbf.lightspeed.settings.DeckThemeManager
-import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedUsageStats
-import com.sbf.lightspeed.system.defaultPrefs
 import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private val cockpitMonoBold: Typeface by lazy { Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) }
+private val vitalsDrawTempRect = RectF()
 
 /** Cruise HUD Battery/System vitals widget renderer (Screen Time extracted to LightspeedCruiseHudDrawScreenTime.kt). */
 internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
@@ -28,10 +29,18 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
     val bMode = LightspeedCruiseHudPods.getBatteryMode(context, catId, slotIndex)
     val bSpan = LightspeedCruiseHudPods.getBatterySpan(context, catId, slotIndex)
     val bModeLabel = LightspeedCruiseHudPods.BATTERY_MODE_OPTIONS.firstOrNull { it.first == bMode }?.second ?: "BATTERY"
-    val showSpan = (bMode == "apps")
-    val bSpanLabel = if (showSpan) {
-        LightspeedCruiseHudPods.BATTERY_SPAN_OPTIONS.firstOrNull { it.first == bSpan }?.second ?: "7-DAY"
-    } else null
+    val showSpan = (bMode == "apps" || bMode == "system")
+    val effectiveSpanKey = if (bMode == "system") {
+        if (bSpan == "today") "today" else "7d"
+    } else {
+        bSpan
+    }
+    val isSpanPartial = showSpan && LightspeedCruiseHudPods.isSpanPartial(effectiveSpanKey)
+    val bSpanLabel = when {
+        !showSpan -> null
+        bMode == "system" -> if (bSpan == "today") "TODAY" else "7-DAY"
+        else -> LightspeedCruiseHudPods.BATTERY_SPAN_OPTIONS.firstOrNull { it.first == bSpan }?.second ?: "7-DAY"
+    }
     val snap = LightspeedCruiseHudPods.latestBatterySnapshot
     val snapReady = LightspeedCruiseHudPods.hasBatterySnapshot
 
@@ -39,12 +48,16 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
     drawWidgetChipHeader(
         canvas = canvas,
         bounds = bounds,
-        widgetTitle = "SYSTEM VITALS",
-        primaryChip = "VIEW: $bModeLabel",
-        secondaryChip = if (bSpanLabel != null) "SPAN: $bSpanLabel" else null,
+        widgetTitle = com.sbf.lightspeed.system.lsString(R.string.hud_system_vitals).ifBlank { "SYSTEM VITALS" },
+        primaryChip = lsString(R.string.hud_view_chip, bModeLabel),
+        secondaryChip = if (bSpanLabel != null) {
+            if (isSpanPartial) "${lsString(R.string.hud_span_chip, bSpanLabel)} !" else lsString(R.string.hud_span_chip, bSpanLabel)
+        } else null,
         accent = accent,
         density = density,
         alpha = alpha,
+        showInfoBadge = showSpan,
+        infoBadgeWarn = isSpanPartial,
         slotIndex = slotIndex
     )
 
@@ -89,10 +102,15 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
             // Top Left: Battery Icon + Label + Hero % + mAh Capacity
             drawCockpitVectorIcon(canvas, if (snap.isCharging) "BOLT" else "BATTERY", leftColX + 5f * density, bounds.top + 36.5f * density, 9f * density, accent, density)
             textPaint.textAlign = Paint.Align.LEFT
-            textPaint.typeface = cockpitMonoBold
+            textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
             textPaint.textSize = 9.4f * density
             textPaint.color = accent
-            canvas.drawText(if (snap.isCharging) "CHARGING" else "CELL CHARGE", leftColX + 14f * density, bounds.top + 40f * density, textPaint)
+            val batStateLbl = if (snap.isCharging) {
+                com.sbf.lightspeed.system.lsString(R.string.hud_bat_charging).ifBlank { "CHARGING" }
+            } else {
+                com.sbf.lightspeed.system.lsString(R.string.hud_bat_cell).ifBlank { "CELL CHARGE" }
+            }
+            canvas.drawText(batStateLbl, leftColX + 14f * density, bounds.top + 40f * density, textPaint)
 
             textPaint.typeface = cockpitMonoBold
             textPaint.textSize = 22f * density
@@ -118,7 +136,7 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
             val healthCycleStr = if (snap.cycleCount > 0) {
                 "${snap.healthLabel} · ${LightspeedCruiseHudPods.flipDigitsIfActive("${snap.cycleCount}", seedOffset = 4)} CYC"
             } else {
-                "HEALTH: ${snap.healthLabel}"
+                lsString(R.string.hud_health_prefix, if (snap.healthLabel.equals("GOOD", ignoreCase = true)) lsString(R.string.hud_health_good) else snap.healthLabel)
             }
             drawCockpitVectorIcon(canvas, "HEART", rightLeft + 5f * density, bounds.top + 36.5f * density, 8.5f * density, batColor, density)
             textPaint.textAlign = Paint.Align.LEFT
@@ -164,7 +182,7 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                 String.format(Locale.US, "%.1fh/D", snap.sevenDayDailyAvgHrs),
                 seedOffset = 6
             )
-            canvas.drawText(clipTextToWidth("7D AVG $avg7dStr", rightColMaxW), rightLeft, bounds.top + 77.5f * density, textPaint)
+            canvas.drawText(clipTextToWidth(lsString(R.string.hud_7d_avg, avg7dStr), rightColMaxW), rightLeft, bounds.top + 77.5f * density, textPaint)
 
             // 2x2 Real Battery Telemetry Grid in lower card space
             val gridTop = bounds.top + 84f * density
@@ -174,15 +192,15 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                 val cellH = ((gridBot - gridTop) - 5f * density) / 2f
                 val thermalState = vitalsTempStateLabel(snap.tempC)
                 val compactThermalLabel = when (thermalState) {
-                    "NORMAL" -> "TEMP (NORM)"
-                    "OPTIMAL" -> "TEMP (OPT)"
+                    "NORMAL" -> lsString(R.string.hud_temp_norm)
+                    "OPTIMAL" -> lsString(R.string.hud_temp_opt)
                     else -> "TEMP ($thermalState)"
                 }
                 val gridCells = listOf(
-                    Triple("PEAK/MIN", LightspeedCruiseHudPods.flipDigitsIfActive(snap.chgPeakMinStr, seedOffset = 7), false),
-                    Triple("DRAW", LightspeedCruiseHudPods.flipDigitsIfActive("${snap.wattageStr}·${snap.voltageMv}mV", seedOffset = 8), false),
+                    Triple(lsString(R.string.hud_peak_min), LightspeedCruiseHudPods.flipDigitsIfActive(snap.chgPeakMinStr, seedOffset = 7), false),
+                    Triple(lsString(R.string.hud_draw), LightspeedCruiseHudPods.flipDigitsIfActive("${snap.wattageStr}·${snap.voltageMv}mV", seedOffset = 8), false),
                     Triple(compactThermalLabel, LightspeedCruiseHudPods.flipDigitsIfActive(tempStr, seedOffset = 9), true),
-                    Triple("EST. LEFT", LightspeedCruiseHudPods.flipDigitsIfActive(snap.estRemainingStr, seedOffset = 10), false)
+                    Triple(lsString(R.string.hud_est_left), LightspeedCruiseHudPods.flipDigitsIfActive(snap.estRemainingStr, seedOffset = 10), false)
                 )
                 vitalsTempGaugeRect.setEmpty()
                 for ((idx, cell) in gridCells.withIndex()) {
@@ -190,21 +208,21 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                     val row = idx / 2
                     val cLeft = leftColX + col * (cellW + 7f * density)
                     val cTop = gridTop + row * (cellH + 5f * density)
-                    val cRect = RectF(cLeft, cTop, cLeft + cellW, cTop + cellH)
-                    if (cell.third) vitalsTempGaugeRect.set(cRect)
+                    vitalsDrawTempRect.set(cLeft, cTop, cLeft + cellW, cTop + cellH)
+                    if (cell.third) vitalsTempGaugeRect.set(vitalsDrawTempRect)
 
                     highlightPaint.style = Paint.Style.FILL
                     highlightPaint.color = Color.argb((34 * alpha).toInt(), 255, 255, 255)
-                    canvas.drawRoundRect(cRect, 6f * density, 6f * density, highlightPaint)
+                    canvas.drawRoundRect(vitalsDrawTempRect, 6f * density, 6f * density, highlightPaint)
                     highlightPaint.style = Paint.Style.STROKE
                     highlightPaint.strokeWidth = 0.9f * density
                     highlightPaint.color = Color.argb((75 * alpha).toInt(), Color.red(accent), Color.green(accent), Color.blue(accent))
-                    canvas.drawRoundRect(cRect, 6f * density, 6f * density, highlightPaint)
+                    canvas.drawRoundRect(vitalsDrawTempRect, 6f * density, 6f * density, highlightPaint)
 
                     // Single centered row: compact label on left, bold telemetry readout on right (zero vertical overlap)
-                    val centerBaselineY = cRect.centerY() + 3.1f * density
+                    val centerBaselineY = vitalsDrawTempRect.centerY() + 3.1f * density
                     textPaint.textAlign = Paint.Align.LEFT
-                    textPaint.typeface = cockpitMonoBold
+                    textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
                     textPaint.textSize = 7.4f * density
                     textPaint.color = accent
                     canvas.drawText(cell.first, cLeft + 6f * density, centerBaselineY, textPaint)
@@ -213,15 +231,15 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                     textPaint.typeface = cockpitMonoBold
                     textPaint.textSize = 8.6f * density
                     textPaint.color = Color.WHITE
-                    canvas.drawText(cell.second, cRect.right - 6f * density, centerBaselineY, textPaint)
+                    canvas.drawText(cell.second, vitalsDrawTempRect.right - 6f * density, centerBaselineY, textPaint)
                 }
             } else {
                 vitalsTempGaugeRect.setEmpty()
                 textPaint.textAlign = Paint.Align.CENTER
-                textPaint.typeface = cockpitMonoBold
+                textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
                 textPaint.textSize = 9.0f * density
                 textPaint.color = Color.argb(195, 200, 220, 245)
-                canvas.drawText("LIVE HARDWARE BATTERY TELEMETRY", bounds.centerX(), bounds.bottom - 8f * density, textPaint)
+                canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.hud_bat_live_footer).ifBlank { "LIVE HARDWARE BATTERY TELEMETRY" }, bounds.centerX(), bounds.bottom - 8f * density, textPaint)
             }
         }
         "apps" -> {
@@ -231,17 +249,31 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
 
             drawCockpitVectorIcon(canvas, "APPS", mLeft + 5f * density, bounds.top + 36.5f * density, 8.5f * density, accent, density)
             textPaint.textAlign = Paint.Align.LEFT
-            textPaint.typeface = cockpitMonoBold
+            textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
             textPaint.textSize = 9.4f * density
             textPaint.color = accent
-            canvas.drawText("TOP POWER CONSUMERS (% DRAIN)", mLeft + 14f * density, bounds.top + 40f * density, textPaint)
+            canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.hud_bat_consumers).ifBlank { "TOP POWER CONSUMERS (% DRAIN)" }, mLeft + 14f * density, bounds.top + 40f * density, textPaint)
+
+            val showUnplugFallbackNote = (bSpan == "last_charge" && !LightspeedCruiseHudPods.hasObservedRealUnplug)
+            if (showUnplugFallbackNote) {
+                textPaint.textAlign = Paint.Align.RIGHT
+                textPaint.typeface = Typeface.MONOSPACE
+                textPaint.textSize = 7.4f * density
+                textPaint.color = Color.rgb(245, 158, 11)
+                canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.hud_bat_since_boot).ifBlank { "Since boot (until next unplug)" }, mRight, bounds.top + 40f * density, textPaint)
+            }
 
             val listTop = bounds.top + 47f * density
             val listBottom = bounds.bottom - 8f * density
             val listH = (listBottom - listTop).coerceAtLeast(20f * density)
             val rowStep = 21.5f * density
 
-            val usageMap = LightspeedCruiseHudPods.getUsageMap(if (bSpan == "today") "1d" else "7d")
+            val usageKey = when (bSpan) {
+                "today" -> "1d"
+                "last_charge" -> "last_charge"
+                else -> "7d"
+            }
+            val usageMap = LightspeedCruiseHudPods.getUsageMap(usageKey)
             val totalUsage = usageMap.values.sum().coerceAtLeast(1L)
             val allPowerApps = dataBridge.getAllApps()
                 .map { it to (usageMap[it.packageName] ?: 0L) }
@@ -256,13 +288,14 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
 
             if (allPowerApps.isEmpty()) {
                 textPaint.textAlign = Paint.Align.LEFT
-                textPaint.typeface = cockpitMonoBold
+                textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
                 textPaint.textSize = 10.2f * density
                 textPaint.color = Color.argb(150, 200, 220, 245)
-                canvas.drawText("NO POWER USAGE LOGGED", mLeft, listTop + 16f * density, textPaint)
+                canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.hud_bat_no_usage).ifBlank { "NO POWER USAGE LOGGED" }, mLeft, listTop + 16f * density, textPaint)
             } else {
-                canvas.save()
+                val batLayerCount = canvas.saveLayer(mLeft - 2f * density, bounds.top + 45f * density, mRight + 2f * density, listBottom, null)
                 canvas.clipRect(mLeft - 2f * density, bounds.top + 45f * density, mRight + 2f * density, listBottom)
+                canvas.save()
                 canvas.translate(0f, -batteryAppsScrollOffset)
 
                 var rY = listTop + 11.5f * density
@@ -285,7 +318,7 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
 
                     val rightLabel = " ($durStr)"
                     textPaint.textAlign = Paint.Align.LEFT
-                    textPaint.typeface = cockpitMonoBold
+                    textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
                     textPaint.textSize = 11.2f * density
                     textPaint.color = Color.WHITE
                     val availTitleW = (mRight - pctW - mLeft - 8f * density).coerceAtLeast(36f * density)
@@ -309,6 +342,18 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                     rY += rowStep
                 }
                 canvas.restore()
+                LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+                    canvas = canvas,
+                    left = mLeft - 2f * density,
+                    top = bounds.top + 45f * density,
+                    right = mRight + 2f * density,
+                    bottom = listBottom,
+                    featherTopPx = if (batteryAppsScrollOffset > 0.5f) 14f * density else 0f,
+                    featherBottomPx = if (batteryAppsScrollOffset < batteryAppsMaxScroll - 0.5f) 16f * density else 0f,
+                    density = density,
+                    seed = 7272
+                )
+                canvas.restoreToCount(batLayerCount)
 
                 if (batteryAppsMaxScroll > 0f) {
                     val sbW = 2.5f * density
@@ -318,21 +363,27 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                     val thumbY = listTop + ((batteryAppsScrollOffset / batteryAppsMaxScroll) * (listH - thumbH))
                     highlightPaint.style = Paint.Style.FILL
                     highlightPaint.color = Color.argb(60, 255, 255, 255)
-                    canvas.drawRoundRect(RectF(sbX, listTop, sbX + sbW, listBottom), 1.5f * density, 1.5f * density, highlightPaint)
+                    vitalsDrawTempRect.set(sbX, listTop, sbX + sbW, listBottom)
+                    canvas.drawRoundRect(vitalsDrawTempRect, 1.5f * density, 1.5f * density, highlightPaint)
                     highlightPaint.color = accent
-                    canvas.drawRoundRect(RectF(sbX, thumbY, sbX + sbW, thumbY + thumbH), 1.5f * density, 1.5f * density, highlightPaint)
+                    vitalsDrawTempRect.set(sbX, thumbY, sbX + sbW, thumbY + thumbH)
+                    canvas.drawRoundRect(vitalsDrawTempRect, 1.5f * density, 1.5f * density, highlightPaint)
                 }
             }
         }
         "system" -> {
-            // Dual-segment cockpit bars: CPU Awake vs Deep Sleep, Screen On Today, Cellular (Down+Up), Wi-Fi (Down+Up)
+            // Dual-segment cockpit bars: CPU Awake vs Deep Sleep (boot), Screen On (Span), Cellular & Wi-Fi (since reboot)
             val mLeft = bounds.left + 13f * density
             val mRight = bounds.right - 13f * density
 
             val sleepPct = (100 - snap.awakePct).coerceIn(0, 100)
             val hasUsage = LightspeedUsageStats.hasUsageAccess(context)
-            val scrnStr = if (hasUsage) LightspeedCruiseHudPods.formatDurationCompact(snap.screenTodayMs) else "NO ACCESS"
-            val scrnRatio = if (hasUsage) (snap.screenTodayMs.toFloat() / (12f * 3_600_000f)).coerceIn(0.03f, 1f) else 0f
+            val isTodaySpan = (bSpan == "today")
+            val scrnMs = if (isTodaySpan) snap.screenTodayMs else snap.screenSevenDayMs
+            val scrnMaxRefMs = if (isTodaySpan) 12f * 3_600_000f else 84f * 3_600_000f
+            val scrnTitle = if (isTodaySpan) "SCREEN ON (TODAY)" else "SCREEN ON (7-DAY)"
+            val scrnStr = if (hasUsage) LightspeedCruiseHudPods.formatDurationCompact(scrnMs) else "NO ACCESS"
+            val scrnRatio = if (hasUsage) (scrnMs.toFloat() / scrnMaxRefMs).coerceIn(0.03f, 1f) else 0f
 
             val mobDown = snap.mobileRxBytes
             val mobUp = snap.mobileTxBytes
@@ -364,10 +415,10 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
             vitalsTempGaugeRect.set(mLeft, rY - 10f * density, mRight, rY + 11f * density)
             drawCockpitVectorIcon(canvas, "CPU", mLeft + 5f * density, rY - 3.5f * density, 8.5f * density, accent, density)
             textPaint.textAlign = Paint.Align.LEFT
-            textPaint.typeface = cockpitMonoBold
+            textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
             textPaint.textSize = 9.0f * density
             textPaint.color = Color.WHITE
-            val awakeLabel = "CPU AWAKE vs SLEEP [HUNT]"
+            val awakeLabel = "CPU AWAKE vs SLEEP [BOOT · HUNT]"
             val awakeTextX = mLeft + 14f * density
             canvas.drawText(awakeLabel, awakeTextX, rY, textPaint)
             LightspeedHudVectorIcons.drawVectorArrow(
@@ -381,6 +432,7 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                 filledTriangle = true
             )
             textPaint.textAlign = Paint.Align.RIGHT
+            textPaint.typeface = cockpitMonoBold
             textPaint.color = cyanColor
             canvas.drawText(if (snapReady) "${snap.awakePct}% / $sleepPct%" else "-- / --", mRight, rY, textPaint)
             drawCockpitDualSegmentBar(
@@ -389,12 +441,14 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
             )
             rY += rowStep
 
-            // Row 2: SCREEN ON TODAY
+            // Row 2: SCREEN ON (follows SPAN: TODAY / 7-DAY)
             drawCockpitVectorIcon(canvas, "SCREEN", mLeft + 5f * density, rY - 3.5f * density, 8.5f * density, accent, density)
             textPaint.textAlign = Paint.Align.LEFT
+            textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
             textPaint.color = Color.WHITE
-            canvas.drawText("SCREEN ON TODAY", mLeft + 14f * density, rY, textPaint)
+            canvas.drawText(scrnTitle, mLeft + 14f * density, rY, textPaint)
             textPaint.textAlign = Paint.Align.RIGHT
+            textPaint.typeface = cockpitMonoBold
             textPaint.color = accent
             canvas.drawText(scrnStr, mRight, rY, textPaint)
             drawCockpitSegmentedBar(
@@ -403,12 +457,14 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
             )
             rY += rowStep
 
-            // Row 3: CELLULAR TRAFFIC (DOWN + UP)
+            // Row 3: CELLULAR TRAFFIC (DOWN + UP, SINCE REBOOT)
             drawCockpitVectorIcon(canvas, "CELL", mLeft + 5f * density, rY - 3.5f * density, 8.5f * density, cyanColor, density)
             textPaint.textAlign = Paint.Align.LEFT
+            textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
             textPaint.color = Color.WHITE
-            canvas.drawText("CELLULAR (DOWN + UP)", mLeft + 14f * density, rY, textPaint)
+            canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.hud_sys_cellular).ifBlank { "CELLULAR [BOOT] (↓ + ↑)" }, mLeft + 14f * density, rY, textPaint)
             textPaint.textAlign = Paint.Align.RIGHT
+            textPaint.typeface = cockpitMonoBold
             textPaint.color = cyanColor
             canvas.drawText(mobValStr, mRight, rY, textPaint)
             drawCockpitDualSegmentBar(
@@ -417,12 +473,14 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
             )
             rY += rowStep
 
-            // Row 4: WI-FI TRAFFIC (DOWN + UP)
+            // Row 4: WI-FI TRAFFIC (DOWN + UP, SINCE REBOOT)
             drawCockpitVectorIcon(canvas, "WIFI", mLeft + 5f * density, rY - 3.5f * density, 8.5f * density, emeraldColor, density)
             textPaint.textAlign = Paint.Align.LEFT
+            textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
             textPaint.color = Color.WHITE
-            canvas.drawText("WI-FI (DOWN + UP)", mLeft + 14f * density, rY, textPaint)
+            canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.hud_sys_wifi).ifBlank { "WI-FI [BOOT] (↓ + ↑)" }, mLeft + 14f * density, rY, textPaint)
             textPaint.textAlign = Paint.Align.RIGHT
+            textPaint.typeface = cockpitMonoBold
             textPaint.color = emeraldColor
             canvas.drawText(wifiValStr, mRight, rY, textPaint)
             drawCockpitDualSegmentBar(
@@ -549,24 +607,23 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                 vitalsExtStorageBarRect.setEmpty()
                 val bayTop = gaugeTop + gaugeDiameter + 14.5f * density
                 val bayBottom = (bounds.bottom - 7f * density).coerceAtLeast(bayTop + 28f * density)
-                val bayRect = RectF(mLeft, bayTop, mRight, bayBottom)
-                vitalsIntStorageBarRect.set(bayRect)
+                vitalsIntStorageBarRect.set(mLeft, bayTop, mRight, bayBottom)
 
-                val bayH = bayRect.height()
+                val bayH = vitalsIntStorageBarRect.height()
                 if (bayH >= 28f * density) {
                     highlightPaint.style = Paint.Style.FILL
                     highlightPaint.color = Color.argb((26 * alpha).toInt(), 255, 255, 255)
-                    canvas.drawRoundRect(bayRect, 6f * density, 6f * density, highlightPaint)
+                    canvas.drawRoundRect(vitalsIntStorageBarRect, 6f * density, 6f * density, highlightPaint)
                     highlightPaint.style = Paint.Style.STROKE
                     highlightPaint.strokeWidth = 0.8f * density
                     highlightPaint.color = Color.argb((75 * alpha).toInt(), Color.red(intColor), Color.green(intColor), Color.blue(intColor))
-                    canvas.drawRoundRect(bayRect, 6f * density, 6f * density, highlightPaint)
+                    canvas.drawRoundRect(vitalsIntStorageBarRect, 6f * density, 6f * density, highlightPaint)
                 }
 
                 val padIn = 7f * density
-                val inLeft = bayRect.left + padIn
-                val inRight = bayRect.right - padIn
-                val textY = bayRect.top + (bayH * 0.44f).coerceAtLeast(13.5f * density)
+                val inLeft = vitalsIntStorageBarRect.left + padIn
+                val inRight = vitalsIntStorageBarRect.right - padIn
+                val textY = vitalsIntStorageBarRect.top + (bayH * 0.44f).coerceAtLeast(13.5f * density)
 
                 textPaint.textAlign = Paint.Align.RIGHT
                 textPaint.typeface = cockpitMonoBold
@@ -577,7 +634,7 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                 canvas.drawText(rightStr, inRight, textY, textPaint)
 
                 textPaint.textAlign = Paint.Align.LEFT
-                textPaint.typeface = cockpitMonoBold
+                textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
                 textPaint.textSize = 11.2f * density
                 textPaint.color = Color.WHITE
                 val leftStr = clipTextToWidth(
@@ -587,7 +644,7 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                 canvas.drawText(leftStr, inLeft, textY, textPaint)
 
                 val barTop = textY + 5f * density
-                val barBottom = (barTop + 8.0f * density).coerceAtMost(bayRect.bottom - 4f * density)
+                val barBottom = (barTop + 8.0f * density).coerceAtMost(vitalsIntStorageBarRect.bottom - 4f * density)
                 drawCockpitSegmentedBar(
                     canvas = canvas,
                     left = inLeft,
@@ -601,297 +658,6 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                     density = density
                 )
             }
-        }
-    }
-}
-
-/** Emerald Green (<75%), Amber (75..89%), Crimson Red (>=90%). */
-private fun vitalsPctColor(pct: Int, alpha: Float): Int {
-    val a = (255 * alpha).toInt().coerceIn(0, 255)
-    return when {
-        pct >= 90 -> Color.argb(a, 239, 68, 68)
-        pct >= 75 -> Color.argb(a, 245, 158, 11)
-        else -> Color.argb(a, 34, 197, 94)
-    }
-}
-
-private fun vitalsTempStateLabel(tempC: Int): String = when {
-    tempC >= 44 -> "HOT"
-    tempC >= 38 -> "WARM"
-    tempC >= 33 -> "NORMAL"
-    else -> "COOL"
-}
-
-private fun LightspeedCruiseOverlay.drawVitalsThermometerGauge(
-    canvas: Canvas,
-    cx: Float,
-    top: Float,
-    height: Float,
-    fraction: Float,
-    color: Int,
-    valueText: String,
-    stateLabel: String,
-    density: Float
-) {
-    val barW = 10f * density
-    val barLeft = cx - 22f * density
-    val barTop = top + 2f * density
-    val barBot = top + height - 2f * density
-    val segCount = 6
-    val segGap = 2f * density
-    val segH = ((barBot - barTop) - (segCount - 1) * segGap) / segCount
-    val activeSegs = (fraction * segCount).roundToInt().coerceIn(1, segCount)
-
-    for (i in 0 until segCount) {
-        val segIdxFromBot = segCount - 1 - i
-        val sTop = barTop + i * (segH + segGap)
-        val sRect = RectF(barLeft, sTop, barLeft + barW, sTop + segH)
-        highlightPaint.style = Paint.Style.FILL
-        highlightPaint.color = if (segIdxFromBot < activeSegs) color else Color.argb(38, 255, 255, 255)
-        canvas.drawRoundRect(sRect, 2f * density, 2f * density, highlightPaint)
-    }
-
-    val textX = barLeft + barW + 6f * density
-    val barCenterY = top + height * 0.5f
-    textPaint.textAlign = Paint.Align.LEFT
-    textPaint.typeface = cockpitMonoBold
-    textPaint.textSize = 12.2f * density
-    textPaint.color = Color.WHITE
-    val valFm = textPaint.fontMetrics
-    canvas.drawText(valueText, textX, barCenterY - 2f * density - valFm.descent * 0.25f, textPaint)
-
-    textPaint.textSize = 8.8f * density
-    textPaint.color = color
-    val stFm = textPaint.fontMetrics
-    canvas.drawText(stateLabel, textX, barCenterY + 2f * density - stFm.ascent * 0.85f, textPaint)
-}
-
-/** Emerald Green (<38°C), Amber (38..43°C), Crimson Red (>=44°C). */
-private fun vitalsTempColor(tempC: Int, alpha: Float): Int {
-    val a = (255 * alpha).toInt().coerceIn(0, 255)
-    return when {
-        tempC >= 44 -> Color.argb(a, 239, 68, 68)
-        tempC >= 38 -> Color.argb(a, 245, 158, 11)
-        else -> Color.argb(a, 34, 197, 94)
-    }
-}
-
-private fun LightspeedCruiseOverlay.drawVitalsArcGauge(
-    canvas: Canvas,
-    cx: Float,
-    top: Float,
-    diameter: Float,
-    fraction: Float,
-    color: Int,
-    valueText: String,
-    ringTitle: String,
-    subLabel: String,
-    density: Float
-) {
-    val arcRect = RectF(cx - diameter / 2f, top, cx + diameter / 2f, top + diameter)
-    val strokeW = 4.2f * density
-
-    highlightPaint.style = Paint.Style.STROKE
-    highlightPaint.strokeCap = Paint.Cap.ROUND
-    highlightPaint.strokeWidth = strokeW
-    highlightPaint.color = Color.argb(45, 255, 255, 255)
-    canvas.drawArc(arcRect, 150f, 240f, false, highlightPaint)
-
-    if (fraction > 0f) {
-        highlightPaint.color = color
-        canvas.drawArc(arcRect, 150f, 240f * fraction.coerceIn(0.02f, 1f), false, highlightPaint)
-    }
-    highlightPaint.strokeCap = Paint.Cap.BUTT
-
-    textPaint.textAlign = Paint.Align.CENTER
-    textPaint.typeface = cockpitMonoBold
-    textPaint.textSize = (diameter * 0.27f).coerceAtLeast(9.5f * density)
-    textPaint.color = Color.WHITE
-    val fm = textPaint.fontMetrics
-    canvas.drawText(valueText, cx, arcRect.centerY() - ((fm.descent + fm.ascent) / 2f) - 1f * density, textPaint)
-
-    // Ring title ("RAM" / "SWAP") inside the bottom opening of the 240° arc
-    textPaint.typeface = cockpitMonoBold
-    textPaint.textSize = (diameter * 0.19f).coerceAtLeast(8.2f * density)
-    textPaint.color = color
-    val rFm = textPaint.fontMetrics
-    canvas.drawText(ringTitle, cx, arcRect.bottom - 1.5f * density - rFm.descent * 0.35f, textPaint)
-
-    // Used / Total numbers cleanly underneath the dial
-    textPaint.typeface = cockpitMonoBold
-    textPaint.textSize = 9.0f * density
-    textPaint.color = Color.argb(230, 215, 230, 250)
-    canvas.drawText(subLabel, cx, arcRect.bottom + 10.5f * density, textPaint)
-}
-
-private fun LightspeedCruiseOverlay.drawStorageProgressBar(
-    canvas: Canvas,
-    left: Float,
-    right: Float,
-    labelY: Float,
-    label: String,
-    pct: Int,
-    barColor: Int,
-    density: Float
-) {
-    textPaint.textAlign = Paint.Align.RIGHT
-    textPaint.typeface = cockpitMonoBold
-    textPaint.textSize = 10.0f * density
-    textPaint.color = barColor
-    val pctStr = "$pct%"
-    val pctW = textPaint.measureText(pctStr)
-    canvas.drawText(pctStr, right, labelY, textPaint)
-
-    textPaint.textAlign = Paint.Align.LEFT
-    textPaint.typeface = cockpitMonoBold
-    textPaint.textSize = 9.8f * density
-    textPaint.color = Color.WHITE
-    canvas.drawText(clipTextToWidth(label, (right - pctW - left - 6f * density).coerceAtLeast(40f * density)), left, labelY, textPaint)
-
-    val barTop = labelY + 3f * density
-    drawCockpitSegmentedBar(
-        canvas = canvas,
-        left = left,
-        top = barTop,
-        right = right,
-        bottom = barTop + 5.8f * density,
-        ratio = pct / 100f,
-        segments = 16,
-        fillColor = barColor,
-        bgColor = Color.argb(42, 255, 255, 255),
-        density = density
-    )
-}
-
-internal fun LightspeedCruiseOverlay.drawCockpitSegmentedBar(
-    canvas: Canvas,
-    left: Float,
-    top: Float,
-    right: Float,
-    bottom: Float,
-    ratio: Float,
-    segments: Int,
-    fillColor: Int,
-    bgColor: Int,
-    density: Float
-) {
-    val totalW = (right - left).coerceAtLeast(20f * density)
-    val gap = 2f * density
-    val segCount = segments.coerceAtLeast(4)
-    val segW = ((totalW - gap * (segCount - 1)) / segCount).coerceAtLeast(2f * density)
-    val filledSegs = if (ratio <= 0f) 0 else (ratio.coerceIn(0f, 1f) * segCount).roundToInt().coerceIn(1, segCount)
-    highlightPaint.style = Paint.Style.FILL
-    for (i in 0 until segCount) {
-        val sx = left + i * (segW + gap)
-        highlightPaint.color = if (i < filledSegs) fillColor else bgColor
-        canvas.drawRoundRect(RectF(sx, top, sx + segW, bottom), 1.5f * density, 1.5f * density, highlightPaint)
-    }
-}
-
-internal fun LightspeedCruiseOverlay.drawCockpitDualSegmentBar(
-    canvas: Canvas,
-    left: Float,
-    top: Float,
-    right: Float,
-    bottom: Float,
-    firstRatio: Float,
-    secondRatio: Float,
-    firstColor: Int,
-    secondColor: Int,
-    density: Float
-) {
-    val totalW = (right - left).coerceAtLeast(20f * density)
-    val segments = 16
-    val gap = 2f * density
-    val segW = ((totalW - gap * (segments - 1)) / segments).coerceAtLeast(2f * density)
-    val sumRatio = (firstRatio + secondRatio).coerceAtLeast(0f)
-    val firstSegs = if (sumRatio <= 0f) 0 else ((firstRatio / sumRatio) * segments).roundToInt().coerceIn(0, segments)
-    highlightPaint.style = Paint.Style.FILL
-    for (i in 0 until segments) {
-        val sx = left + i * (segW + gap)
-        highlightPaint.color = when {
-            sumRatio <= 0f -> Color.argb(38, 255, 255, 255)
-            i < firstSegs -> firstColor
-            else -> secondColor
-        }
-        canvas.drawRoundRect(RectF(sx, top, sx + segW, bottom), 1.5f * density, 1.5f * density, highlightPaint)
-    }
-}
-
-internal fun LightspeedCruiseOverlay.drawCockpitVectorIcon(
-    canvas: Canvas,
-    kind: String,
-    cx: Float,
-    cy: Float,
-    size: Float,
-    color: Int,
-    density: Float
-) {
-    val r = size * 0.48f
-    highlightPaint.style = Paint.Style.STROKE
-    highlightPaint.strokeWidth = 1.25f * density
-    highlightPaint.color = color
-    when (kind) {
-        "BATTERY" -> {
-            canvas.drawRoundRect(RectF(cx - r * 0.85f, cy - r * 0.52f, cx + r * 0.72f, cy + r * 0.52f), 1.5f * density, 1.5f * density, highlightPaint)
-            highlightPaint.style = Paint.Style.FILL
-            canvas.drawRect(cx + r * 0.72f, cy - r * 0.24f, cx + r, cy + r * 0.24f, highlightPaint)
-            canvas.drawRect(cx - r * 0.55f, cy - r * 0.25f, cx + r * 0.35f, cy + r * 0.25f, highlightPaint)
-        }
-        "BOLT" -> {
-            val p = android.graphics.Path().apply {
-                moveTo(cx + r * 0.15f, cy - r)
-                lineTo(cx - r * 0.55f, cy + r * 0.08f)
-                lineTo(cx + r * 0.05f, cy + r * 0.08f)
-                lineTo(cx - r * 0.15f, cy + r)
-                lineTo(cx + r * 0.55f, cy - r * 0.08f)
-                lineTo(cx - r * 0.05f, cy - r * 0.08f)
-                close()
-            }
-            highlightPaint.style = Paint.Style.FILL
-            canvas.drawPath(p, highlightPaint)
-        }
-        "HEART" -> {
-            val p = android.graphics.Path().apply {
-                moveTo(cx, cy + r * 0.85f)
-                lineTo(cx - r * 0.85f, cy - r * 0.05f)
-                lineTo(cx - r * 0.45f, cy - r * 0.65f)
-                lineTo(cx, cy - r * 0.25f)
-                lineTo(cx + r * 0.45f, cy - r * 0.65f)
-                lineTo(cx + r * 0.85f, cy - r * 0.05f)
-                close()
-            }
-            canvas.drawPath(p, highlightPaint)
-        }
-        "CPU" -> {
-            canvas.drawRect(cx - r * 0.55f, cy - r * 0.55f, cx + r * 0.55f, cy + r * 0.55f, highlightPaint)
-            canvas.drawLine(cx - r, cy - r * 0.25f, cx - r * 0.55f, cy - r * 0.25f, highlightPaint)
-            canvas.drawLine(cx - r, cy + r * 0.25f, cx - r * 0.55f, cy + r * 0.25f, highlightPaint)
-            canvas.drawLine(cx + r * 0.55f, cy - r * 0.25f, cx + r, cy - r * 0.25f, highlightPaint)
-            canvas.drawLine(cx + r * 0.55f, cy + r * 0.25f, cx + r, cy + r * 0.25f, highlightPaint)
-        }
-        "SCREEN" -> {
-            canvas.drawRoundRect(RectF(cx - r * 0.85f, cy - r * 0.62f, cx + r * 0.85f, cy + r * 0.42f), 1.5f * density, 1.5f * density, highlightPaint)
-            canvas.drawLine(cx - r * 0.35f, cy + r * 0.78f, cx + r * 0.35f, cy + r * 0.78f, highlightPaint)
-        }
-        "CELL" -> {
-            highlightPaint.style = Paint.Style.FILL
-            canvas.drawRect(cx - r * 0.75f, cy + r * 0.2f, cx - r * 0.45f, cy + r * 0.8f, highlightPaint)
-            canvas.drawRect(cx - r * 0.15f, cy - r * 0.2f, cx + r * 0.15f, cy + r * 0.8f, highlightPaint)
-            canvas.drawRect(cx + r * 0.45f, cy - r * 0.7f, cx + r * 0.75f, cy + r * 0.8f, highlightPaint)
-        }
-        "WIFI" -> {
-            canvas.drawArc(RectF(cx - r, cy - r * 0.6f, cx + r, cy + r * 1.4f), 225f, 90f, false, highlightPaint)
-            canvas.drawArc(RectF(cx - r * 0.6f, cy - r * 0.2f, cx + r * 0.6f, cy + r), 225f, 90f, false, highlightPaint)
-            highlightPaint.style = Paint.Style.FILL
-            canvas.drawCircle(cx, cy + r * 0.65f, 1.3f * density, highlightPaint)
-        }
-        else -> {
-            val sq = r * 0.38f
-            canvas.drawRect(cx - r * 0.75f, cy - r * 0.75f, cx - r * 0.75f + sq * 1.3f, cy - r * 0.75f + sq * 1.3f, highlightPaint)
-            canvas.drawRect(cx + r * 0.15f, cy - r * 0.75f, cx + r * 0.15f + sq * 1.3f, cy - r * 0.75f + sq * 1.3f, highlightPaint)
-            canvas.drawRect(cx - r * 0.75f, cy + r * 0.15f, cx - r * 0.75f + sq * 1.3f, cy + r * 0.15f + sq * 1.3f, highlightPaint)
-            canvas.drawRect(cx + r * 0.15f, cy + r * 0.15f, cx + r * 0.15f + sq * 1.3f, cy + r * 0.15f + sq * 1.3f, highlightPaint)
         }
     }
 }

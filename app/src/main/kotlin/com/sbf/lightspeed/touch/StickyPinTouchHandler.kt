@@ -51,9 +51,14 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
+                val deltaY = y - lastTouchY
                 lastTouchY = y
-                // Whole-HUD container scrolling is disabled; keep hudScrollOffset locked at 0f.
-                hudScrollOffset = 0f
+                computeHudSlotBounds()
+                if (hudMaxScroll > 0f) {
+                    hudScrollOffset = (hudScrollOffset - deltaY).coerceIn(0f, hudMaxScroll)
+                    updateCategoryAppWidgetView()
+                    invalidate()
+                }
                 return true
             }
             MotionEvent.ACTION_UP -> {
@@ -299,6 +304,7 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
                 if (targetIdx != activeCatIndex) {
                     activeCatIndex = targetIdx
                     viewportScrollOffset = 0f
+                    hudScrollOffset = 0f
                     activeItem = null
                     loadActiveCategoryGrid()
                     triggerHardwareHaptic(18, 95)
@@ -376,6 +382,7 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
                 if (targetIdx != activeCatIndex) {
                     activeCatIndex = targetIdx
                     viewportScrollOffset = 0f
+                    hudScrollOffset = 0f
                     activeItem = null
                     loadActiveCategoryGrid()
                     triggerHardwareHaptic(16, 85)
@@ -404,16 +411,21 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
             }
 
             if (isHudArea) {
-                hudScrollOffset = 0f
+                val hudTouchY = touchDownY + hudScrollOffset
                 val bounds1 = getTopHudSlot1Bounds()
                 val bounds2 = getTopHudSlot2Bounds()
                 val isScreenTime1 = LightspeedCruiseHudPods.getCategoryHudMode(context, catId) == LightspeedCruiseHudPods.MODE_LS_SCREEN_TIME
                 val isScreenTime2 = LightspeedCruiseHudPods.getCategoryHudSlot2Mode(context, catId) == LightspeedCruiseHudPods.MODE_LS_SCREEN_TIME
-                val targetHudBounds = if (isScreenTime1 && bounds1.contains(touchDownX, touchDownY)) bounds1
-                    else if (isScreenTime2 && bounds2.contains(touchDownX, touchDownY)) bounds2
+                val targetHudBounds = if (isScreenTime1 && bounds1.contains(touchDownX, hudTouchY)) bounds1
+                    else if (isScreenTime2 && bounds2.contains(touchDownX, hudTouchY)) bounds2
                     else null
 
-                if (targetHudBounds != null && touchDownX >= (targetHudBounds.left + targetHudBounds.width() * 0.44f) && screenTimeAppsMaxScroll > 0f) {
+                val innerStCanScrollDir = targetHudBounds != null &&
+                    touchDownX >= (targetHudBounds.left + targetHudBounds.width() * 0.44f) &&
+                    screenTimeAppsMaxScroll > 0f &&
+                    ((deltaY < 0f && screenTimeAppsScrollOffset < screenTimeAppsMaxScroll - 0.5f) ||
+                        (deltaY > 0f && screenTimeAppsScrollOffset > 0.5f))
+                if (innerStCanScrollDir) {
                     screenTimeAppsScrollOffset = (screenTimeAppsScrollOffset - deltaY).coerceIn(0f, screenTimeAppsMaxScroll)
                     invalidate()
                     return true
@@ -422,16 +434,27 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
                 val touchedBatteryItem = activeCategoryHudItems.firstOrNull { item ->
                     item.type == LightspeedCruiseHudPods.MODE_LS_BATTERY_SYSTEM &&
                         LightspeedCruiseHudPods.getBatteryMode(context, catId, item.slotIndex) == "apps" &&
-                        item.bounds.contains(touchDownX, touchDownY)
+                        item.bounds.contains(touchDownX, hudTouchY)
                 }
                 val batMaxScroll = touchedBatteryItem?.let { getBatteryAppsMaxScroll(it.slotIndex) } ?: 0f
-                if (touchedBatteryItem != null && batMaxScroll > 0f) {
-                    val nextOffset = (getBatteryAppsScrollOffset(touchedBatteryItem.slotIndex) - deltaY).coerceIn(0f, batMaxScroll)
-                    setBatteryAppsScrollOffset(touchedBatteryItem.slotIndex, nextOffset)
+                val curBatScroll = touchedBatteryItem?.let { getBatteryAppsScrollOffset(it.slotIndex) } ?: 0f
+                val innerBatCanScrollDir = touchedBatteryItem != null &&
+                    batMaxScroll > 0f &&
+                    ((deltaY < 0f && curBatScroll < batMaxScroll - 0.5f) || (deltaY > 0f && curBatScroll > 0.5f))
+                if (innerBatCanScrollDir) {
+                    val item = touchedBatteryItem!!
+                    val nextOffset = (curBatScroll - deltaY).coerceIn(0f, batMaxScroll)
+                    setBatteryAppsScrollOffset(item.slotIndex, nextOffset)
                     invalidate()
                     return true
                 }
-                // Whole-HUD container scrolling is disabled: only inner widget lists scroll.
+
+                computeHudSlotBounds()
+                if (hudMaxScroll > 0f) {
+                    hudScrollOffset = (hudScrollOffset - deltaY).coerceIn(0f, hudMaxScroll)
+                    updateCategoryAppWidgetView()
+                    invalidate()
+                }
             } else {
                 if (maxScroll > 0f) {
                     viewportScrollOffset = (viewportScrollOffset - deltaY).coerceIn(0f, maxScroll)
@@ -473,7 +496,16 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
                     }
                     dismissOverlay()
                 } else if (y in gridTopLimit..gridBottomLimit) {
-                    activeItem?.let { dismissOverlay(); executeLaunch(it) } ?: dismissOverlay()
+                    val launchTarget = activeItem
+                    if (launchTarget != null) {
+                        val placed = placedAppsList.find { it.app == launchTarget }
+                        val (focalX, focalY) = resolvePlacedItemIconCenter(placed)
+                        triggerHyperdriveWarpLaunch(focalX, focalY) {
+                            executeLaunch(launchTarget)
+                        }
+                    } else {
+                        dismissOverlay()
+                    }
                 } else {
                     dismissOverlay()
                 }

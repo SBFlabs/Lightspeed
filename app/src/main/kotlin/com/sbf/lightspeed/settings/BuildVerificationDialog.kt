@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -61,7 +64,7 @@ fun BuildVerificationDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Build Verification & Official Sources",
+                text = lsString(R.string.about_verify_title),
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
                 color = lsColors.textPrimary
@@ -80,10 +83,10 @@ fun BuildVerificationDialog(
                     onCopyFingerprint = {
                         DistributionVerifier.copyToClipboard(
                             context = context,
-                            label = "Lightspeed Signing SHA-256",
+                            label = lsString(R.string.bver_sha_label),
                             text = verification.actualCertSha256
                         )
-                        Toast.makeText(context, "Signing SHA-256 copied", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, lsString(R.string.bver_sha_copied), Toast.LENGTH_SHORT).show()
                     }
                 )
 
@@ -98,12 +101,16 @@ fun BuildVerificationDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Install Origin",
+                        text = lsString(R.string.bver_origin),
                         fontSize = 12.sp,
                         color = lsColors.textSecondary
                     )
                     Text(
-                        text = verification.installOrigin.displayName,
+                        text = if (verification.installOrigin == com.sbf.lightspeed.system.InstallOrigin.DIRECT_SIDELOAD) {
+                            lsString(R.string.bver_origin_sideload)
+                        } else {
+                            verification.installOrigin.displayName
+                        },
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (verification.installOrigin.isOfficialClient) {
@@ -126,7 +133,7 @@ fun BuildVerificationDialog(
                             .padding(horizontal = 10.dp, vertical = 8.dp)
                     ) {
                         Text(
-                            text = "Your APK carries the genuine SBF Labs signature, though it was installed outside an official updater. Use one of the channels below for direct verified updates.",
+                            text = lsString(R.string.bver_genuine_note),
                             fontSize = 11.5.sp,
                             lineHeight = 15.5.sp,
                             color = lsColors.textPrimary.copy(alpha = 0.88f)
@@ -135,7 +142,7 @@ fun BuildVerificationDialog(
                 }
 
                 Text(
-                    text = "Official Distribution Channels",
+                    text = lsString(R.string.bver_channels),
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -143,8 +150,8 @@ fun BuildVerificationDialog(
 
                 OfficialSourceRow(
                     icon = Icons.Default.Code,
-                    title = "GitHub Releases",
-                    subtitle = "Official signed 32-bit & 64-bit APKs and SHA-256 checksums",
+                    title = lsString(R.string.bver_gh_title),
+                    subtitle = lsString(R.string.bver_gh_sub),
                     onClick = {
                         DistributionVerifier.openUriWithFallback(
                             context = context,
@@ -156,7 +163,7 @@ fun BuildVerificationDialog(
                 OfficialSourceRow(
                     icon = Icons.Default.CloudDownload,
                     title = "Obtainium",
-                    subtitle = "Direct release updates from GitHub (pre-releases off)",
+                    subtitle = lsString(R.string.bver_obt_sub),
                     onClick = {
                         DistributionVerifier.openUriWithFallback(
                             context = context,
@@ -170,7 +177,7 @@ fun BuildVerificationDialog(
                 OfficialSourceRow(
                     icon = Icons.Default.Shield,
                     title = "ShizuStore",
-                    subtitle = "Shizuku-native client pulling directly from GitHub",
+                    subtitle = lsString(R.string.bver_shizu_sub),
                     onClick = {
                         DistributionVerifier.openUriWithFallback(
                             context = context,
@@ -182,8 +189,8 @@ fun BuildVerificationDialog(
 
                 OfficialSourceRow(
                     icon = Icons.Default.CheckCircle,
-                    title = "Orion Store",
-                    subtitle = "Opens Lightspeed inside Orion Store (when installed)",
+                    title = lsString(R.string.bver_orion_title),
+                    subtitle = lsString(R.string.bver_orion_sub),
                     onClick = {
                         DistributionVerifier.openUriWithFallback(
                             context = context,
@@ -195,7 +202,7 @@ fun BuildVerificationDialog(
         },
         confirmButton = {
             DeckButton(
-                text = "Close",
+                text = lsString(R.string.cc_common_close),
                 onClick = onDismiss,
                 isActive = true
             )
@@ -218,20 +225,20 @@ private fun SignatureStatusBanner(
         SignatureStatus.OFFICIAL_RELEASE -> {
             statusTone = lsColors.accentOk
             statusIcon = Icons.Default.CheckCircle
-            statusTitle = "Official SBF Labs Signature"
-            statusDetail = "Verified release signing key matches SBFlabs/Lightspeed."
+            statusTitle = lsString(R.string.bver_official_t)
+            statusDetail = lsString(R.string.bver_official_d)
         }
         SignatureStatus.NIGHTLY_DEV_BUILD -> {
             statusTone = lsColors.accent
             statusIcon = Icons.Default.Code
-            statusTitle = "Nightly Development Build"
-            statusDetail = "Signed with local debug key. Stable releases verify against the SBF Labs key."
+            statusTitle = lsString(R.string.bver_nightly_t)
+            statusDetail = lsString(R.string.bver_nightly_d)
         }
         SignatureStatus.CUSTOM_OR_UNVERIFIED -> {
             statusTone = lsColors.accentWarn
             statusIcon = Icons.Default.Warning
-            statusTitle = "Custom or Third-Party Signature"
-            statusDetail = "Does not match SBF Labs' key. Only trust this APK if you built it yourself from source."
+            statusTitle = lsString(R.string.bver_custom_t)
+            statusDetail = lsString(R.string.bver_custom_d)
         }
     }
 

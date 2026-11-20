@@ -52,8 +52,8 @@ object LightspeedCruiseHudPods {
     val HUD_MODE_OPTIONS_ROW2: List<Pair<String, String>>
         get() = if (NightlyFeatures.isCategoryCruiseHudWidgetsEnabled) {
             listOf(
-                MODE_LS_SCREEN_TIME to "SCREEN TIME",
-                MODE_LS_BATTERY_SYSTEM to "BATTERY & SYS"
+                MODE_LS_SCREEN_TIME to com.sbf.lightspeed.system.lsString(R.string.hud_screen_time).ifBlank { "SCREEN TIME" },
+                MODE_LS_BATTERY_SYSTEM to com.sbf.lightspeed.system.lsString(R.string.hud_battery_sys).ifBlank { "BATTERY & SYS" }
             )
         } else {
             emptyList()
@@ -68,41 +68,66 @@ object LightspeedCruiseHudPods {
         mode == MODE_LS_BATTERY_SYSTEM ||
         mode == MODE_LS_PRIVACY
 
-    val TIME_SCOPE_OPTIONS = listOf(
-        "sec" to "SECTOR",
-        "dev" to "DEVICE"
-    )
+    val TIME_SCOPE_OPTIONS: List<Pair<String, String>>
+        get() = listOf(
+            "sec" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_sector).ifBlank { "SECTOR" },
+            "dev" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_device).ifBlank { "DEVICE" }
+        )
 
-    val TIME_SPAN_OPTIONS = listOf(
-        "1d" to "DAY",
-        "7d" to "WK",
-        "30d" to "MO",
-        "365d" to "YR"
-    )
+    val TIME_SPAN_OPTIONS: List<Pair<String, String>>
+        get() = listOf(
+            "1d" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_day).ifBlank { "DAY" },
+            "7d" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_wk).ifBlank { "WK" },
+            "30d" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_mo).ifBlank { "MO" },
+            "365d" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_yr).ifBlank { "YR" }
+        )
 
     // Token "chart" is a persisted value and must never be renamed; it now renders the graph-free battery readout.
-    val BATTERY_MODE_OPTIONS = listOf(
-        "chart" to "BATTERY",
-        "apps" to "APPS",
-        "system" to "SYSTEM",
-        "vitals" to "VITALS"
-    )
+    val BATTERY_MODE_OPTIONS: List<Pair<String, String>>
+        get() = listOf(
+            "chart" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_battery).ifBlank { "BATTERY" },
+            "apps" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_apps).ifBlank { "APPS" },
+            "system" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_system).ifBlank { "SYSTEM" },
+            "vitals" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_vitals).ifBlank { "VITALS" }
+        )
 
-    val BATTERY_SPAN_OPTIONS = listOf(
-        "last_charge" to "LAST CHG",
-        "today" to "TODAY",
-        "7d" to "7-DAY"
-    )
+    val BATTERY_SPAN_OPTIONS: List<Pair<String, String>>
+        get() = listOf(
+            "last_charge" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_last_chg).ifBlank { "LAST CHG" },
+            "today" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_today).ifBlank { "TODAY" },
+            "7d" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_7day).ifBlank { "7-DAY" }
+        )
 
-    val PRIVACY_VIEW_OPTIONS = listOf(
-        "alerts" to "ALERTS",
-        "firewall" to "FIREWALL",
-        "score" to "SCORE"
-    )
+    val PRIVACY_VIEW_OPTIONS: List<Pair<String, String>>
+        get() = listOf(
+            "alerts" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_alerts).ifBlank { "ALERTS" },
+            "firewall" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_firewall).ifBlank { "FIREWALL" },
+            "score" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_score).ifBlank { "SCORE" }
+        )
 
     internal val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     internal val usageCacheBySpan = ConcurrentHashMap<String, Map<String, Long>>()
+    internal val usageAvailableSpanMsBySpan = ConcurrentHashMap<String, Long>()
+    @Volatile internal var lastUnplugTimestampMs: Long = 0L
+    @Volatile internal var hasObservedRealUnplug: Boolean = false
+    @Volatile internal var wasLastSnapshotCharging: Boolean? = null
     @Volatile internal var lastRefreshMs = 0L
+
+    fun getAvailableUsageSpanMs(span: String): Long = usageAvailableSpanMsBySpan[span] ?: 0L
+
+    fun isSpanPartial(span: String): Boolean = when (span) {
+        "7d" -> {
+            val avail = usageAvailableSpanMsBySpan["7d"] ?: 0L
+            avail > 0L && avail < (7L * 24L - 4L) * 3_600_000L
+        }
+        "last_charge" -> !hasObservedRealUnplug
+        else -> false
+    }
+
+    fun getScreenTimeIgnoredPackages(context: Context): Set<String> =
+        context.defaultPrefs()
+            .getStringSet(LightspeedPreferences.KEY_SCREEN_TIME_IGNORED_PACKAGES, emptySet())
+            ?.toSet() ?: emptySet()
     @Volatile var hasBatterySnapshot: Boolean = false
         internal set
     @Volatile internal var lastBatteryRefreshMs: Long = 0L
@@ -165,6 +190,7 @@ object LightspeedCruiseHudPods {
         val wifiRxBytes: Long = -1L,
         val wifiTxBytes: Long = -1L,
         val screenTodayMs: Long = 0L,   // real foreground time from usage stats (last day)
+        val screenSevenDayMs: Long = 0L,// real foreground time from usage stats (last 7 days)
         val chargeMah: Int = -1,        // current battery charge in mAh (-1 if unavailable)
         val designCapacityMah: Int = -1,// full design capacity in mAh (-1 if unavailable)
         val healthLabel: String = "GOOD",
@@ -254,14 +280,8 @@ object LightspeedCruiseHudPods {
     }
 
     fun defaultHudModeForCategory(categoryId: String): String {
-        if (!NightlyFeatures.isCategoryCruiseHudWidgetsEnabled) {
-            return MODE_APP_AND_CAT
-        }
-        return when (categoryId) {
-            "games", "productivity" -> MODE_LS_SCREEN_TIME
-            "settings", "utilities" -> MODE_LS_BATTERY_SYSTEM
-            else -> MODE_APP_AND_CAT
-        }
+        // Every category ships with Focused App Inspector enabled by default in both Cruise & Grid modes.
+        return MODE_APP_AND_CAT
     }
 
     fun getCategoryHudMode(context: Context, categoryId: String): String {
@@ -512,8 +532,13 @@ object LightspeedCruiseHudPods {
 
     fun cycleBatterySpan(context: Context, categoryId: String? = null, slotIndex: Int = 1): String {
         val current = getBatterySpan(context, categoryId, slotIndex)
-        val idx = BATTERY_SPAN_OPTIONS.indexOfFirst { it.first == current }.let { if (it >= 0) it else 0 }
-        val next = BATTERY_SPAN_OPTIONS[(idx + 1) % BATTERY_SPAN_OPTIONS.size].first
+        val mode = getBatteryMode(context, categoryId, slotIndex)
+        val next = if (mode == "system") {
+            if (current == "today") "7d" else "today"
+        } else {
+            val idx = BATTERY_SPAN_OPTIONS.indexOfFirst { it.first == current }.let { if (it >= 0) it else 0 }
+            BATTERY_SPAN_OPTIONS[(idx + 1) % BATTERY_SPAN_OPTIONS.size].first
+        }
         setBatterySpan(context, categoryId, next, slotIndex)
         notifyHudEnteredView()
         return next

@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import android.provider.Settings
@@ -160,8 +163,8 @@ fun SystemOverrideDisplayMetrics(
             sliderKey = "sys_override_display_dpi",
             defaultValue = android.util.DisplayMetrics.DENSITY_DEVICE_STABLE.toFloat(),
             icon = Icons.Default.ScreenshotMonitor,
-            title = "Display Metrics",
-            subtitle = "On-the-fly PPI / DPI adjustments",
+            title = lsString(R.string.sys_disp_title),
+            subtitle = lsString(R.string.sys_disp_sub),
             value = displayDpi,
             valueRange = 200.0f..800.0f,
             steps = 59,
@@ -219,8 +222,8 @@ fun SystemOverrideDisplayMetrics(
             sliderKey = "sys_override_font_scale",
             defaultValue = 1.0f,
             icon = Icons.Default.FontDownload,
-            title = "Font Scale",
-            subtitle = "Tactile slider for system FONT_SCALE override",
+            title = lsString(R.string.sys_font_title),
+            subtitle = lsString(R.string.sys_font_sub),
             value = fontScale,
             valueRange = 0.5f..2.0f,
             steps = 14,
@@ -264,7 +267,7 @@ fun SystemOverrideDisplayMetrics(
             onDismissRequest = revertDpi,
             title = {
                 Text(
-                    text = "Keep this setting?",
+                    text = lsString(R.string.sys_keep_title),
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -275,12 +278,12 @@ fun SystemOverrideDisplayMetrics(
             },
             confirmButton = {
                 TextButton(onClick = keepDpi) {
-                    Text("Keep")
+                    Text(lsString(R.string.sys_keep_btn))
                 }
             },
             dismissButton = {
                 TextButton(onClick = revertDpi) {
-                    Text("Revert")
+                    Text(lsString(R.string.sys_revert_btn))
                 }
             }
         )
@@ -291,7 +294,7 @@ fun SystemOverrideDisplayMetrics(
             onDismissRequest = revertFontScale,
             title = {
                 Text(
-                    text = "Keep this setting?",
+                    text = lsString(R.string.sys_keep_title),
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -302,12 +305,12 @@ fun SystemOverrideDisplayMetrics(
             },
             confirmButton = {
                 TextButton(onClick = keepFontScale) {
-                    Text("Keep")
+                    Text(lsString(R.string.sys_keep_btn))
                 }
             },
             dismissButton = {
                 TextButton(onClick = revertFontScale) {
-                    Text("Revert")
+                    Text(lsString(R.string.sys_revert_btn))
                 }
             }
         )

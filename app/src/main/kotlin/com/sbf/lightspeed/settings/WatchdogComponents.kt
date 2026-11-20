@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import androidx.compose.ui.text.style.TextAlign
 import android.content.Context
 import android.content.SharedPreferences
@@ -102,17 +105,17 @@ fun WatchdogQuickTelemetryCard(
     val copyReportToClipboard: () -> Unit = {
         val report = com.sbf.lightspeed.system.FlightLog.generateTextReport(context)
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-        val clip = android.content.ClipData.newPlainText("Lightspeed Flight Blackbox Report", report)
+        val clip = android.content.ClipData.newPlainText(lsString(R.string.wd_rep_title), report)
         clipboard?.setPrimaryClip(clip)
         com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
-        Toast.makeText(context, "Blackbox report copied to clipboard", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, lsString(R.string.wd_rep_copied), Toast.LENGTH_SHORT).show()
     }
 
     val clearActionLogOnly: () -> Unit = {
         com.sbf.lightspeed.system.FlightLog.clearLog()
         flightLogEntries = emptyList()
         com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
-        Toast.makeText(context, "Action log cleared", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, lsString(R.string.wd_log_cleared), Toast.LENGTH_SHORT).show()
     }
 
     val copyTelemetryToClipboard: () -> Unit = {
@@ -124,15 +127,15 @@ fun WatchdogQuickTelemetryCard(
 LIGHTSPEED BLACKBOX TELEMETRY
 Timestamp: $timeStr
 Device: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})
-Exception: ${lastCrashMessage ?: "Unknown Anomaly"}
+Exception: ${lastCrashMessage ?: lsString(R.string.wd_unknown_anom)}
 
 STACKTRACE:
-${lastCrashStack ?: "No stacktrace recorded"}
+${lastCrashStack ?: lsString(R.string.wd_no_stack)}
         """.trimIndent()
-        val clip = android.content.ClipData.newPlainText("Lightspeed Blackbox Telemetry", payload)
+        val clip = android.content.ClipData.newPlainText(lsString(R.string.wd_tel_title), payload)
         clipboard?.setPrimaryClip(clip)
         com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
-        Toast.makeText(context, "Blackbox telemetry copied to clipboard", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, lsString(R.string.wd_tel_copied), Toast.LENGTH_SHORT).show()
     }
 
     val clearTelemetry: () -> Unit = {
@@ -142,7 +145,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
         lastCrashStack = null
         showCrashDetailDialog = false
         com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
-        Toast.makeText(context, "Blackbox telemetry cleared", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, lsString(R.string.wd_tel_cleared), Toast.LENGTH_SHORT).show()
         onStateChanged()
     }
 
@@ -158,10 +161,13 @@ ${lastCrashStack ?: "No stacktrace recorded"}
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
                         imageVector = Icons.Outlined.Shield,
                         contentDescription = null,
@@ -170,11 +176,13 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "SYSTEM IMMUNITY & WATCHDOGS",
+                        lsString(R.string.wd_sec_hdr),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 0.8.sp
+                        letterSpacing = 0.8.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
                 val statusColor = when {
@@ -183,9 +191,9 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                     else -> cautionAmber
                 }
                 val statusText = when {
-                    isServiceRunning && isShizukuActive -> "FORTIFIED"
-                    isServiceRunning -> "ONLINE"
-                    else -> "STANDBY"
+                    isServiceRunning && isShizukuActive -> lsString(R.string.wd_fortified)
+                    isServiceRunning -> lsString(R.string.wd_online)
+                    else -> lsString(R.string.wd_standby)
                 }
                 Surface(
                     shape = RoundedCornerShape(6.dp),
@@ -198,6 +206,8 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         fontWeight = FontWeight.Bold,
                         color = statusColor,
                         letterSpacing = 0.6.sp,
+                        maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                     )
                 }
@@ -219,9 +229,9 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text("CORE", fontSize = 8.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text(lsString(R.string.wd_core), fontSize = 8.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                         Text(
-                            text = if (isServiceRunning) "ONLINE" else "OFFLINE",
+                            text = if (isServiceRunning) lsString(R.string.wd_online) else lsString(R.string.wd_offline),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isServiceRunning) lsColors.accentOk else LightspeedTokens.StatusDanger,
@@ -244,7 +254,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                     ) {
                         Text("SHIZUKU", fontSize = 8.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                         Text(
-                            text = if (isShizukuActive) "ACTIVE" else "STANDBY",
+                            text = if (isShizukuActive) "ACTIVE" else lsString(R.string.wd_standby),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isShizukuActive) lsColors.accentOk else lsColors.accentAlert,
@@ -279,7 +289,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                                         if (ok) {
                                             isBatteryIgnored = !currentlyIgnored
                                             com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
-                                            val msg = if (currentlyIgnored) "Battery exemption removed for Lightspeed" else "Battery whitelist granted via Shizuku"
+                                            val msg = if (currentlyIgnored) lsString(R.string.wd_bat_removed) else lsString(R.string.wd_bat_granted)
                                             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                             onStateChanged()
                                         } else {
@@ -298,9 +308,9 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text("BATTERY", fontSize = 8.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text(lsString(R.string.wd_battery), fontSize = 8.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                         Text(
-                            text = if (isBatteryIgnored) "EXEMPT" else "LIMITED",
+                            text = if (isBatteryIgnored) lsString(R.string.wd_exempt) else lsString(R.string.wd_limited),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isBatteryIgnored) lsColors.accentOk else lsColors.accentAlert,
@@ -308,7 +318,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                             softWrap = false
                         )
                         Text(
-                            text = "HOLD ↗",
+                            text = lsString(R.string.wd_hold_arrow),
                             fontSize = 7.5.sp,
                             color = (if (isBatteryIgnored) lsColors.accentOk else lsColors.accentAlert).copy(alpha = 0.85f),
                             fontWeight = FontWeight.Bold,
@@ -332,9 +342,9 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text("SERVICES", fontSize = 8.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text(lsString(R.string.wd_services), fontSize = 8.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                         Text(
-                            text = "${enabledSet.size} ACTIVE",
+                            text = lsString(R.string.wd_n_active, enabledSet.size),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
@@ -342,7 +352,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                             softWrap = false
                         )
                         Text(
-                            text = "MANAGE ↗",
+                            text = lsString(R.string.wd_manage_arrow),
                             fontSize = 7.5.sp,
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
                             fontWeight = FontWeight.Bold,
@@ -362,8 +372,8 @@ ${lastCrashStack ?: "No stacktrace recorded"}
             }
 
             PrefToggleRow(
-                title = "Proactive OEM Sentinel",
-                subtitle = "Background sentinel thread polls Lightspeed & shielded sentinels every 20s, reviving via Shizuku if killed by battery management.",
+                title = lsString(R.string.wd_sentinel_title),
+                subtitle = lsString(R.string.wd_sentinel_sub),
                 isChecked = sentinelEnabled,
                 onCheckedChange = { checked ->
                     sentinelEnabled = checked
@@ -378,8 +388,8 @@ ${lastCrashStack ?: "No stacktrace recorded"}
             )
 
             PrefToggleRow(
-                title = "Autonomous Crash Resuscitation",
-                subtitle = "Catches fatal JVM or shader exceptions and arms an OS alarm to resuscitate the service via Shizuku within 1s.",
+                title = lsString(R.string.wd_resusc_title),
+                subtitle = lsString(R.string.wd_resusc_sub),
                 isChecked = crashSentinelEnabled,
                 onCheckedChange = { checked ->
                     crashSentinelEnabled = checked
@@ -400,9 +410,9 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                             withContext(Dispatchers.Main) {
                                 com.sbf.lightspeed.system.LightspeedHapticEngine.heavyClick(context)
                                 if (ok) {
-                                    Toast.makeText(context, "Core pulse sent: Online", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, lsString(R.string.wd_pulse_sent), Toast.LENGTH_SHORT).show()
                                 } else {
-                                    Toast.makeText(context, "Opening Accessibility Settings...", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, lsString(R.string.wd_opening_a11y), Toast.LENGTH_SHORT).show()
                                     LightspeedWatchdogEngine.openAccessibilitySettings(context)
                                 }
                                 onStateChanged()
@@ -417,7 +427,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                         Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Pulse Core", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = cautionAmber, maxLines = 1, softWrap = false)
+                        Text(lsString(R.string.wd_pulse_core), fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = cautionAmber, maxLines = 1, softWrap = false)
                     }
                 }
 
@@ -427,7 +437,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                             val count = LightspeedWatchdogEngine.pulsePerimeterServices(context)
                             withContext(Dispatchers.Main) {
                                 com.sbf.lightspeed.system.LightspeedHapticEngine.heavyClick(context)
-                                Toast.makeText(context, "Perimeter pulse: $count sentinels verified", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, lsString(R.string.wd_perim_pulse, count), Toast.LENGTH_SHORT).show()
                                 onStateChanged()
                             }
                         }
@@ -440,7 +450,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                         Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Pulse Perimeter", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false)
+                        Text(lsString(R.string.wd_pulse_perim), fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false)
                     }
                 }
             }
@@ -458,7 +468,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                     Icon(Icons.Outlined.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        "Manage Accessibility Services (${enabledSet.size} Active) ↗",
+                        lsString(R.string.wd_manage_a11y, enabledSet.size),
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.primary,

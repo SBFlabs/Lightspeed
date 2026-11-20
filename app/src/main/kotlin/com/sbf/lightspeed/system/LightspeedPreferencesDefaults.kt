@@ -118,17 +118,21 @@ object LightspeedPreferencesDefaults {
         editor.putString(LightspeedPreferences.KEY_DEFLECTOR_PILL_STYLE, "razor_edge")
         editor.putString(LightspeedPreferences.KEY_DEFLECTOR_LEFT_PILL_STYLE, "razor_edge")
         editor.putString(LightspeedPreferences.KEY_DEFLECTOR_RIGHT_PILL_STYLE, "razor_edge")
+        // Left Flank: OFF on fresh install (keeps its distinct swipe-up/down mapping for when it is enabled).
+        // Stealth look stays intact: transparency = 0 (above) and glow OFF (below).
+        editor.putBoolean(LightspeedPreferences.KEY_DEFLECTOR_LEFT_ENABLED, false)
         editor.putBoolean(LightspeedPreferences.KEY_DEFLECTOR_LEFT_GLOW_ENABLED, false)
         editor.putBoolean(LightspeedPreferences.KEY_DEFLECTOR_RIGHT_GLOW_ENABLED, true)
         editor.putBoolean(LightspeedPreferences.KEY_DEFLECTOR_USE_M3_COLOR, false)
         editor.putString(LightspeedPreferences.KEY_DEFLECTOR_LANDSCAPE_MODE, LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM)
         editor.putString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, LightspeedPreferences.DEFAULT_ORIENTATION_OVERRIDE_EXPIRATION)
 
-        // 4. Status Bar (Sensor Area) - enabled by default matching Infinix profile
-        editor.putBoolean(LightspeedPreferences.KEY_STATUSBAR_ENABLED, true)
+        // 4. Status Bar (Sensor Area) - Day-1: OFF on fresh install. When the user enables it, it is
+        // centered (offset_x = 0, where 0 = screen center) and compact (span = 160).
+        editor.putBoolean(LightspeedPreferences.KEY_STATUSBAR_ENABLED, false)
         editor.putInt("pref_statusbar_height", 35)
-        editor.putInt("pref_statusbar_span", 200)
-        editor.putInt("pref_statusbar_offset_x", 180)
+        editor.putInt("pref_statusbar_span", 160)
+        editor.putInt("pref_statusbar_offset_x", 0)
         editor.putInt("pref_statusbar_sensitivity", 25)
         editor.putInt("pref_statusbar_thickness", 35)
         editor.putInt("pref_statusbar_transparency", 0)
@@ -136,14 +140,14 @@ object LightspeedPreferencesDefaults {
         // Landscape / Tablet defaults
         editor.putInt(LightspeedPreferences.KEY_STATUSBAR_SPAN_LANDSCAPE, 320)
         editor.putInt(LightspeedPreferences.KEY_STATUSBAR_THICKNESS_LANDSCAPE, 35)
-        editor.putInt(LightspeedPreferences.KEY_STATUSBAR_OFFSET_X_LANDSCAPE, 300)
+        editor.putInt(LightspeedPreferences.KEY_STATUSBAR_OFFSET_X_LANDSCAPE, 0)
 
         // Status Bar Actions (Infinix Profile)
         editor.putString("pref_macro_action_STATUSBAR_TAP", "system:scroll_to_top")
         editor.putString("pref_macro_action_STATUSBAR_TAP_HOLD", "system:gravity_override_360")
         editor.putString("pref_macro_action_STATUSBAR_SWIPE_DOWN", "system:notifications")
-        editor.putString("pref_macro_action_STATUSBAR_SWIPE_RIGHT", "system:core_watchdog")
-        editor.putString("pref_macro_action_STATUSBAR_SWIPE_LEFT", "system:perimeter_watchdog")
+        editor.putString("pref_macro_action_STATUSBAR_SWIPE_RIGHT", "none") // Day-1: Swipe R/L unbound
+        editor.putString("pref_macro_action_STATUSBAR_SWIPE_LEFT", "none")
         editor.putString("pref_macro_action_STATUSBAR_SWIPE_RIGHT_HOLD", "system:popup_window")
         editor.putString("pref_macro_action_STATUSBAR_SWIPE_LEFT_HOLD", "system:split_screen")
 
@@ -166,11 +170,45 @@ object LightspeedPreferencesDefaults {
         editor.putString("pref_macro_action_BOTTOM_STATUSBAR_SWIPE_RIGHT_HOLD", "system:popup_window")
         editor.putString("pref_macro_action_BOTTOM_STATUSBAR_SWIPE_LEFT_HOLD", "system:split_screen")
 
-        // HUD & Scrubber Defaults (Infinix Profile)
+        // HUD, Scrubber, Blur & Color Engine Defaults (Fresh Installs Only)
         editor.putBoolean(LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, true)
         editor.putBoolean(LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)
         editor.putBoolean(LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
-        editor.putString(LightspeedPreferences.KEY_HUD_STYLE_DEFAULT, "canopy_droppod")
+        // Signature HUDs out of the box for every scrubber (Volume, Brightness, Screen Timeout, Media, Scroll)
+        editor.putString(LightspeedPreferences.KEY_HUD_STYLE_DEFAULT, "signature_auto")
+        editor.putString("pref_macro_hud_style_UNIFIED_TAP_HOLD", "signature_solar_lux")
+        editor.putString("pref_macro_hud_style_UNIFIED_TAP_HOLD_system_brightness", "signature_solar_lux")
+        editor.putString("pref_macro_hud_style_UNIFIED_SCRUBBING", "signature_solar_lux")
+        editor.putString("pref_macro_hud_style_UNIFIED_SCRUBBING_system_brightness", "signature_solar_lux")
+        editor.putString("pref_macro_hud_style_TOP_TAP_HOLD", "signature_solar_lux")
+        editor.putString("pref_macro_hud_style_TOP_TAP_HOLD_system_brightness", "signature_solar_lux")
+        editor.putString("pref_macro_hud_style_TOP_SCRUBBING", "signature_solar_lux")
+        editor.putString("pref_macro_hud_style_TOP_SCRUBBING_system_brightness", "signature_solar_lux")
+        editor.putString("pref_macro_hud_style_BOTTOM_TAP_HOLD", "signature_sonic_eq")
+        editor.putString("pref_macro_hud_style_BOTTOM_TAP_HOLD_system_volume", "signature_sonic_eq")
+        editor.putString("pref_macro_hud_style_BOTTOM_SCRUBBING", "signature_sonic_eq")
+        editor.putString("pref_macro_hud_style_BOTTOM_SCRUBBING_system_volume", "signature_sonic_eq")
+        editor.putString("pref_macro_hud_style_LEFT_UNIFIED_TAP_HOLD", "signature_sonic_eq")
+        editor.putString("pref_macro_hud_style_LEFT_UNIFIED_TAP_HOLD_system_volume", "signature_sonic_eq")
+        editor.putString("pref_macro_hud_style_LEFT_UNIFIED_SCRUBBING", "signature_sonic_eq")
+        editor.putString("pref_macro_hud_style_LEFT_UNIFIED_SCRUBBING_system_volume", "signature_sonic_eq")
+        editor.putString("pref_macro_hud_style_LEFT_TOP_TAP_HOLD", "signature_sonic_eq")
+        editor.putString("pref_macro_hud_style_LEFT_TOP_TAP_HOLD_system_volume", "signature_sonic_eq")
+        editor.putString("pref_macro_hud_style_LEFT_TOP_SCRUBBING", "signature_sonic_eq")
+        editor.putString("pref_macro_hud_style_LEFT_TOP_SCRUBBING_system_volume", "signature_sonic_eq")
+        editor.putString("pref_macro_hud_style_LEFT_BOTTOM_TAP_HOLD", "signature_solar_lux")
+        editor.putString("pref_macro_hud_style_LEFT_BOTTOM_TAP_HOLD_system_brightness", "signature_solar_lux")
+        editor.putString("pref_macro_hud_style_LEFT_BOTTOM_SCRUBBING", "signature_solar_lux")
+        editor.putString("pref_macro_hud_style_LEFT_BOTTOM_SCRUBBING_system_brightness", "signature_solar_lux")
+        editor.putString("pref_macro_hud_style_STATUSBAR_DOUBLE_TAP_HOLD", "signature_chrono_dial")
+        editor.putString("pref_macro_hud_style_STATUSBAR_DOUBLE_TAP_HOLD_system_screen_timeout", "signature_chrono_dial")
+        editor.putString("pref_macro_hud_style_BOTTOM_STATUSBAR_DOUBLE_TAP_HOLD", "signature_chrono_dial")
+        editor.putString("pref_macro_hud_style_BOTTOM_STATUSBAR_DOUBLE_TAP_HOLD_system_screen_timeout", "signature_chrono_dial")
+        // Hybrid Blur Workaround & Color Engine Defaults (Category Cruise = Material 3 Dynamic; HUDs/Cockpit = Hybrid Fusion)
+        editor.putString(LightspeedPreferences.KEY_BACKDROP_BLUR_MODE, LightspeedPreferences.BLUR_MODE_AUTOMATIC)
+        editor.putString(LightspeedPreferences.KEY_HUD_COLOR_MODE, LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION)
+        editor.putString(LightspeedPreferences.KEY_COCKPIT_COLOR_MODE, LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION)
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_COLOR_MODE, LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC)
         editor.putString(LightspeedPreferences.KEY_POPUP_STYLE, LightspeedPreferences.POPUP_STYLE_NATIVE)
 
         // 5. Pre-assigned Default Actions (Unified Right)
@@ -239,6 +277,41 @@ object LightspeedPreferencesDefaults {
         editor.putString("pref_macro_action_LEFT_TOP_SWIPE_RIGHT_DOWN_HOLD", "system:quick_settings")
         editor.putString("pref_macro_action_LEFT_BOTTOM_SWIPE_RIGHT_DOWN_HOLD", "system:quick_settings")
 
+        // 6. Curated Day-1 Category Cruise HUD Widget Layouts (fresh installs only — never overwrites existing users)
+        // Focused App Inspector is enabled by default on all categories in both Cruise & Grid (scope=0) with AUTO font sizing (0:0).
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_ITEMS_PREFIX + "comm", "app_and_cat:10:2:100:-1:0:0:0:0:0:0:0:0:cursive")
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_ITEMS_PREFIX + "learning", "app_and_cat:10:2:100:-1:0:0:0:0:0:0:0:0:casual")
+
+        // Games: Focused App Inspector + Screen Time (7-Day, Device scope)
+        editor.putString(
+            LightspeedPreferences.KEY_CATEGORY_HUD_ITEMS_PREFIX + "games",
+            "app_and_cat:10:2:100:-1:0:0:0:0:0:0:0:0:,ls_screen_time:10:4:100:-1:0:0:0:0:0:0:0:0:"
+        )
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_TIME_SPAN_PREFIX + "games", "7d")
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_TIME_SCOPE_PREFIX + "games", "dev")
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_SLOT2_TIME_SPAN_PREFIX + "games", "7d")
+
+        // App Stores: Focused App Inspector + Battery Chart (Last Charge) + Battery Apps (7-Day)
+        editor.putString(
+            LightspeedPreferences.KEY_CATEGORY_HUD_ITEMS_PREFIX + "stores",
+            "app_and_cat:10:2:100:-1:0:0:0:0:0:0:0:0:,ls_battery_system:10:3:100:-1:0:0:0:0:0:0:0:0:,ls_battery_system:10:3:100:-1:0:0:0:0:0:0:0:0:"
+        )
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_BATTERY_MODE_PREFIX + "stores", "chart")
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_SLOT2_BATTERY_MODE_PREFIX + "stores", "chart")
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_SLOT2_BATTERY_SPAN_PREFIX + "stores", "last_charge")
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_BATTERY_MODE_PREFIX + "slot3_stores", "apps")
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_BATTERY_SPAN_PREFIX + "slot3_stores", "7d")
+
+        // Other: Focused App Inspector + Battery Vitals + Battery System (7-Day)
+        editor.putString(
+            LightspeedPreferences.KEY_CATEGORY_HUD_ITEMS_PREFIX + "other",
+            "app_and_cat:10:2:100:-1:0:0:0:0:0:0:0:0:,ls_battery_system:10:3:100:-1:0:0:0:0:0:0:0:0:,ls_battery_system:10:3:100:-1:0:0:0:0:0:0:0:0:"
+        )
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_BATTERY_MODE_PREFIX + "other", "vitals")
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_SLOT2_BATTERY_MODE_PREFIX + "other", "vitals")
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_BATTERY_MODE_PREFIX + "slot3_other", "system")
+        editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_BATTERY_SPAN_PREFIX + "slot3_other", "7d")
+
         editor.apply()
     }
 
@@ -254,8 +327,8 @@ object LightspeedPreferencesDefaults {
             cleanKey == "pref_macro_action_STATUSBAR_DOUBLE_TAP_HOLD" -> "system:screen_timeout"
             cleanKey == "pref_macro_action_STATUSBAR_TAP" -> "system:scroll_to_top"
             cleanKey == "pref_macro_action_STATUSBAR_TAP_HOLD" -> "system:gravity_override_360"
-            cleanKey == "pref_macro_action_STATUSBAR_SWIPE_RIGHT" -> "system:core_watchdog"
-            cleanKey == "pref_macro_action_STATUSBAR_SWIPE_LEFT" -> "system:perimeter_watchdog"
+            cleanKey == "pref_macro_action_STATUSBAR_SWIPE_RIGHT" -> "none"
+            cleanKey == "pref_macro_action_STATUSBAR_SWIPE_LEFT" -> "none"
             cleanKey == "pref_macro_action_STATUSBAR_SWIPE_RIGHT_HOLD" -> "system:popup_window"
             cleanKey == "pref_macro_action_STATUSBAR_SWIPE_LEFT_HOLD" -> "system:split_screen"
             cleanKey == "pref_macro_action_STATUSBAR_SWIPE_DOWN" -> "system:notifications"

@@ -97,6 +97,7 @@ fun HudStripTabContent(
     var thresholdCrossedFlash by thresholdCrossedFlashState
 
     val oemFeatureName = remember { OemNotchDetector.getDetectedFeatureName() }
+    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
     var installedTacticalTools by remember {
         mutableStateOf(InstalledTacticalToolsScanner.getCachedOrEmpty())
     }
@@ -137,14 +138,16 @@ fun HudStripTabContent(
     } else {
         LazyColumn(
             state = listState1,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalEdgeFade(listState1),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(bottom = 20.dp)
         ) {
             currentOrder1.forEach { sectionId ->
                 when (sectionId) {
                     "sensor_deck" -> {
-                        item(key = "sensor_deck") {
+                        item(key = "sensor_deck", contentType = "accordion") {
                             HudSensorDeckSection(
                                 context = context,
                                 prefs = prefs,
@@ -152,7 +155,7 @@ fun HudStripTabContent(
                                 onToggle = {
                                     toggleSection(1, "sensor_deck", isSensorDeckExpanded) { isSensorDeckExpanded = it }
                                     prefs.edit()
-                                        .putBoolean("pref_section_statusbar_expanded", isSensorDeckExpanded)
+                                        .putBoolean(LightspeedPreferences.KEY_SECTION_SENSOR_DECK_EXPANDED, isSensorDeckExpanded)
                                         .apply()
                                     safeReloadPreferences()
                                 },
@@ -160,7 +163,7 @@ fun HudStripTabContent(
                                 onToggleStatusBarGeo = {
                                     isStatusBarGeoExpanded = !isStatusBarGeoExpanded
                                     prefs.edit()
-                                        .putBoolean("pref_sub_geo_statusbar", isStatusBarGeoExpanded)
+                                        .putBoolean(LightspeedPreferences.KEY_SUB_GEO_STATUSBAR, isStatusBarGeoExpanded)
                                         .apply()
                                     safeReloadPreferences()
                                     onRefreshNeeded()
@@ -168,16 +171,17 @@ fun HudStripTabContent(
                                 isStatusBarGesturesExpanded = isStatusBarGesturesExpanded,
                                 onToggleStatusBarGestures = {
                                     isStatusBarGesturesExpanded = !isStatusBarGesturesExpanded
-                                    prefs.edit().putBoolean("pref_sub_gestures_statusbar", isStatusBarGesturesExpanded).apply()
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_GESTURES_STATUSBAR, isStatusBarGesturesExpanded).apply()
                                 },
                                 dynamicActionTokens = dynamicActionTokens,
                                 tokenLabelCache = tokenLabelCache,
-                                onRefreshNeeded = onRefreshNeeded
+                                onRefreshNeeded = onRefreshNeeded,
+                                languageMode = currentLanguageMode
                             )
                         }
                     }
                     "telemetry_indicators" -> {
-                        item(key = "telemetry_indicators") {
+                        item(key = "telemetry_indicators", contentType = "accordion") {
                             HudTelemetryIndicatorsSection(
                                 context = context,
                                 prefs = prefs,
@@ -188,7 +192,7 @@ fun HudStripTabContent(
                                     val railActive = isTelemetryExpanded && anyRail
                                     val notchActive = isTelemetryExpanded && isNotchCalibExpanded
                                     prefs.edit()
-                                        .putBoolean("pref_section_telemetry_expanded", isTelemetryExpanded)
+                                        .putBoolean(LightspeedPreferences.KEY_SECTION_TELEMETRY_EXPANDED, isTelemetryExpanded)
                                         .putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, railActive)
                                         .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, notchActive)
                                         .apply()
@@ -197,7 +201,7 @@ fun HudStripTabContent(
                                 isHorizonRailGeomExpanded = isHorizonRailGeomExpanded,
                                 onToggleHorizonRailGeom = {
                                     isHorizonRailGeomExpanded = !isHorizonRailGeomExpanded
-                                    prefs.edit().putBoolean("pref_sub_horizon_rail_geom", isHorizonRailGeomExpanded).apply()
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_HORIZON_RAIL_GEOM, isHorizonRailGeomExpanded).apply()
                                     val anyActive = isTelemetryExpanded && (isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded)
                                     prefs.edit().putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, anyActive).apply()
                                     safeReloadPreferences()
@@ -206,7 +210,7 @@ fun HudStripTabContent(
                                 isHorizonRailColorExpanded = isHorizonRailColorExpanded,
                                 onToggleHorizonRailColor = {
                                     isHorizonRailColorExpanded = !isHorizonRailColorExpanded
-                                    prefs.edit().putBoolean("pref_sub_horizon_rail_color", isHorizonRailColorExpanded).apply()
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_HORIZON_RAIL_COLOR, isHorizonRailColorExpanded).apply()
                                     val anyActive = isTelemetryExpanded && (isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded)
                                     prefs.edit().putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, anyActive).apply()
                                     safeReloadPreferences()
@@ -215,26 +219,27 @@ fun HudStripTabContent(
                                 isHorizonRailTextExpanded = isHorizonRailTextExpanded,
                                 onToggleHorizonRailText = {
                                     isHorizonRailTextExpanded = !isHorizonRailTextExpanded
-                                    prefs.edit().putBoolean("pref_sub_horizon_rail_text", isHorizonRailTextExpanded).apply()
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_HORIZON_RAIL_TEXT, isHorizonRailTextExpanded).apply()
                                     val anyActive = isTelemetryExpanded && (isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded)
                                     prefs.edit().putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, anyActive).apply()
                                     safeReloadPreferences()
                                     onRefreshNeeded()
                                 },
                                 onShowNotificationAccessDialog = { showNotificationAccessDialog = true },
-                                onRefreshNeeded = onRefreshNeeded
+                                onRefreshNeeded = onRefreshNeeded,
+                                languageMode = currentLanguageMode
                             )
                         }
                     }
                     "tactical_hardware" -> {
-                        item(key = "tactical_hardware") {
+                        item(key = "tactical_hardware", contentType = "accordion") {
                             HudTacticalHardwareSection(
                                 context = context,
                                 prefs = prefs,
                                 isExpanded = isTacticalHardwareExpanded,
                                 onToggle = {
                                     toggleSection(1, "tactical_hardware", isTacticalHardwareExpanded) { isTacticalHardwareExpanded = it }
-                                    prefs.edit().putBoolean("pref_section_tactical_hardware_expanded", isTacticalHardwareExpanded).apply()
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_TACTICAL_HARDWARE_EXPANDED, isTacticalHardwareExpanded).apply()
                                     if (isTacticalHardwareExpanded && !prefs.getBoolean(LightspeedPreferences.KEY_OEM_SHIELD_COMPLETED, false)) {
                                         showOemShieldDialog = true
                                     }
@@ -242,12 +247,12 @@ fun HudStripTabContent(
                                 isSubVolumeExpanded = isSubVolumeExpanded,
                                 onToggleSubVolume = {
                                     isSubVolumeExpanded = !isSubVolumeExpanded
-                                    prefs.edit().putBoolean("pref_sub_volume_expanded", isSubVolumeExpanded).apply()
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_VOLUME_EXPANDED, isSubVolumeExpanded).apply()
                                 },
                                 isSubHullTapExpanded = isSubHullTapExpanded,
                                 onToggleSubHullTap = {
                                     isSubHullTapExpanded = !isSubHullTapExpanded
-                                    prefs.edit().putBoolean("pref_sub_hulltap_expanded", isSubHullTapExpanded).apply()
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_HULLTAP_EXPANDED, isSubHullTapExpanded).apply()
                                 },
                                 currentThreshold = currentThreshold,
                                 onThresholdChange = { currentThreshold = it },
@@ -263,7 +268,8 @@ fun HudStripTabContent(
                                     showBatteryWarningDialog = true
                                 },
                                 installedTools = installedTacticalTools,
-                                onRefreshNeeded = onRefreshNeeded
+                                onRefreshNeeded = onRefreshNeeded,
+                                languageMode = currentLanguageMode
                             )
                         }
                     }
@@ -299,13 +305,13 @@ fun HudStripTabContent(
                             isOemNoticeDemoted = isOemNoticeDemoted,
                             onOemNoticeDemotedChange = { demoted ->
                                 isOemNoticeDemoted = demoted
-                                prefs.edit().putBoolean("pref_oem_notch_notice_demoted", demoted).apply()
+                                prefs.edit().putBoolean(LightspeedPreferences.KEY_OEM_NOTCH_NOTICE_DEMOTED, demoted).apply()
                             },
                             oemFeatureName = oemFeatureName,
                             isMarqueeSubSectionExpanded = isMarqueeSubSectionExpanded,
                             onToggleMarqueeSubSection = {
                                 isMarqueeSubSectionExpanded = !isMarqueeSubSectionExpanded
-                                prefs.edit().putBoolean("pref_sub_notch_marquee", isMarqueeSubSectionExpanded).apply()
+                                prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_NOTCH_MARQUEE, isMarqueeSubSectionExpanded).apply()
                             },
                             isSubPowerExpanded = isSubPowerExpanded,
                             onToggleSubPower = {
@@ -318,12 +324,13 @@ fun HudStripTabContent(
                             onSinglePressTapCountChange = { singlePressTapCount = it },
                             installedTacticalTools = installedTacticalTools,
                             dynamicActionTokens = dynamicActionTokens,
-                            tokenLabelCache = tokenLabelCache
+                            tokenLabelCache = tokenLabelCache,
+                            languageMode = currentLanguageMode
                         )
                     }
                 }
             }
-            item(key = "about_feedback") {
+            item(key = "about_feedback", contentType = "accordion") {
                 AboutFeedbackSection(context = context)
             }
         }

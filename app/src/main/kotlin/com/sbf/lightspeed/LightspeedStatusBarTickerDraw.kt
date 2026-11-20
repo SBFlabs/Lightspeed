@@ -190,24 +190,28 @@ internal fun LightspeedStatusBarOverlay.drawTelemetryTicker(
     val wingGap = wingGapDp * d
 
     val rawCutout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && rawCutout != null) {
-        val found = rawCutout.topCutoutRect()
-        if (found != null && found.width() > 0) {
-            LightspeedNotchOverlay.cachedCutoutRect = found
-        }
+    val liveTopCutout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rawCutout?.topCutoutRect() else null
+    if (liveTopCutout != null && liveTopCutout.width() > 0) {
+        LightspeedNotchOverlay.cachedCutoutRect = liveTopCutout
     }
-    val topCutout = LightspeedNotchOverlay.cachedCutoutRect
+    // In landscape, never reuse a stale portrait top cutout — only split if a cutout actually sits on the top edge now.
+    val topCutout = when {
+        liveTopCutout != null && liveTopCutout.width() > 0 -> liveTopCutout
+        !isLandscape -> LightspeedNotchOverlay.cachedCutoutRect
+        else -> null
+    }
+    val hasActiveTopCutout = topCutout != null && topCutout.width() > 0
     val defaultCutoutWidthDp = (topCutout?.width()?.toFloat()?.div(d) ?: 20f).toInt().coerceIn(14, 48)
     val cutoutWidthDp = (if (renderCache.customCutoutWidth > 0) renderCache.customCutoutWidth else defaultCutoutWidthDp).coerceIn(0, 72)
     val effectiveCutoutWidthPx = cutoutWidthDp.toFloat() * d
 
     val notchOffsetX = renderCache.customCutoutOffsetX.toFloat() * d
-    val detectedCenterX = if (topCutout != null && topCutout.width() > 0) topCutout.exactCenterX() else screenW / 2f
+    val detectedCenterX = if (hasActiveTopCutout && topCutout != null) topCutout.exactCenterX() else screenW / 2f
     val cutoutCenterX = detectedCenterX + notchOffsetX
 
     val cutoutLeft = cutoutCenterX - (effectiveCutoutWidthPx / 2f)
     val cutoutRight = cutoutCenterX + (effectiveCutoutWidthPx / 2f)
-    val isCenteredCutout = cutoutCenterX in (screenW * 0.20f)..(screenW * 0.80f)
+    val isCenteredCutout = hasActiveTopCutout && (cutoutCenterX in (screenW * 0.20f)..(screenW * 0.80f))
 
     fun renderMarqueeText(
         text: String,
@@ -312,7 +316,7 @@ internal fun LightspeedStatusBarOverlay.drawTelemetryTicker(
     }
 
     val isCutoutZeroed = (cutoutWidthDp == 0 && wingGapDp == 0f)
-    val hasCutout = !isCutoutZeroed && (isCenteredCutout || (cutoutRight > layout.railLeft && cutoutLeft < layout.railRight))
+    val hasCutout = hasActiveTopCutout && !isCutoutZeroed && (isCenteredCutout || (cutoutRight > layout.railLeft && cutoutLeft < layout.railRight))
 
     val isStatusBarGuard = renderCache.isStatusBarGuard
     val tickerClipLeft = if (isStatusBarGuard) {

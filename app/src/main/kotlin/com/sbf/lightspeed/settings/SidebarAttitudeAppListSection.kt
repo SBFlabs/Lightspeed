@@ -1,6 +1,9 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -70,7 +73,10 @@ internal fun SidebarAttitudeAppListSection(
                 Row(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .verticalEdgeFade(listState),
                         verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         if (searchQuery.isBlank()) {
@@ -87,7 +93,7 @@ internal fun SidebarAttitudeAppListSection(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "⚡ PINNED & CORE TARGETS (${pinnedTargets.size})",
+                                        text = lsString(R.string.picker_pinned_core, pinnedTargets.size),
                                         color = dynamicPrimary,
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
@@ -124,7 +130,7 @@ internal fun SidebarAttitudeAppListSection(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "📱 ALL INSTALLED APPS (${regularTargets.size})",
+                                        text = lsString(R.string.picker_all_installed, regularTargets.size),
                                         color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.85f),
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
@@ -157,7 +163,7 @@ internal fun SidebarAttitudeAppListSection(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "SEARCH RESULTS (${filteredApps.size} MATCHES)",
+                                        text = lsString(R.string.picker_search_results, filteredApps.size),
                                         color = dynamicSecondary,
                                         fontSize = 10.5.sp,
                                         fontWeight = FontWeight.Bold,

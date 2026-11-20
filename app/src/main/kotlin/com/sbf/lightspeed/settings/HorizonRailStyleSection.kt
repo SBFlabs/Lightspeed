@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import com.sbf.lightspeed.system.safeReloadPreferences
 
 import android.content.SharedPreferences
@@ -37,45 +40,45 @@ fun HorizonRailStyleSection(
 ) {
     val lsColors = LightspeedStyle.colors
     CollapsibleSubSection(
-        title = "Horizon Rail Colors & Contrast",
-        subtitle = "Cover art dynamic sampling, palette presets & ambient outline",
+        title = lsString(R.string.sec_horizon_rail_colors_contrast),
+        subtitle = lsString(R.string.secd_cover_art_dynamic_sampling_pal),
         isExpanded = isExpanded,
         onToggle = onToggle
     ) {
-        val currentColorMode = prefs.getString("pref_horizon_rail_color_mode", "cover_art") ?: "cover_art"
+        val currentColorMode = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_COLOR_MODE, "cover_art") ?: "cover_art"
         val colorModeOptions = listOf(
-            "cover_art" to "🖼 Follow Media Cover Art (Auto Fallback)",
-            "app_icon" to "🎨 Notification App Icon Color",
-            "material3" to "🌈 Material 3 Dynamic Accent",
-            "inverted" to "☯ Inverted Screen Contrast",
-            "custom" to "🎯 Custom Matrix Cyber Chip Palette"
+            "cover_art" to lsString(R.string.hr_col_cover),
+            "app_icon" to lsString(R.string.hr_col_notif),
+            "material3" to lsString(R.string.hr_col_m3),
+            "inverted" to lsString(R.string.hr_col_invert),
+            "custom" to lsString(R.string.hr_col_custom)
         )
 
         PrefDropdownSelector(
-            title = "HORIZON RAIL COLOR MODE",
+            title = lsString(R.string.hr_col_header),
             currentKey = currentColorMode,
             options = colorModeOptions,
             onSelected = { key ->
-                prefs.edit().putString("pref_horizon_rail_color_mode", key).apply()
+                prefs.edit().putString(LightspeedPreferences.KEY_HORIZON_RAIL_COLOR_MODE, key).apply()
                 safeReloadPreferences()
                 onRefreshNeeded()
             }
         )
 
         if (currentColorMode == "custom") {
-            val customHex = prefs.getString("pref_horizon_rail_custom_color", "#00E5FF") ?: "#00E5FF"
+            val customHex = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_CUSTOM_COLOR, "#00E5FF") ?: "#00E5FF"
             val presetColors = listOf(
-                "#00E5FF" to "Cyan",
-                "#00E676" to "Green",
-                "#FFD600" to "Amber",
-                "#FF6D00" to "Orange",
-                "#FF1744" to "Crimson",
-                "#FF007F" to "Pink",
-                "#D500F9" to "Purple",
-                "#FFFFFF" to "White"
+                "#00E5FF" to lsString(R.string.col_cyan),
+                "#00E676" to lsString(R.string.col_green),
+                "#FFD600" to lsString(R.string.col_amber),
+                "#FF6D00" to lsString(R.string.col_orange),
+                "#FF1744" to lsString(R.string.col_crimson),
+                "#FF007F" to lsString(R.string.col_pink),
+                "#D500F9" to lsString(R.string.col_purple),
+                "#FFFFFF" to lsString(R.string.col_white)
             )
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("CUSTOM PALETTE PRESETS", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textSecondary)
+                Text(lsString(R.string.hr_presets_header), fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textSecondary)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     presetColors.forEach { (hex, _) ->
                         val col = try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Cyan }
@@ -91,7 +94,7 @@ fun HorizonRailStyleSection(
                                     shape = CircleShape
                                 )
                                 .clickable {
-                                    prefs.edit().putString("pref_horizon_rail_custom_color", hex).apply()
+                                    prefs.edit().putString(LightspeedPreferences.KEY_HORIZON_RAIL_CUSTOM_COLOR, hex).apply()
                                     safeReloadPreferences()
                                     onRefreshNeeded()
                                 },
@@ -110,8 +113,8 @@ fun HorizonRailStyleSection(
             prefs = prefs,
             prefKey = LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD,
             defaultVal = true,
-            title = "High-Contrast Ambient Outline",
-            subtitle = "Renders a dark semi-transparent outline halo around glyphs to guarantee 100% legibility on pure white backgrounds.",
+            title = lsString(R.string.hr_outline_title),
+            subtitle = lsString(R.string.hr_outline_sub),
             onChanged = { onRefreshNeeded() }
         )
     }

@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import com.sbf.lightspeed.system.logSwallowed
 import android.content.Intent
@@ -54,10 +57,10 @@ fun HudTacticalHardwareSection(
     onShowOemShieldDialog: () -> Unit,
     onSelectHighDrainScope: (String) -> Unit,
     installedTools: List<com.sbf.lightspeed.system.TacticalToolItem> = emptyList(),
-    onRefreshNeeded: () -> Unit
+    onRefreshNeeded: () -> Unit,
+    languageMode: LightspeedLanguageEngine.LanguageMode = LightspeedLanguageEngine.modeFlow.value
 ) {
-    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
-    val (tacticalTitle, tacticalSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.TACTICAL_HARDWARE, currentLanguageMode)
+    val (tacticalTitle, tacticalSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.TACTICAL_HARDWARE, languageMode)
 
     var localSubHapticsExpanded by rememberSaveable {
         mutableStateOf(prefs.getBoolean("pref_sub_haptics_expanded", false))
@@ -98,8 +101,8 @@ fun HudTacticalHardwareSection(
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // Volume Key Matrix (Combos & Chords)
             CollapsibleSubSection(
-                title = "Volume Key Matrix",
-                subtitle = "Hardware chording, sequences, hold auto-repeat & suppression",
+                title = lsString(R.string.sec_volume_key_matrix),
+                subtitle = lsString(R.string.secd_hardware_chording_sequences_ho),
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.Tune,
@@ -115,8 +118,8 @@ fun HudTacticalHardwareSection(
                     prefs = prefs,
                     prefKey = LightspeedPreferences.KEY_VOL_GESTURES_ENABLED,
                     defaultVal = false,
-                    title = "Enable Volume Key Gestures",
-                    subtitle = "Low-latency hardware chording, sequences & hold triggers",
+                    title = lsString(R.string.hw_vol_title),
+                    subtitle = lsString(R.string.hw_vol_sub),
                     onChanged = { onRefreshNeeded() }
                 )
 
@@ -127,7 +130,7 @@ fun HudTacticalHardwareSection(
                 var selectedProfile by remember { mutableStateOf(currentProfile) }
 
                 Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("VOLUME SUPPRESSION PROFILE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                    Text(lsString(R.string.hw_vol_supp_hdr), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
 
                     val profileOptions = listOf(
                         Triple("instant_reflex", "Instant Reflex (0ms)", "Raw pass-through. Volume steps on ACTION_DOWN; chords execute immediately with potential single volume tick leak."),
@@ -199,8 +202,8 @@ fun HudTacticalHardwareSection(
                 // Key Hold Auto-Repeat
                 var autoRepeatEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_KEY_HOLD_AUTO_REPEAT, false)) }
                 PrefToggleRow(
-                    title = "Hardware Key Hold Auto-Repeat",
-                    subtitle = "Continuous auto-repeat for hold actions while volume buttons remain pressed",
+                    title = lsString(R.string.hw_autorepeat_title),
+                    subtitle = lsString(R.string.hw_autorepeat_sub),
                     isChecked = autoRepeatEnabled,
                     onCheckedChange = {
                         autoRepeatEnabled = it
@@ -233,7 +236,7 @@ fun HudTacticalHardwareSection(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Rocker Notice: Devices with a single physical rocker bar may mechanically lever switches when pressing both ends. If chords misfire, Sequential gestures are recommended for 100% reliability.",
+                            text = lsString(R.string.hw_rocker_note),
                             fontSize = 11.5.sp,
                             color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.9f),
                             lineHeight = 15.sp
@@ -270,8 +273,8 @@ fun HudTacticalHardwareSection(
 
             // Hull Tap Sensors (Back Tap)
             CollapsibleSubSection(
-                title = "Hull Tap Sensors",
-                subtitle = "Accelerometer Z-axis impulse detection for double & triple back taps",
+                title = lsString(R.string.sec_hull_tap_sensors),
+                subtitle = lsString(R.string.secd_accelerometer_z_axis_impulse_d),
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.TouchApp,
@@ -304,7 +307,7 @@ fun HudTacticalHardwareSection(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Not supported on this device",
+                                text = lsString(R.string.hw_not_supported),
                                 fontSize = 11.5.sp,
                                 color = MaterialTheme.colorScheme.error,
                                 lineHeight = 14.sp
@@ -315,8 +318,8 @@ fun HudTacticalHardwareSection(
 
                 var isBackTapActive by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_BACK_TAP_ENABLED, false)) }
                 PrefToggleRow(
-                    title = "Enable Back Tap Gestures",
-                    subtitle = "Detect double and triple taps on the back of your device",
+                    title = lsString(R.string.hw_btap_title),
+                    subtitle = lsString(R.string.hw_btap_sub),
                     isChecked = isBackTapActive,
                     onCheckedChange = { checked ->
                         isBackTapActive = checked
@@ -333,13 +336,13 @@ fun HudTacticalHardwareSection(
                 val currentScope = prefs.getString(LightspeedPreferences.KEY_BACK_TAP_SCOPE, "screen_on") ?: "screen_on"
                 var isScopeDropdownOpen by remember { mutableStateOf(false) }
                 val scopeOptions = listOf(
-                    "screen_on" to "Screen On Only",
-                    "screen_off" to "Screen Off (High Drain)",
-                    "always" to "Always (High Drain)"
+                    "screen_on" to lsString(R.string.hw_scope_on),
+                    "screen_off" to lsString(R.string.hw_scope_off),
+                    "always" to lsString(R.string.hw_scope_always)
                 )
 
                 Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Text("ACTIVATION SCOPE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                    Text(lsString(R.string.hw_scope_hdr), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                     DeckDropdownAnchorBox { anchorWidth ->
                         OutlinedButton(
@@ -352,7 +355,7 @@ fun HudTacticalHardwareSection(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(scopeOptions.firstOrNull { it.first == currentScope }?.second ?: "Screen On Only", color = LightspeedStyle.colors.textPrimary)
+                                Text(scopeOptions.firstOrNull { it.first == currentScope }?.second ?: lsString(R.string.hw_scope_on), color = LightspeedStyle.colors.textPrimary)
                                 Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             }
                         }
@@ -392,7 +395,7 @@ fun HudTacticalHardwareSection(
                         Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "⚡ Smart Battery Failsafe Active: Screen-off sensor is automatically paused and wake lock released if battery drops ≤ 20% or Battery Saver is on.",
+                            text = lsString(R.string.hw_bat_failsafe),
                             fontSize = 11.sp,
                             color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.85f),
                             lineHeight = 14.sp
@@ -495,7 +498,7 @@ fun HudTacticalHardwareSection(
                     context = context,
                     prefs = prefs,
                     keyResName = LightspeedPreferences.KEY_BACK_TAP_THRESHOLD,
-                    title = "Strike Force Threshold",
+                    title = lsString(R.string.hw_strike_thresh),
                     minVal = 3.0f,
                     maxVal = 18.0f,
                     step = 0.5f,
@@ -513,7 +516,7 @@ fun HudTacticalHardwareSection(
                     direction = ArrowDirection.DOUBLE_TAP,
                     isHold = false,
                     keyResName = LightspeedPreferences.KEY_BACK_TAP_DOUBLE,
-                    defaultTitle = "Double Back Tap (250-450ms)",
+                    defaultTitle = lsString(R.string.hw_double_btap),
                     options = dynamicActionTokens,
                     labelCache = tokenLabelCache,
                     showMediaQuickAccess = false,
@@ -527,7 +530,7 @@ fun HudTacticalHardwareSection(
                     direction = ArrowDirection.TAP,
                     isHold = true,
                     keyResName = LightspeedPreferences.KEY_BACK_TAP_TRIPLE,
-                    defaultTitle = "Triple Back Tap (≤ 700ms)",
+                    defaultTitle = lsString(R.string.hw_triple_btap),
                     options = dynamicActionTokens,
                     labelCache = tokenLabelCache,
                     showMediaQuickAccess = false,

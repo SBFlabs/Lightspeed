@@ -1,5 +1,9 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.Image
@@ -44,8 +48,8 @@ fun rememberAttitudeTargets(context: Context): Pair<List<AttitudeTargetItem>, Li
         pinned.add(
             AttitudeTargetItem(
                 id = "keyguard:lockscreen",
-                label = "Lock Screen (Keyguard)",
-                subtitle = "System Lock Screen & Ambient Display",
+                label = lsString(R.string.picker_lock_screen),
+                subtitle = lsString(R.string.picker_lock_screen_sub),
                 isPinned = true,
                 badge = "SYSTEM"
             )
@@ -214,7 +218,7 @@ fun SidebarAttitudeAssignedTray(
     if (assignedPackages.isEmpty()) return
 
     Text(
-        text = "ASSIGNED TARGETS (${assignedPackages.size}) — TAP ✕ TO REMOVE:",
+        text = lsString(R.string.picker_assigned_hdr, assignedPackages.size),
         fontSize = 9.5.sp,
         fontWeight = FontWeight.Bold,
         color = dynamicSecondary,

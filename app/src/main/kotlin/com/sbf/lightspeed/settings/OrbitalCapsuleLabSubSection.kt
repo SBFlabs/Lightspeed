@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.layout.*
@@ -43,7 +46,7 @@ fun OrbitalCapsuleLabSubSection(
 ) {
     val lsColors = LightspeedStyle.colors
     val (capsuleTitle, capsuleSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.ORBITAL_CAPSULE, currentLanguageMode)
-    val capsuleSubtitle = if (capsuleSub != null) "$capsuleSub • Dynamic punch-hole cutout" else "Dynamic punch-hole cutout HUD for download progress and media telemetry"
+    val capsuleSubtitle = if (capsuleSub != null) "$capsuleSub • Dynamic punch-hole cutout" else lsString(R.string.cap_sub)
 
     CollapsibleSubSection(
         title = capsuleTitle,
@@ -67,7 +70,7 @@ fun OrbitalCapsuleLabSubSection(
             prefKey = LightspeedPreferences.KEY_ORBITAL_CAPSULE_ENABLED,
             defaultVal = false,
             title = "Enable $capsuleTitle",
-            subtitle = "Renders floating dynamic punch-hole capsule around camera cutout for downloads and media telemetry.",
+            subtitle = lsString(R.string.cap_desc),
             onChanged = {
                 isCapsuleMasterEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ORBITAL_CAPSULE_ENABLED, false)
                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("OrbitalCapsuleLabSubSection", "toggle", e) }
@@ -94,7 +97,7 @@ fun OrbitalCapsuleLabSubSection(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "OEM Camera Cutout Conflicts",
+                                    text = lsString(R.string.cap_oem_title),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = lsColors.textPrimary
@@ -132,13 +135,13 @@ fun OrbitalCapsuleLabSubSection(
             val currentCapsuleOrientMode = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_ORIENTATION_MODE, "both") ?: "both"
             var isCapsuleOrientDropdownOpen by remember { mutableStateOf(false) }
             val capsuleOrientOptions = listOf(
-                "both" to "🔄 Both Orientations",
-                "portrait_only" to "📱 Portrait Only (Recommended for Cutout HUD)",
-                "landscape_only" to "📐 Landscape Only"
+                "both" to lsString(R.string.hr_both_orient),
+                "portrait_only" to lsString(R.string.cap_port_rec),
+                "landscape_only" to lsString(R.string.hr_land_only)
             )
 
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Text("CAPSULE ORIENTATION DISPLAY RULE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                Text(lsString(R.string.cap_orient_hdr), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
                 Spacer(modifier = Modifier.height(4.dp))
                 Box {
                     OutlinedButton(
@@ -151,7 +154,7 @@ fun OrbitalCapsuleLabSubSection(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(capsuleOrientOptions.firstOrNull { it.first == currentCapsuleOrientMode }?.second ?: "🔄 Both Orientations", color = lsColors.textPrimary, fontSize = 12.sp)
+                            Text(capsuleOrientOptions.firstOrNull { it.first == currentCapsuleOrientMode }?.second ?: lsString(R.string.hr_both_orient), color = lsColors.textPrimary, fontSize = 12.sp)
                             Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
@@ -178,13 +181,13 @@ fun OrbitalCapsuleLabSubSection(
             val currentCapsuleLayout = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_LAYOUT, "unified_right") ?: "unified_right"
             var isCapsuleDropdownOpen by remember { mutableStateOf(false) }
             val capsuleOptions = listOf(
-                "unified_right" to "Unified Right (Compact)",
-                "dual_wing" to "Dual-Wing Bridge",
-                "unified_left" to "Unified Left"
+                "unified_right" to lsString(R.string.cap_uni_right),
+                "dual_wing" to lsString(R.string.cap_dual_bridge),
+                "unified_left" to lsString(R.string.cap_uni_left)
             )
 
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Text("ORBITAL CAPSULE LAYOUT MODE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                Text(lsString(R.string.cap_layout_hdr), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
                 Spacer(modifier = Modifier.height(4.dp))
                 Box {
                     OutlinedButton(
@@ -197,7 +200,7 @@ fun OrbitalCapsuleLabSubSection(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(capsuleOptions.firstOrNull { it.first == currentCapsuleLayout }?.second ?: "Unified Right (Compact)", color = lsColors.textPrimary, fontSize = 12.sp)
+                            Text(capsuleOptions.firstOrNull { it.first == currentCapsuleLayout }?.second ?: lsString(R.string.cap_uni_right), color = lsColors.textPrimary, fontSize = 12.sp)
                             Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
@@ -225,8 +228,8 @@ fun OrbitalCapsuleLabSubSection(
             PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_EXPANSION_WIDTH, "", "Capsule Expansion Width (0 to 80dp)", 0, 80, 2, 0)
 
             CollapsibleSubSection(
-                title = "Orbital Capsule Marquee Engine",
-                subtitle = "Text scroll velocity, pause delays & maximum width",
+                title = lsString(R.string.sec_orbital_capsule_marquee_engine),
+                subtitle = lsString(R.string.secd_text_scroll_velocity_pause_del),
                 isExpanded = isMarqueeSubSectionExpanded,
                 onToggle = onToggleMarqueeSubSection
             ) {
@@ -234,8 +237,8 @@ fun OrbitalCapsuleLabSubSection(
                     prefs = prefs,
                     prefKey = LightspeedPreferences.KEY_NOTCH_MARQUEE_ENABLED,
                     defaultVal = true,
-                    title = "Enable Text Marquee Animation",
-                    subtitle = "Smoothly scrolls overflowing download filenames and song titles across the HUD capsule.",
+                    title = lsString(R.string.cap_marquee_title),
+                    subtitle = lsString(R.string.cap_marquee_sub),
                     onChanged = { onRefreshNeeded() }
                 )
                 PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MARQUEE_SPEED, "", "Scroll Velocity (px/sec)", 15, 80, 5, 30)
@@ -247,8 +250,8 @@ fun OrbitalCapsuleLabSubSection(
                 prefs = prefs,
                 prefKey = LightspeedPreferences.KEY_NOTCH_TEST_BEACON,
                 defaultVal = false,
-                title = "Live Alignment Test Beacon",
-                subtitle = "Renders a live HUD calibration reticle over the camera hole while calibrating.",
+                title = lsString(R.string.cap_beacon_title),
+                subtitle = lsString(R.string.cap_beacon_sub),
                 onChanged = { onRefreshNeeded() }
             )
 
@@ -267,7 +270,7 @@ fun OrbitalCapsuleLabSubSection(
                             Icon(Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("OEM Advisory Footnote: OEM Camera Cutout Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
+                                Text(lsString(R.string.cap_oem_foot), fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
                                 Text("Your device may have $oemFeatureName enabled. Tap to manage settings if indicators overlap.", fontSize = 9.5.sp, color = lsColors.textSecondary.copy(alpha = 0.65f), lineHeight = 13.sp)
                             }
                             IconButton(
@@ -278,7 +281,7 @@ fun OrbitalCapsuleLabSubSection(
                             }
                         }
                         DeckButton(
-                            text = "Settings",
+                            text = lsString(R.string.ref_settings_btn),
                             icon = Icons.Default.Settings,
                             onClick = { OemNotchDetector.openSearch(context) },
                             modifier = Modifier.fillMaxWidth()

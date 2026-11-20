@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.layout.*
@@ -32,8 +35,8 @@ fun HudGravityBucketsSection(
     val lsColors = LightspeedStyle.colors
 
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("ATTITUDE MODE BUCKETS (PER-APP RULES)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-        Text("All apps default to native Auto-Rotate (on/off) above, unless assigned to a bucket below:", fontSize = 11.sp, color = lsColors.textSecondary.copy(alpha = 0.8f))
+        Text(lsString(R.string.grav_buckets_hdr), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+        Text(lsString(R.string.grav_buckets_desc), fontSize = 11.sp, color = lsColors.textSecondary.copy(alpha = 0.8f))
 
         val buckets = listOf(
             LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT,

@@ -20,9 +20,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlin.math.roundToInt
 
@@ -48,7 +50,7 @@ fun GestureBrightnessScrubControls(
     var showBrightSliderDialog by remember { mutableStateOf(false) }
 
     DeckSubChip(
-        text = if (hudEnabled) "Hud: ON" else "Hud: OFF",
+        text = if (hudEnabled) lsString(R.string.chip_hud_on) else lsString(R.string.chip_hud_off),
         isActive = hudEnabled,
         snapshot = activeSnapshot,
         onClick = {
@@ -59,7 +61,7 @@ fun GestureBrightnessScrubControls(
     )
 
     DeckSubChip(
-        text = "Res: $brightRes ▾",
+        text = lsString(R.string.chip_res, brightRes),
         isActive = false,
         snapshot = activeSnapshot,
         onClick = { showBrightSliderDialog = true }
@@ -77,7 +79,7 @@ fun GestureBrightnessScrubControls(
             onDismissRequest = { showBrightSliderDialog = false },
             title = {
                 Text(
-                    text = "Brightness Scrub Resolution",
+                    text = lsString(R.string.dlg_bright_res_title),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = lsColors.textPrimary
@@ -89,7 +91,7 @@ fun GestureBrightnessScrubControls(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Control total tactile graduation notches across the full 0–100% brightness range.",
+                        text = lsString(R.string.dlg_bright_res_desc),
                         fontSize = 12.sp,
                         color = lsColors.textSecondary.copy(alpha = 0.75f)
                     )
@@ -99,7 +101,7 @@ fun GestureBrightnessScrubControls(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Graduation Steps",
+                            text = lsString(R.string.dlg_bright_res_label),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = lsColors.textPrimary
@@ -129,7 +131,7 @@ fun GestureBrightnessScrubControls(
                                 )
                         ) {
                             Text(
-                                text = "$curSteps Steps (~${String.format(java.util.Locale.US, "%.1f", 100f / curSteps)}%)",
+                                text = lsString(R.string.dlg_steps_fmt, curSteps, String.format(java.util.Locale.US, "%.1f", 100f / curSteps)),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace,
@@ -163,19 +165,19 @@ fun GestureBrightnessScrubControls(
                         showBrightSliderDialog = false
                     }
                 ) {
-                    Text("APPLY", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(lsString(R.string.cc_common_apply), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showBrightSliderDialog = false }) {
-                    Text("CANCEL", color = lsColors.textSecondary)
+                    Text(lsString(R.string.cc_common_cancel), color = lsColors.textSecondary)
                 }
             }
         )
 
         if (isBrightFlyoutOpen) {
             SliderCalibrationFlyoutDialog(
-                title = "Brightness Scrub Resolution",
+                title = lsString(R.string.dlg_bright_res_title),
                 sliderKey = brightKey,
                 currentValueStr = "${tempRes.roundToInt().coerceIn(10, 254)}",
                 defaultValueStr = "32",

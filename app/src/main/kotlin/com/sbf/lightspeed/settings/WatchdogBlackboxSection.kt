@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -72,7 +75,7 @@ fun WatchdogBlackboxCards(
                         Icon(Icons.Default.Warning, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "BLACKBOX ANOMALY",
+                            text = lsString(R.string.wd_bb_anom),
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = cautionAmber,
@@ -90,7 +93,7 @@ fun WatchdogBlackboxCards(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = lastCrashMessage ?: "Core exception recorded",
+                    text = lastCrashMessage ?: lsString(R.string.wd_core_exc),
                     fontSize = 11.sp,
                     color = lsColors.textPrimary.copy(alpha = 0.9f),
                     maxLines = 2,
@@ -116,9 +119,9 @@ fun WatchdogBlackboxCards(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = lsColors.textPrimary.copy(alpha = 0.9f), modifier = Modifier.size(12.dp))
+                            Icon(Icons.Default.ContentCopy, contentDescription = lsString(R.string.wd_copy), tint = lsColors.textPrimary.copy(alpha = 0.9f), modifier = Modifier.size(12.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("COPY", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary.copy(alpha = 0.9f))
+                            Text(lsString(R.string.wd_copy), fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary.copy(alpha = 0.9f))
                         }
                     }
 
@@ -135,9 +138,9 @@ fun WatchdogBlackboxCards(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Code, contentDescription = "View Log", tint = cautionAmber, modifier = Modifier.size(12.dp))
+                            Icon(Icons.Default.Code, contentDescription = lsString(R.string.wd_view_log), tint = cautionAmber, modifier = Modifier.size(12.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("VIEW LOG", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = cautionAmber)
+                            Text(lsString(R.string.wd_view_log), fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = cautionAmber)
                         }
                     }
 
@@ -154,9 +157,9 @@ fun WatchdogBlackboxCards(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.DeleteOutline, contentDescription = "Clear", tint = lsColors.accentDanger, modifier = Modifier.size(12.dp))
+                            Icon(Icons.Default.DeleteOutline, contentDescription = lsString(R.string.wd_clear), tint = lsColors.accentDanger, modifier = Modifier.size(12.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("CLEAR", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.accentDanger)
+                            Text(lsString(R.string.wd_clear), fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.accentDanger)
                         }
                     }
                 }
@@ -201,7 +204,7 @@ fun WatchdogBlackboxCards(
                     border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
                 ) {
                     Text(
-                        text = "${flightLogEntries.size} ENTRIES",
+                        text = lsString(R.string.wd_n_entries, flightLogEntries.size),
                         fontSize = 8.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -243,7 +246,7 @@ fun WatchdogBlackboxCards(
                 }
             } else {
                 Text(
-                    text = "No action entries logged",
+                    text = lsString(R.string.wd_no_entries),
                     fontSize = 10.5.sp,
                     color = lsColors.textPrimary.copy(alpha = 0.5f)
                 )
@@ -267,9 +270,9 @@ fun WatchdogBlackboxCards(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = lsColors.textPrimary.copy(alpha = 0.9f), modifier = Modifier.size(12.dp))
+                        Icon(Icons.Default.ContentCopy, contentDescription = lsString(R.string.wd_copy), tint = lsColors.textPrimary.copy(alpha = 0.9f), modifier = Modifier.size(12.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("COPY", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary.copy(alpha = 0.9f))
+                        Text(lsString(R.string.wd_copy), fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary.copy(alpha = 0.9f))
                     }
                 }
 
@@ -286,9 +289,9 @@ fun WatchdogBlackboxCards(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Code, contentDescription = "View Log", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(12.dp))
+                        Icon(Icons.Default.Code, contentDescription = lsString(R.string.wd_view_log), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(12.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("VIEW LOG", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text(lsString(R.string.wd_view_log), fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
 
@@ -305,9 +308,9 @@ fun WatchdogBlackboxCards(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.DeleteOutline, contentDescription = "Clear", tint = lsColors.accentDanger, modifier = Modifier.size(12.dp))
+                        Icon(Icons.Default.DeleteOutline, contentDescription = lsString(R.string.wd_clear), tint = lsColors.accentDanger, modifier = Modifier.size(12.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("CLEAR", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.accentDanger)
+                        Text(lsString(R.string.wd_clear), fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.accentDanger)
                     }
                 }
             }
@@ -370,14 +373,14 @@ fun WatchdogBlackboxDialog(
                     ) {
                         Column(modifier = Modifier.padding(10.dp)) {
                             Text(
-                                text = "LAST CRASH ANOMALY ($crashTimeStr)",
+                                text = lsString(R.string.wd_last_crash_anom, crashTimeStr),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = cautionAmber
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = lastCrashMessage ?: "Unknown Anomaly",
+                                text = lastCrashMessage ?: lsString(R.string.wd_unknown_anom),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = lsColors.textPrimary
@@ -392,7 +395,7 @@ fun WatchdogBlackboxDialog(
                                     .verticalScroll(rememberScrollState())
                             ) {
                                 Text(
-                                    text = lastCrashStack ?: "No stacktrace recorded",
+                                    text = lastCrashStack ?: lsString(R.string.wd_no_stack),
                                     fontSize = 9.sp,
                                     fontFamily = FontFamily.Monospace,
                                     color = LightspeedTokens.StatusSky,
@@ -404,7 +407,7 @@ fun WatchdogBlackboxDialog(
                 }
 
                 Text(
-                    text = "ACTION LOG (${flightLogEntries.size}/50)",
+                    text = lsString(R.string.wd_action_log_count, flightLogEntries.size),
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -413,7 +416,7 @@ fun WatchdogBlackboxDialog(
 
                 if (flightLogEntries.isEmpty()) {
                     Text(
-                        text = "No action entries recorded.",
+                        text = lsString(R.string.wd_no_recorded),
                         fontSize = 11.sp,
                         color = lsColors.textDisabled,
                         modifier = Modifier.padding(vertical = 8.dp)
@@ -473,7 +476,7 @@ fun WatchdogBlackboxDialog(
             TextButton(onClick = onCopyReport) {
                 Icon(Icons.Default.ContentCopy, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("COPY REPORT", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
+                Text(lsString(R.string.wd_copy_rep), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
             }
         },
         dismissButton = {
@@ -481,10 +484,10 @@ fun WatchdogBlackboxDialog(
                 TextButton(onClick = onClearActionLog) {
                     Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = LightspeedTokens.StatusErrorSoft, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("CLEAR LOG", color = LightspeedTokens.StatusErrorSoft, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
+                    Text(lsString(R.string.wd_clear_log), color = LightspeedTokens.StatusErrorSoft, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
                 }
                 TextButton(onClick = onDismiss) {
-                    Text("CLOSE", color = lsColors.textPrimary.copy(alpha = 0.7f), fontSize = 11.5.sp)
+                    Text(lsString(R.string.wd_close_caps), color = lsColors.textPrimary.copy(alpha = 0.7f), fontSize = 11.5.sp)
                 }
             }
         }

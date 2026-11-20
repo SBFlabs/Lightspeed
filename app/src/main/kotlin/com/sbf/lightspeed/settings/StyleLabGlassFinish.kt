@@ -91,23 +91,8 @@ internal fun buildGlassFinishCache(
         return ditheredBrushPaint(brush, geom.canvasSize, style = PaintingStyle.Stroke, strokePx = strokePx)
     }
 
-    val heroSpecularPath = if (hasSpecularStreak) buildHeroSpecularStreakPath(geom.iconRect) else null
-    val specAlpha = if (hasSpecularStreak) ((hl * 0.85f).coerceIn(0.06f, 0.78f) * 0.70f) else 0f
-    val heroSpecularPaint = if (hasSpecularStreak) {
-        val heroSpecBrush = Brush.linearGradient(
-            0.0f to Color.White.copy(alpha = specAlpha),
-            0.55f to Color.White.copy(alpha = specAlpha * 0.45f),
-            1.0f to Color.Transparent,
-            start = geom.iconRect.topLeft,
-            end = Offset(
-                geom.iconRect.left + geom.iconRect.width * 0.72f,
-                geom.iconRect.top + geom.iconRect.height * 0.58f
-            )
-        )
-        ditheredBrushPaint(
-            heroSpecBrush, geom.canvasSize, style = PaintingStyle.Stroke, strokePx = 1.8.dp.toPx()
-        ).apply { strokeCap = StrokeCap.Round }
-    } else null
+    val heroSpecularPath: Path? = null
+    val heroSpecularPaint: Paint? = null
 
     fun makeBorderPaint(rect: Rect): Paint? {
         if (borderStrokePx <= 0f || colors.borderColor.alpha <= 0.01f) return null

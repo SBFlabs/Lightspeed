@@ -1,5 +1,7 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+
 import android.content.Context
 import android.content.SharedPreferences
 import android.widget.Toast
@@ -49,7 +51,7 @@ fun PowerButtonLabSubSection(
 
     CollapsibleSubSection(
         title = powerTitle,
-        subtitle = if (powerSub != null) "$powerSub • Single, Double, Hold & Press-then-Hold" else "Single, Double, Hold (~400ms) & Press-then-Hold triggers",
+        subtitle = if (powerSub != null) "$powerSub • Single, Double, Hold & Press-then-Hold" else lsString(R.string.pwr_sub),
         icon = {
             Icon(
                 imageVector = Icons.Outlined.PowerSettingsNew,
@@ -77,7 +79,7 @@ fun PowerButtonLabSubSection(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Emergency Notice: 10s hardware power hold forces device reset. Disabling Accessibility restores system defaults.",
+                    text = lsString(R.string.pwr_emerg),
                     fontSize = 11.sp,
                     color = lsColors.textSecondary.copy(alpha = 0.85f),
                     lineHeight = 14.sp
@@ -89,8 +91,8 @@ fun PowerButtonLabSubSection(
             prefs = prefs,
             prefKey = LightspeedPreferences.KEY_POWER_GESTURES_ENABLED,
             defaultVal = false,
-            title = "Enable Power Button Gestures",
-            subtitle = "Low-latency physical power button gesture interception",
+            title = lsString(R.string.pwr_enable_title),
+            subtitle = lsString(R.string.pwr_enable_sub),
             onChanged = { onRefreshNeeded(); PowerLongPressTakeover.sync(context) }
         )
 
@@ -98,8 +100,8 @@ fun PowerButtonLabSubSection(
             prefs = prefs,
             prefKey = LightspeedPreferences.KEY_POWER_HOLD_TAKEOVER,
             defaultVal = false,
-            title = "Block Assistant on Power Hold",
-            subtitle = "Sets the system power-hold action to nothing while Lightspeed is active, so only your Hold action runs. Original setting is restored when you turn this off. Requires Shizuku. Emergency: hold power ~4 s for the power menu.",
+            title = lsString(R.string.pwr_block_asst),
+            subtitle = lsString(R.string.pwr_block_asst_sub),
             onChanged = { PowerLongPressTakeover.sync(context); onRefreshNeeded() }
         )
 
@@ -107,8 +109,8 @@ fun PowerButtonLabSubSection(
             prefs = prefs,
             prefKey = LightspeedPreferences.KEY_POWER_GRAB_HELPER,
             defaultVal = false,
-            title = "Power Button Grab (Experimental)",
-            subtitle = "Takes over the power button input so Android's assistant and camera shortcuts never see your gestures. Requires Shizuku. Emergency: hold power 10 s to release.",
+            title = lsString(R.string.pwr_grab_title),
+            subtitle = lsString(R.string.pwr_grab_sub),
             onChanged = {
                 LightspeedPowerKeyEngine.stopShizukuPowerMonitor()
                 if (LightspeedPowerKeyEngine.isPowerEnabled(context)) {
@@ -311,7 +313,7 @@ fun PowerButtonLabSubSection(
                     } else if (newCount >= 7) {
                         onSinglePressUnlockedChange(true)
                         prefs.edit().putBoolean(LightspeedPreferences.KEY_POWER_SINGLE_PRESS_UNLOCKED, true).apply()
-                        Toast.makeText(context, "Single Press Remapping Unlocked", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, lsString(R.string.pwr_unlocked), Toast.LENGTH_SHORT).show()
                         LightspeedHapticEngine.heavyClick(context)
                         try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("PowerButtonLabSubSection", "unlock", e) }
                         onRefreshNeeded()

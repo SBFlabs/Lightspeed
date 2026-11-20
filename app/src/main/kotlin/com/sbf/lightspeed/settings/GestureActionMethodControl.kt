@@ -21,8 +21,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.ActionMethods
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 /**
@@ -108,13 +110,15 @@ fun GestureActionMethodControl(
                             else MaterialTheme.colorScheme.onSurface
                         )
                         val subText = if (!isEnabled && opt.id == ActionMethods.SHIZUKU) {
-                            "Off in Accessibility Service only mode"
+                            lsString(R.string.meth_off_a11y_only)
                         } else if (assignedCount > 0) {
-                            if (opt.subtitle.isNotEmpty()) "${opt.subtitle} • $assignedCount app(s) assigned"
-                            else "$assignedCount app(s) assigned"
+                            val assignedStr = lsString(R.string.meth_apps_assigned, assignedCount)
+                            if (opt.subtitle.isNotEmpty()) "${opt.subtitle} • $assignedStr"
+                            else assignedStr
                         } else if (isEnabled) {
-                            if (opt.subtitle.isNotEmpty()) "${opt.subtitle} • Long press to assign apps"
-                            else "Long press to assign apps"
+                            val lpStr = lsString(R.string.meth_long_press_assign)
+                            if (opt.subtitle.isNotEmpty()) "${opt.subtitle} • $lpStr"
+                            else lpStr
                         } else {
                             opt.subtitle
                         }
@@ -144,7 +148,7 @@ fun GestureActionMethodControl(
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "$assignedCount APPS",
+                                text = lsString(R.string.meth_apps_badge, assignedCount),
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = readableTint
@@ -160,17 +164,17 @@ fun GestureActionMethodControl(
         val (actionToken, methodId) = selectedActionMethodForAppPicker!!
         val optTitle = ActionMethods.options(actionToken).firstOrNull { it.id == methodId }?.title ?: methodId
         val actionTitle = when (actionToken) {
-            "system:scroll_to_bottom" -> "Scroll to Bottom"
-            "system:scroll_to_top" -> "Scroll to Top"
-            "system:split_screen" -> "Split Screen"
-            "system:popup_window", "system:freeform" -> "Pop-up Window"
-            "system:close_app" -> "Close App"
+            "system:scroll_to_bottom" -> lsString(R.string.act_scroll_to_bottom)
+            "system:scroll_to_top" -> lsString(R.string.act_scroll_to_top)
+            "system:split_screen" -> lsString(R.string.act_split_screen)
+            "system:popup_window", "system:freeform" -> lsString(R.string.act_popup_window)
+            "system:close_app" -> lsString(R.string.act_close_app_short)
             else -> resolveDynamicTokenLabel(context, actionToken)
         }
         AppAssignmentSheet(
             context = context,
             title = "$actionTitle: $optTitle",
-            subtitle = "Run $optTitle exclusively for selected apps",
+            subtitle = lsString(R.string.meth_sheet_subtitle, optTitle),
             icon = Icons.Default.SwapVert,
             initialAssigned = remember(actionToken, methodId) { ActionMethods.getMethodApps(context, actionToken, methodId) },
             onSave = { pkgs ->

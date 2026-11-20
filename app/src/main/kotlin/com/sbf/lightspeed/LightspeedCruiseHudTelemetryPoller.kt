@@ -24,6 +24,38 @@ import kotlin.math.roundToInt
  */
 internal object LightspeedCruiseHudTelemetryPoller {
 
+    @Volatile
+    private var attemptedShizukuUnplugSeed: Boolean = false
+
+    /**
+     * Seeds the last-unplug timestamp on Day 1 from `dumpsys batterystats` when Shizuku is active
+     * so `LAST CHG` immediately reflects real on-battery duration instead of waiting for the next unplug.
+     */
+    private fun seedLastUnplugFromBatteryStats(nowMs: Long): Long {
+        return try {
+            val proc = com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku(
+                "dumpsys batterystats 2>/dev/null | grep -m 3 -E 'Time on battery:|Battery realtime:'"
+            ) ?: return 0L
+            val output = proc.inputStream.bufferedReader().use { it.readText() }
+            try { proc.destroy() } catch (_: Exception) {}
+            val line = output.lineSequence().firstOrNull {
+                it.contains("Time on battery:", ignoreCase = true) ||
+                    it.contains("Battery realtime:", ignoreCase = true)
+            } ?: return 0L
+            val afterColon = line.substringAfter(':', "")
+            val days = Regex("(\\d+)d").find(afterColon)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+            val hrs = Regex("(\\d+)h").find(afterColon)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+            val mins = Regex("(\\d+)m(?!s)").find(afterColon)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+            val secs = Regex("(\\d+)s").find(afterColon)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+            val elapsedMs = (days * 86_400_000L) + (hrs * 3_600_000L) + (mins * 60_000L) + (secs * 1_000L)
+            if (elapsedMs in 60_000L..(30L * 86_400_000L)) {
+                (nowMs - elapsedMs).coerceAtLeast(0L)
+            } else 0L
+        } catch (_: Throwable) {
+            0L
+        }
+    }
+
     fun refreshTelemetryAsync(
         context: Context,
         force: Boolean = false,
@@ -46,6 +78,7 @@ internal object LightspeedCruiseHudTelemetryPoller {
             val candidateSpans = mutableSetOf("1d")
             if (needBattery) {
                 candidateSpans.add("7d")
+                candidateSpans.add("last_charge")
             }
             if (activeModes == null || LightspeedCruiseHudPods.MODE_LS_SCREEN_TIME in activeModes) {
                 val screenTimeSlots = if (!activeCategoryId.isNullOrBlank()) {
@@ -101,16 +134,50 @@ internal object LightspeedCruiseHudTelemetryPoller {
                 }
                 for (span in spansToFetch) {
                     try {
-                        val days = when (span) {
-                            "1d" -> 1
-                            "7d" -> 7
-                            "30d" -> 30
-                            "365d" -> 365
-                            "all" -> 3650
-                            else -> 1
+                        val fetchNow = System.currentTimeMillis()
+                        if (span == "last_charge") {
+                            val prefs = appCtx.defaultPrefs()
+                            if (LightspeedCruiseHudPods.lastUnplugTimestampMs <= 0L) {
+                                val savedUnplug = prefs.getLong(LightspeedPreferences.KEY_VITALS_LAST_UNPLUG_MS, 0L)
+                                if (savedUnplug > 0L && savedUnplug <= fetchNow) {
+                                    LightspeedCruiseHudPods.lastUnplugTimestampMs = savedUnplug
+                                    LightspeedCruiseHudPods.hasObservedRealUnplug = true
+                                } else if (!attemptedShizukuUnplugSeed && com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
+                                    attemptedShizukuUnplugSeed = true
+                                    val seededUnplug = seedLastUnplugFromBatteryStats(fetchNow)
+                                    if (seededUnplug > 0L && seededUnplug <= fetchNow) {
+                                        LightspeedCruiseHudPods.lastUnplugTimestampMs = seededUnplug
+                                        LightspeedCruiseHudPods.hasObservedRealUnplug = true
+                                        prefs.edit().putLong(LightspeedPreferences.KEY_VITALS_LAST_UNPLUG_MS, seededUnplug).apply()
+                                    }
+                                }
+                            }
+                            val bootStart = (fetchNow - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+                            val startMs = if (LightspeedCruiseHudPods.hasObservedRealUnplug && LightspeedCruiseHudPods.lastUnplugTimestampMs > 0L) {
+                                LightspeedCruiseHudPods.lastUnplugTimestampMs
+                            } else {
+                                bootStart
+                            }
+                            LightspeedCruiseHudPods.usageCacheBySpan[span] =
+                                LightspeedUsageStats.usageMillisSince(appCtx, startMs)
+                            LightspeedCruiseHudPods.usageAvailableSpanMsBySpan[span] =
+                                (fetchNow - startMs).coerceAtLeast(0L)
+                        } else {
+                            val days = when (span) {
+                                "1d" -> 1
+                                "7d" -> 7
+                                "30d" -> 30
+                                "365d" -> 365
+                                "all" -> 3650
+                                else -> 1
+                            }
+                            LightspeedCruiseHudPods.usageCacheBySpan[span] =
+                                LightspeedUsageStats.usageMillisByPackage(appCtx, days)
+                            if (days > 1 && days < 3650) {
+                                LightspeedCruiseHudPods.usageAvailableSpanMsBySpan[span] =
+                                    LightspeedUsageStats.getAvailableUsageSpanMs(appCtx, days)
+                            }
                         }
-                        LightspeedCruiseHudPods.usageCacheBySpan[span] =
-                            LightspeedUsageStats.usageMillisByPackage(appCtx, days)
                         LightspeedCruiseHudPods.lastUsageRefreshMsBySpan[span] = System.currentTimeMillis()
                     } catch (_: Exception) {
                     } finally {
@@ -147,6 +214,21 @@ internal object LightspeedCruiseHudTelemetryPoller {
         val batPct = if (level >= 0) ((level * 100f) / scale).roundToInt().coerceIn(0, 100) else 0
         val status = batIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN) ?: 0
         val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        val nowMs = System.currentTimeMillis()
+        if (LightspeedCruiseHudPods.lastUnplugTimestampMs <= 0L) {
+            val savedUnplug = prefs.getLong(LightspeedPreferences.KEY_VITALS_LAST_UNPLUG_MS, 0L)
+            if (savedUnplug > 0L && savedUnplug <= nowMs) {
+                LightspeedCruiseHudPods.lastUnplugTimestampMs = savedUnplug
+                LightspeedCruiseHudPods.hasObservedRealUnplug = true
+            }
+        }
+        val prevCharging = LightspeedCruiseHudPods.wasLastSnapshotCharging
+        if (prevCharging == true && !isCharging) {
+            LightspeedCruiseHudPods.lastUnplugTimestampMs = nowMs
+            LightspeedCruiseHudPods.hasObservedRealUnplug = true
+            prefs.edit().putLong(LightspeedPreferences.KEY_VITALS_LAST_UNPLUG_MS, nowMs).apply()
+        }
+        LightspeedCruiseHudPods.wasLastSnapshotCharging = isCharging
         val tempTenths = batIntent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 300) ?: 300
         val rawTempC = tempTenths / 10f
         val tempC = rawTempC.roundToInt()
@@ -211,11 +293,11 @@ internal object LightspeedCruiseHudTelemetryPoller {
             else -> "UNKNOWN"
         }
         val cycleExtra = if (Build.VERSION.SDK_INT >= 34) {
-            batIntent?.getIntExtra(BatteryManager.EXTRA_CYCLE_COUNT, -1) ?: -1
+            sanitizeCycleCount(batIntent?.getIntExtra(BatteryManager.EXTRA_CYCLE_COUNT, -1) ?: -1)
         } else {
             -1
         }
-        val cycleCount = if (cycleExtra >= 0) cycleExtra else readSysfsBatteryCycleCount()
+        val cycleCount = if (cycleExtra > 0) cycleExtra else readSysfsBatteryCycleCount()
 
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
         val memInfo = ActivityManager.MemoryInfo()
@@ -411,6 +493,7 @@ internal object LightspeedCruiseHudTelemetryPoller {
             wifiRxBytes = wifiRxBytes,
             wifiTxBytes = wifiTxBytes,
             screenTodayMs = todayMap.values.sum(),
+            screenSevenDayMs = sevenDayMap.values.sum(),
             chargeMah = chargeMah,
             designCapacityMah = designCapMah,
             healthLabel = healthLabel,
@@ -470,6 +553,12 @@ internal object LightspeedCruiseHudTelemetryPoller {
         return -1
     }
 
+    /**
+     * Rejects uncalibrated/sub-unit kernel cycle counters (e.g., 0 or >2,500) so impossible values
+     * fall back cleanly to plain health status instead of misleading cycle readouts.
+     */
+    private fun sanitizeCycleCount(raw: Int): Int = if (raw in 1..2500) raw else -1
+
     private fun readSysfsBatteryCycleCount(): Int {
         val sysfsPaths = listOf(
             "/sys/class/power_supply/battery/cycle_count",
@@ -479,7 +568,8 @@ internal object LightspeedCruiseHudTelemetryPoller {
         for (path in sysfsPaths) {
             try {
                 val raw = File(path).readText().trim().toIntOrNull() ?: continue
-                if (raw >= 0) return raw
+                val clean = sanitizeCycleCount(raw)
+                if (clean > 0) return clean
             } catch (_: Exception) {}
         }
         return -1

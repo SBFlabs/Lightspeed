@@ -51,6 +51,13 @@ private val DEFAULT_STARS_FEW = listOf(
 )
 
 private val BACKDROP_RECIPES: Map<String, StyleBackdropRecipe> = mapOf(
+    "material3" to StyleBackdropRecipe(
+        bgColors = listOf(Color(0xFF281E40), Color(0xFF3F2E68), Color(0xFF1F2A48)),
+        blobs = listOf(
+            BlobRecipe(0.28f, 0.25f, 0.46f, Color(0xFF9E82FF).copy(alpha = 0.55f), Color(0xFF6750A4).copy(alpha = 0.22f)),
+            BlobRecipe(0.75f, 0.72f, 0.44f, Color(0xFF80CBC4).copy(alpha = 0.42f), Color(0xFF3F51B5).copy(alpha = 0.18f))
+        )
+    ),
     "prism" to StyleBackdropRecipe(
         bgColors = listOf(Color(0xFF060B1E), Color(0xFF0E2154), Color(0xFF1D4ED8)),
         blobs = listOf(

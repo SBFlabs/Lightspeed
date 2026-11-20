@@ -1,5 +1,9 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -149,10 +153,10 @@ fun BatteryExemptionAppCard(
                                 LightspeedHapticEngine.tick(context)
                                 val newStatus = !isWhitelisted
                                 onWhitelistChanged(newStatus)
-                                val msg = if (newStatus) "Battery whitelist granted for ${appItem.label}" else "Battery exemption removed for ${appItem.label}"
+                                val msg = if (newStatus) lsString(R.string.bat_toast_granted, appItem.label) else lsString(R.string.bat_toast_removed, appItem.label)
                                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                             } else {
-                                Toast.makeText(context, "Shizuku required for 1-tap battery whitelist", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, lsString(R.string.bat_toast_shizuku), Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -178,7 +182,7 @@ fun BatteryExemptionAppCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = if (isWhitelisted) "BATTERY SAFE" else "WHITELIST BATTERY",
+                        text = if (isWhitelisted) lsString(R.string.bat_badge_safe) else lsString(R.string.bat_btn_whitelist),
                         fontSize = 9.sp,
                         fontWeight = if (isWhitelisted) FontWeight.Bold else FontWeight.Medium,
                         color = if (isWhitelisted) successGreen else cautionAmber,

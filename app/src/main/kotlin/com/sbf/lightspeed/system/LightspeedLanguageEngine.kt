@@ -60,6 +60,8 @@ object LightspeedLanguageEngine {
     // ─── Lifecycle ──────────────────────────────────────────────────────────
     fun init(context: Context) {
         val appContext = context.applicationContext
+        // Real-World language (EN / PT / ES + Bilingual pair) loads synchronously so the very first frame is localized.
+        LightspeedLocaleEngine.init(appContext)
         ioScope.launch {
             val prefs = appContext.defaultPrefs()
             val saved = prefs.getString(KEY_LANGUAGE_MODE, null)
@@ -97,10 +99,15 @@ object LightspeedLanguageEngine {
 
     /**
      * Returns the secondary plain-language subtitle for CO_PILOT mode.
-     * Returns null in other modes so callers can conditionally render it.
+     * Returns null in other modes or when the subtitle duplicates the primary label
+     * so Bilingual mode never renders redundant `X (X)` pairs.
      */
-    fun resolveSubtitle(key: LightspeedVocabulary.Key, mode: LanguageMode = _mode.value): String? =
-        if (mode == LanguageMode.CO_PILOT) LightspeedVocabulary.copilotSubtitle(key) else null
+    fun resolveSubtitle(key: LightspeedVocabulary.Key, mode: LanguageMode = _mode.value): String? {
+        if (mode != LanguageMode.CO_PILOT) return null
+        val primary = LightspeedVocabulary.vessel(key).trim()
+        val sub = LightspeedVocabulary.copilotSubtitle(key).trim()
+        return if (sub.isEmpty() || sub.equals(primary, ignoreCase = true)) null else sub
+    }
 
     /**
      * Resolve both the primary label and optional subtitle in one call.

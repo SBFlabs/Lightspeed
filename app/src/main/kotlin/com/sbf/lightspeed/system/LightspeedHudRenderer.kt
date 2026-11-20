@@ -71,6 +71,8 @@ object LightspeedHudRenderer {
 
     private var cardGlassKey: Long = Long.MIN_VALUE
     private var cardGlassShader: LinearGradient? = null
+    private var cardSheenKey: Long = Long.MIN_VALUE
+    private var cardSheenShader: LinearGradient? = null
     private var cardRimKey: Long = Long.MIN_VALUE
     private var cardRimShader: LinearGradient? = null
     private var cardSpecKey: Long = Long.MIN_VALUE
@@ -198,13 +200,8 @@ object LightspeedHudRenderer {
         // 0. Clipped Screenshot / Shader Backdrop Blur Layer
         drawHudBackdropLayer(canvas, path, 0f, 0f, 0f, spec)
 
-        // 1. Frosted Backplane
-        glassFillPaint.shader = null
-        glassFillPaint.color = Color.argb(pA, (pR + tR * 0.08f).toInt().coerceIn(0, 255), (pG + tG * 0.08f).toInt().coerceIn(0, 255), (pB + tB * 0.08f).toInt().coerceIn(0, 255))
-        canvas.drawPath(path, glassFillPaint)
-
-        // 1b. Optical Tint Gradient Infusion
-        val glassKey = gradKey4f(rect.left, rect.top, rect.left, rect.bottom, spec.panelColor) xor spec.tintColor.toLong()
+        // 1. Frosted Glass Backplane (single optical gradient pass so alpha never double-compounds)
+        val glassKey = gradKey4f(rect.left, rect.top, rect.left, rect.bottom, spec.panelColor) xor spec.tintColor.toLong() xor pA.toLong()
         if (glassKey != cardGlassKey) {
             cardGlassShader = LinearGradient(
                 rect.left, rect.top, rect.left, rect.bottom,
@@ -219,6 +216,26 @@ object LightspeedHudRenderer {
         }
         glassFillPaint.withShader(cardGlassShader) { p ->
             canvas.drawPath(path, p)
+        }
+
+        // 1b. Subtle frosted luminance veil when backdrop blur is active so glass separates cleanly over OLED dark-mode apps
+        if (spec.isCentralTheme && spec.blurRadiusPx > 0f) {
+            val sheenKey = gradKey4f(rect.left, rect.top, rect.left, rect.bottom, 0x00FFFFFF)
+            if (sheenKey != cardSheenKey) {
+                cardSheenShader = LinearGradient(
+                    rect.left, rect.top, rect.left, rect.bottom,
+                    intArrayOf(
+                        Color.argb(26, 255, 255, 255),
+                        Color.argb(8, 255, 255, 255)
+                    ),
+                    floatArrayOf(0f, 1f),
+                    Shader.TileMode.CLAMP
+                )
+                cardSheenKey = sheenKey
+            }
+            glassFillPaint.withShader(cardSheenShader) { p ->
+                canvas.drawPath(path, p)
+            }
         }
 
         // 2. Refractive Rim

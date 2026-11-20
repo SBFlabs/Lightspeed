@@ -19,9 +19,10 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(
     currentTouchY = if (event.action == MotionEvent.ACTION_UP ||
         event.action == MotionEvent.ACTION_CANCEL) -1f else y
 
-    if (isScreenTimeInfoBubbleOpen) {
+    if (isScreenTimeInfoBubbleOpen || isBatterySpanInfoBubbleOpen) {
         if (event.actionMasked == MotionEvent.ACTION_UP) {
             isScreenTimeInfoBubbleOpen = false
+            isBatterySpanInfoBubbleOpen = false
             triggerHardwareHaptic(14, 70)
             invalidate()
         }

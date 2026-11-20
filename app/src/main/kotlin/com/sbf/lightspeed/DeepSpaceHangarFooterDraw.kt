@@ -17,6 +17,7 @@ internal fun DeepSpaceRenderer.drawHangarOrbitalControls(
 ) {
     val canvas = state.canvas
     val d = state.density
+    val ts = hangarTextScale(state.context)
     val activeHangarRing = state.activeHangarRing
     val isHangarEjectArmed = state.isHangarEjectArmed
 
@@ -35,10 +36,10 @@ internal fun DeepSpaceRenderer.drawHangarOrbitalControls(
             highlightPaint.strokeWidth = 1f * d
             highlightPaint.color = Color.argb(100, Color.red(activeRingColor), Color.green(activeRingColor), Color.blue(activeRingColor))
             canvas.drawRoundRect(shiftLeftRect, 9f * d, 9f * d, highlightPaint)
-            textPaint.textSize = 10f * d
-            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+            textPaint.textSize = 12f * d * ts * ts * ts
+            textPaint.typeface = hangarTypeface(state.context, isBold = true)
             textPaint.color = activeRingColor
-            canvas.drawText("◀ SHIFT COG", shiftLeftRect.centerX(), shiftLeftRect.centerY() + 3.5f * d, textPaint)
+            canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ck_shift_cog_left).ifBlank { "◀ SHIFT COG" }, shiftLeftRect.centerX(), shiftLeftRect.centerY() + 3.5f * d, textPaint)
 
             targetBadgeRect.set(cx - 56f * d, shiftBarY - 14f * d, cx + 56f * d, shiftBarY + 14f * d)
             if (isHangarEjectArmed) {
@@ -49,10 +50,10 @@ internal fun DeepSpaceRenderer.drawHangarOrbitalControls(
                 highlightPaint.strokeWidth = 1.4f * d
                 highlightPaint.color = Color.WHITE
                 canvas.drawRoundRect(targetBadgeRect, 9f * d, 9f * d, highlightPaint)
-                textPaint.textSize = 8.5f * d
-                textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                textPaint.textSize = 10.5f * d * ts * ts
+                textPaint.typeface = hangarTypeface(state.context, isBold = true)
                 textPaint.color = Color.WHITE
-                canvas.drawText("✕ TAP TO EJECT", cx, shiftBarY + 3.5f * d, textPaint)
+                canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ck_tap_eject).ifBlank { "✕ TAP TO EJECT" }, cx, shiftBarY + 3.5f * d, textPaint)
             } else {
                 highlightPaint.style = Paint.Style.FILL
                 highlightPaint.color = Color.argb(160, 18, 24, 40)
@@ -61,8 +62,8 @@ internal fun DeepSpaceRenderer.drawHangarOrbitalControls(
                 highlightPaint.strokeWidth = 1f * d
                 highlightPaint.color = Color.argb(100, Color.red(activeRingColor), Color.green(activeRingColor), Color.blue(activeRingColor))
                 canvas.drawRoundRect(targetBadgeRect, 9f * d, 9f * d, highlightPaint)
-                textPaint.textSize = 11f * d
-                textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                textPaint.textSize = 13f * d * ts * ts
+                textPaint.typeface = hangarTypeface(state.context, isBold = true)
                 textPaint.color = Color.WHITE
                 canvas.drawText(focusedAppLabel.take(13), cx, shiftBarY + 3.5f * d, textPaint)
             }
@@ -75,7 +76,7 @@ internal fun DeepSpaceRenderer.drawHangarOrbitalControls(
             highlightPaint.color = Color.argb(100, Color.red(activeRingColor), Color.green(activeRingColor), Color.blue(activeRingColor))
             canvas.drawRoundRect(shiftRightRect, 9f * d, 9f * d, highlightPaint)
             textPaint.color = activeRingColor
-            canvas.drawText("SHIFT COG ▶", shiftRightRect.centerX(), shiftRightRect.centerY() + 3.5f * d, textPaint)
+            canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ck_shift_cog_right).ifBlank { "SHIFT COG ▶" }, shiftRightRect.centerX(), shiftRightRect.centerY() + 3.5f * d, textPaint)
         } else {
             singleTargetRect.set(cx - 75f * d, shiftBarY - 14f * d, cx + 75f * d, shiftBarY + 14f * d)
             if (isHangarEjectArmed) {
@@ -86,10 +87,10 @@ internal fun DeepSpaceRenderer.drawHangarOrbitalControls(
                 highlightPaint.strokeWidth = 1.4f * d
                 highlightPaint.color = Color.WHITE
                 canvas.drawRoundRect(singleTargetRect, 9f * d, 9f * d, highlightPaint)
-                textPaint.textSize = 9f * d
-                textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                textPaint.textSize = 11f * d * ts
+                textPaint.typeface = hangarTypeface(state.context, isBold = true)
                 textPaint.color = Color.WHITE
-                canvas.drawText("✕ TAP TO EJECT", cx, shiftBarY + 3.5f * d, textPaint)
+                canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ck_tap_eject).ifBlank { "✕ TAP TO EJECT" }, cx, shiftBarY + 3.5f * d, textPaint)
             } else {
                 highlightPaint.style = Paint.Style.FILL
                 highlightPaint.color = Color.argb(160, 18, 24, 40)
@@ -99,13 +100,17 @@ internal fun DeepSpaceRenderer.drawHangarOrbitalControls(
                 highlightPaint.color = activeRingColor
                 canvas.drawRoundRect(singleTargetRect, 9f * d, 9f * d, highlightPaint)
                 textPaint.textSize = 11f * d
-                textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                textPaint.typeface = hangarTypeface(state.context, isBold = true)
                 textPaint.color = Color.WHITE
                 canvas.drawText(focusedAppLabel.take(16), cx, shiftBarY + 3.5f * d, textPaint)
             }
         }
 
-        val destRingName = if (activeHangarRing == 0) "INNER RING 02" else "OUTER RING 01"
+        val destRingName = if (activeHangarRing == 0) {
+            com.sbf.lightspeed.system.lsString(R.string.ck_inner_ring).ifBlank { "INNER RING 02" }
+        } else {
+            com.sbf.lightspeed.system.lsString(R.string.ck_outer_ring).ifBlank { "OUTER RING 01" }
+        }
         transferRect.set(cx - 115f * d, transferBarY - 14f * d, cx + 115f * d, transferBarY + 14f * d)
         highlightPaint.style = Paint.Style.FILL
         highlightPaint.color = Color.argb(160, 20, 26, 46)
@@ -115,19 +120,19 @@ internal fun DeepSpaceRenderer.drawHangarOrbitalControls(
         highlightPaint.color = otherRingColor
         canvas.drawRoundRect(transferRect, 9f * d, 9f * d, highlightPaint)
         textPaint.textSize = 10f * d
-        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        textPaint.typeface = hangarTypeface(state.context, isBold = true)
         textPaint.color = Color.WHITE
-        canvas.drawText("⇄ TRANSFER TO $destRingName", transferRect.centerX(), transferRect.centerY() + 3.5f * d, textPaint)
+        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ck_transfer_to, destRingName).ifBlank { "⇄ TRANSFER TO $destRingName" }, transferRect.centerX(), transferBarY + 3.5f * d, textPaint)
 
         textPaint.textSize = 8.5f * d
-        textPaint.typeface = android.graphics.Typeface.DEFAULT
+        textPaint.typeface = hangarTypeface(state.context, isBold = false)
         textPaint.color = Color.argb(150, 180, 210, 245)
-        canvas.drawText("✦ DRAG TO ROTATE • TAP ✕ TO EJECT • HOLD TO EDIT ✦", cx, transferBarY + 22f * d, textPaint)
+        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ck_hint_active).ifBlank { "✦ DRAG TO ROTATE • TAP ✕ TO EJECT • HOLD TO EDIT ✦" }, cx, transferBarY + 22f * d, textPaint)
     } else {
         textPaint.textSize = 10f * d
-        textPaint.typeface = android.graphics.Typeface.DEFAULT
+        textPaint.typeface = hangarTypeface(state.context, isBold = false)
         textPaint.color = Color.argb(140, 200, 220, 255)
-        canvas.drawText("✦ TOUCH & DRAG TO SPIN // TAP CENTER TO EDIT ✦", cx, shiftBarY + 3.5f * d, textPaint)
+        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ck_hint_idle).ifBlank { "✦ TOUCH & DRAG TO SPIN // TAP CENTER TO EDIT ✦" }, cx, shiftBarY + 3.5f * d, textPaint)
     }
 
     // Bottom Exit Capsule
@@ -139,8 +144,8 @@ internal fun DeepSpaceRenderer.drawHangarOrbitalControls(
     highlightPaint.strokeWidth = 1.2f * d
     highlightPaint.color = Color.argb(80, 200, 220, 255)
     canvas.drawRoundRect(exitBtnRect, 14f * d, 14f * d, highlightPaint)
-    textPaint.textSize = (if (layout.isLandscape) 10.5f else 11.5f) * d
-    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    textPaint.textSize = (if (layout.isLandscape) 12.5f else 13.5f) * d * ts
+    textPaint.typeface = hangarTypeface(state.context, isBold = true)
     textPaint.color = Color.WHITE
-    canvas.drawText("✕ CLOSE HANGAR / RETURN", exitBtnRect.centerX(), exitBtnRect.centerY() + 4f * d, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ck_close_hangar).ifBlank { "✕ CLOSE HANGAR / RETURN" }, exitBtnRect.centerX(), exitBtnRect.centerY() + 4f * d, textPaint)
 }

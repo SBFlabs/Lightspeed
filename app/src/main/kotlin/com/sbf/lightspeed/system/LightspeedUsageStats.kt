@@ -91,6 +91,87 @@ object LightspeedUsageStats {
             emptyMap()
         }
     }
+
+    /**
+     * Computes foreground app usage strictly since [startMs] (used for LAST CHG battery spans).
+     * Uses high-precision UsageEvents for windows <= 48h with INTERVAL_BEST fallback.
+     */
+    fun usageMillisSince(context: Context, startMs: Long): Map<String, Long> {
+        return try {
+            val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return emptyMap()
+            val now = System.currentTimeMillis()
+            val clampedStart = startMs.coerceIn(0L, now)
+            if (now - clampedStart <= 1000L) return emptyMap()
+
+            val resultMap = mutableMapOf<String, Long>()
+            if ((now - clampedStart) <= 48L * 3_600_000L) {
+                val events = usm.queryEvents(clampedStart, now)
+                val lastResumeTime = mutableMapOf<String, Long>()
+                val event = android.app.usage.UsageEvents.Event()
+                while (events != null && events.hasNextEvent()) {
+                    events.getNextEvent(event)
+                    val pkg = event.packageName ?: continue
+                    when (event.eventType) {
+                        android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED -> {
+                            lastResumeTime[pkg] = event.timeStamp
+                        }
+                        android.app.usage.UsageEvents.Event.ACTIVITY_PAUSED,
+                        android.app.usage.UsageEvents.Event.ACTIVITY_STOPPED -> {
+                            val startResume = lastResumeTime.remove(pkg)
+                            if (startResume != null && event.timeStamp > startResume) {
+                                val duration = event.timeStamp - startResume
+                                resultMap[pkg] = (resultMap[pkg] ?: 0L) + duration
+                            }
+                        }
+                    }
+                }
+                for ((pkg, startResume) in lastResumeTime) {
+                    if (now > startResume) {
+                        resultMap[pkg] = (resultMap[pkg] ?: 0L) + (now - startResume)
+                    }
+                }
+                if (resultMap.isNotEmpty()) return resultMap
+            }
+
+            val statsList = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, clampedStart, now) ?: return emptyMap()
+            for (stat in statsList) {
+                val pkg = stat.packageName ?: continue
+                val time = stat.totalTimeInForeground
+                if (time > 0L) {
+                    resultMap[pkg] = (resultMap[pkg] ?: 0L) + time
+                }
+            }
+            resultMap
+        } catch (_: Throwable) {
+            emptyMap()
+        }
+    }
+
+    /**
+     * Returns the actual elapsed history coverage Android UsageStats holds inside the requested
+     * [days] window (in ms), so UI can display a `!` badge when only partial history exists
+     * (e.g. only 90h available out of 7 days).
+     */
+    fun getAvailableUsageSpanMs(context: Context, days: Int): Long {
+        return try {
+            val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return 0L
+            val now = System.currentTimeMillis()
+            val requestedMs = days.coerceAtLeast(1).toLong() * 24L * 3_600_000L
+            val start = (now - requestedMs).coerceAtLeast(0L)
+            val statsList = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, start, now) ?: return 0L
+            var earliest = Long.MAX_VALUE
+            for (stat in statsList) {
+                if (stat.totalTimeInForeground <= 0L) continue
+                val ts = stat.firstTimeStamp
+                if (ts > 0L && ts < earliest) {
+                    earliest = ts
+                }
+            }
+            if (earliest == Long.MAX_VALUE) 0L else (now - earliest).coerceIn(0L, requestedMs)
+        } catch (_: Throwable) {
+            0L
+        }
+    }
 }
 
 fun hasUsageAccess(context: Context): Boolean = LightspeedUsageStats.hasUsageAccess(context)

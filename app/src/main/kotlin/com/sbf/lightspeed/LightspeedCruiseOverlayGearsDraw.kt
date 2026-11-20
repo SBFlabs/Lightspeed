@@ -175,7 +175,7 @@ internal fun LightspeedCruiseOverlay.drawFavoritesGearsLayer(canvas: Canvas, m3P
                     val initial = appLabel.firstOrNull()?.uppercase() ?: "?"
                     textPaint.color = Color.WHITE
                     textPaint.textSize = currentSize * 0.44f
-                    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                    textPaint.typeface = overlayTypeface(isBold = true)
                     textPaint.textAlign = Paint.Align.CENTER
                     canvas.drawText(initial, iconCX, iconCY + (currentSize * 0.16f), textPaint)
                     LightspeedIconManager.loadIconAsync(context, itemToken) {
@@ -201,7 +201,11 @@ internal fun LightspeedCruiseOverlay.drawFavoritesGearsLayer(canvas: Canvas, m3P
         )
     }
 
-    // Top Flight Telemetry HUD Header
+    // Top Flight Telemetry HUD Header (base sizes matched to Cockpit Hangar header & subtext)
+    val ts = deepSpaceRenderer.hangarTextScale(context)
+    val wF = width.toFloat()
+    val hF = height.toFloat()
+    val isLandscape = wF > hF
     val topBadgeY = 54f * density
     val profileName = when (activeGearSetIndex) {
         0 -> getGearSetNameByIndex(0)
@@ -210,15 +214,23 @@ internal fun LightspeedCruiseOverlay.drawFavoritesGearsLayer(canvas: Canvas, m3P
         else -> getGearSetNameByIndex(3)
     }
 
-    val headerText = "◈ ASTROGATION // PROFILE $activeGearSetIndex: $profileName ◈"
-    textPaint.textSize = 12f * density
-    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    val headerText = com.sbf.lightspeed.system.lsString(R.string.ck_profile_header, activeGearSetIndex, profileName)
+        .ifBlank { "◈ ASTROGATION // PROFILE $activeGearSetIndex: $profileName ◈" }
+    val targetHeaderSize = (if (isLandscape) 13f else 14.5f) * density * ts
+    textPaint.textSize = targetHeaderSize
+    textPaint.typeface = overlayTypeface(isBold = true)
     textPaint.textAlign = Paint.Align.CENTER
+    val maxHeaderTextW = (wF - 48f * density).coerceAtLeast(120f * density)
+    val measuredHeaderW = textPaint.measureText(headerText)
+    if (measuredHeaderW > maxHeaderTextW) {
+        textPaint.textSize = targetHeaderSize * (maxHeaderTextW / measuredHeaderW)
+    }
     val headerWidth = textPaint.measureText(headerText)
+    val badgeHalfH = (14f * density * ts.coerceAtLeast(1f))
 
     highlightPaint.style = Paint.Style.FILL
     highlightPaint.color = Color.argb(175, 12, 16, 28)
-    cachedGearHeaderRect.set(cx - headerWidth / 2f - 16f * density, topBadgeY - 15f * density, cx + headerWidth / 2f + 16f * density, topBadgeY + 15f * density)
+    cachedGearHeaderRect.set(cx - headerWidth / 2f - 16f * density, topBadgeY - badgeHalfH, cx + headerWidth / 2f + 16f * density, topBadgeY + badgeHalfH)
     canvas.drawRoundRect(cachedGearHeaderRect, 10f * density, 10f * density, highlightPaint)
 
     highlightPaint.style = Paint.Style.STROKE
@@ -227,15 +239,22 @@ internal fun LightspeedCruiseOverlay.drawFavoritesGearsLayer(canvas: Canvas, m3P
     canvas.drawRoundRect(cachedGearHeaderRect, 10f * density, 10f * density, highlightPaint)
 
     textPaint.color = Color.WHITE
-    canvas.drawText(headerText, cx, topBadgeY + 4f * density, textPaint)
+    canvas.drawText(headerText, cx, topBadgeY + 4f * density * ts, textPaint)
 
-    textPaint.textSize = 8.5f * density
-    textPaint.typeface = android.graphics.Typeface.DEFAULT
-    textPaint.color = Color.argb(160, 180, 210, 245)
-    canvas.drawText(
-        if (isOpenedFromLeftFlank) "PULL RIGHT >> SWITCH PROFILE  •  SLIDE LEFT << CANCEL"
-        else "PULL LEFT >> SWITCH PROFILE  •  SLIDE RIGHT << CANCEL",
-        cx, topBadgeY + 28f * density, textPaint
-    )
+    val subText = if (isOpenedFromLeftFlank) {
+        com.sbf.lightspeed.system.lsString(R.string.ck_sub_from_left).ifBlank { "PULL RIGHT >> SWITCH PROFILE  •  SLIDE LEFT << CANCEL" }
+    } else {
+        com.sbf.lightspeed.system.lsString(R.string.ck_sub_from_right).ifBlank { "PULL LEFT >> SWITCH PROFILE  •  SLIDE RIGHT << CANCEL" }
+    }
+    val targetSubSize = (if (isLandscape) 10f else 11f) * density * ts
+    textPaint.textSize = targetSubSize
+    textPaint.typeface = overlayTypeface(isBold = false)
+    val measuredSubW = textPaint.measureText(subText)
+    val maxSubW = (wF - 24f * density).coerceAtLeast(120f * density)
+    if (measuredSubW > maxSubW) {
+        textPaint.textSize = targetSubSize * (maxSubW / measuredSubW)
+    }
+    textPaint.color = Color.argb(175, 180, 210, 245)
+    canvas.drawText(subText, cx, topBadgeY + badgeHalfH + 15f * density * ts.coerceAtLeast(1f), textPaint)
     drawCruiseCentralPill(canvas, m3Primary)
 }

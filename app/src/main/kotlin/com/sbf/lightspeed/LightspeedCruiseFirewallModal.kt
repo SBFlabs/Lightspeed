@@ -155,7 +155,7 @@ internal fun LightspeedCruiseOverlay.drawFirewallManagerModal(
     firewallAccordionHeaderRects.clear()
     firewallAppRowRects.clear()
 
-    canvas.save()
+    val listLayerCount = canvas.saveLayer(listLeft, listTop, listRight, listBottom, null)
     canvas.clipRect(listLeft, listTop, listRight, listBottom)
     var curY = listTop - firewallModalScrollOffset
 
@@ -258,7 +258,18 @@ internal fun LightspeedCruiseOverlay.drawFirewallManagerModal(
     drawAccordionSection("allowed", "ALLOWED INTERNET APPS", firewallAllowedAccordionOpen, allowedList, accent, "BLOCK")
     drawAccordionSection("offline", "OFFLINE APPS (NO NET PERM)", firewallOfflineAccordionOpen, offlineList, Color.rgb(34, 197, 94), "OFFLINE")
 
-    canvas.restore()
+    LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+        canvas = canvas,
+        left = listLeft,
+        top = listTop,
+        right = listRight,
+        bottom = listBottom,
+        featherTopPx = if (firewallModalScrollOffset > 0.5f) 18f * dp else 0f,
+        featherBottomPx = if (firewallModalScrollOffset < firewallModalMaxScroll - 0.5f) 20f * dp else 0f,
+        density = dp,
+        seed = 8303
+    )
+    canvas.restoreToCount(listLayerCount)
 }
 
 internal fun LightspeedCruiseOverlay.handleFirewallManagerModalTouch(event: MotionEvent): Boolean {

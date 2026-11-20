@@ -1,5 +1,11 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
+import com.sbf.lightspeed.settings.verticalEdgeFade
+
 import android.content.Context
 import android.content.SharedPreferences
 import android.widget.Toast
@@ -50,7 +56,9 @@ internal fun CockpitGearPickerItemList(
 ) {
     LazyColumn(
         state = listState,
-        modifier = modifier.fillMaxHeight()
+        modifier = modifier
+            .fillMaxHeight()
+            .verticalEdgeFade(listState)
     ) {
         items(items = flatItemsList, key = { it.key }) { item ->
             when (item) {
@@ -185,7 +193,7 @@ internal fun CockpitGearPickerItemList(
                                         val bucketName = item.optionKey.removePrefix("gravity_bucket_assign:")
                                         val isGravityEnabled = prefs.getBoolean(LightspeedPreferences.KEY_SYNTHETIC_GRAVITY_ENABLED, false)
                                         if (!isGravityEnabled) {
-                                            Toast.makeText(context, "Synthetic Gravity Engine is disabled", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, lsString(R.string.toast_gravity_disabled), Toast.LENGTH_SHORT).show()
                                         } else {
                                             val bucket = runCatching { LightspeedOrientationEngine.AttitudeBucket.valueOf(bucketName) }.getOrNull()
                                             if (bucket != null) {

@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import com.sbf.lightspeed.system.logSwallowed
 import android.content.SharedPreferences
@@ -42,11 +45,11 @@ fun HudSensorDeckSection(
     onToggleStatusBarGestures: () -> Unit,
     dynamicActionTokens: List<String>,
     tokenLabelCache: Map<String, String>,
-    onRefreshNeeded: () -> Unit
+    onRefreshNeeded: () -> Unit,
+    languageMode: LightspeedLanguageEngine.LanguageMode = LightspeedLanguageEngine.modeFlow.value
 ) {
-    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
     val lsColors = LightspeedStyle.colors
-    val (sensorTitle, sensorSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.SENSOR_AREA, currentLanguageMode)
+    val (sensorTitle, sensorSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.SENSOR_AREA, languageMode)
 
     CompactAccordionSection(
         title = sensorTitle,
@@ -67,8 +70,8 @@ fun HudSensorDeckSection(
                 prefs = prefs,
                 prefKey = LightspeedPreferences.KEY_STATUSBAR_ENABLED,
                 defaultVal = false,
-                title = "Enable Sensor Area Gestures",
-                subtitle = "Top-edge gesture detection",
+                title = lsString(R.string.sens_enable_title),
+                subtitle = lsString(R.string.sens_enable_sub),
                 onChanged = {
                     safeReloadPreferences()
                     onRefreshNeeded()
@@ -77,16 +80,16 @@ fun HudSensorDeckSection(
 
             val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
             val spanKey = if (isLandscape) LightspeedPreferences.KEY_STATUSBAR_SPAN_LANDSCAPE else LightspeedPreferences.KEY_STATUSBAR_SPAN
-            val defaultSpan = if (isLandscape) 150 else 200
+            val defaultSpan = if (isLandscape) 150 else 160
             val thicknessKey = if (isLandscape) LightspeedPreferences.KEY_STATUSBAR_THICKNESS_LANDSCAPE else LightspeedPreferences.KEY_STATUSBAR_THICKNESS
             val defaultThickness = 35
             val offsetXKey = if (isLandscape) LightspeedPreferences.KEY_STATUSBAR_OFFSET_X_LANDSCAPE else LightspeedPreferences.KEY_STATUSBAR_OFFSET_X
-            val defaultOffsetX = if (isLandscape) 300 else 105
+            val defaultOffsetX = 0
 
             // 1. Geometry & Sensitivity
             CollapsibleSubSection(
-                title = "Geometry & Sensitivity",
-                subtitle = "Span, thickness, offsets & idle glow",
+                title = lsString(R.string.sec_geometry_sensitivity),
+                subtitle = lsString(R.string.secd_span_thickness_offsets_idle_gl),
                 isExpanded = isStatusBarGeoExpanded,
                 onToggle = onToggleStatusBarGeo
             ) {
@@ -98,7 +101,7 @@ fun HudSensorDeckSection(
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text(
-                            text = if (isLandscape) "✦ Active Sensor Calibration: LANDSCAPE (Tablet Mode)" else "✦ Active Sensor Calibration: PORTRAIT (Phone Mode)",
+                            text = if (isLandscape) lsString(R.string.sens_cal_land) else lsString(R.string.sens_cal_port),
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.5.sp,
                             color = MaterialTheme.colorScheme.primary
@@ -106,43 +109,43 @@ fun HudSensorDeckSection(
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = if (isLandscape) {
-                                "Calibrating landscape sensor deck dimensions directly (Span: 150dp, Thickness: 35dp, Offset X: Max)."
+                                lsString(R.string.sens_cal_land_desc)
                             } else {
-                                "Calibrating portrait phone dimensions directly (Span: 200dp, Thickness: 35dp, Offset X: 105dp). Rotate to landscape to calibrate tablet mode."
+                                lsString(R.string.sens_cal_port_desc)
                             },
                             fontSize = 10.5.sp,
                             color = lsColors.textPrimary.copy(alpha = 0.8f)
                         )
                     }
                 }
-                PrefDottedSliderRow(context, prefs, spanKey, "", "Span (≥1000 = Full Width)", 50, 1080, 10, defaultSpan)
-                PrefDottedSliderRow(context, prefs, thicknessKey, "", "Thickness", 10, 52, 2, defaultThickness)
-                PrefDottedSliderRow(context, prefs, offsetXKey, "", "Horizontal Offset (X Axis)", -300, 300, 5, defaultOffsetX)
-                PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_STATUSBAR_OFFSET_Y, "", "Vertical Offset (Y Axis)", -100, 200, 5, 0)
-                PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_STATUSBAR_SENSITIVITY, "", "Touch Sensitivity", 10, 100, 5, 25)
-                PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_STATUSBAR_TRANSPARENCY, "", "Stealth Idle Glow", 0, 100, 5, 0)
+                PrefDottedSliderRow(context, prefs, spanKey, "", lsString(R.string.sld_span_full), 50, 1080, 10, defaultSpan)
+                PrefDottedSliderRow(context, prefs, thicknessKey, "", lsString(R.string.sld_thickness), 10, 52, 2, defaultThickness)
+                PrefDottedSliderRow(context, prefs, offsetXKey, "", lsString(R.string.sld_offset_x), -300, 300, 5, defaultOffsetX)
+                PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_STATUSBAR_OFFSET_Y, "", lsString(R.string.sld_offset_y), -100, 200, 5, 0)
+                PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_STATUSBAR_SENSITIVITY, "", lsString(R.string.sld_touch_sens), 10, 100, 5, 25)
+                PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_STATUSBAR_TRANSPARENCY, "", lsString(R.string.sld_stealth_glow), 0, 100, 5, 0)
             }
 
             // 2. Gestures
             CollapsibleSubSection(
-                title = "Gestures & Macros",
-                subtitle = "Tap, double-tap, left & right swipes with Hold Modifiers",
+                title = lsString(R.string.sec_gestures_macros),
+                subtitle = lsString(R.string.secd_tap_double_tap_left_right_swip),
                 isExpanded = isStatusBarGesturesExpanded,
                 onToggle = onToggleStatusBarGestures
             ) {
                 val statusVectors = listOf(
-                    "TAP" to ("Tap" to ArrowDirection.TAP),
-                    "DOUBLE_TAP" to ("Tap (Double)" to ArrowDirection.DOUBLE_TAP),
-                    "SWIPE_LEFT" to ("Swipe Left" to ArrowDirection.SWIPE_LEFT),
-                    "SWIPE_RIGHT" to ("Swipe Right" to ArrowDirection.SWIPE_RIGHT),
-                    "SWIPE_LEFT_BACK" to ("Rebound Left" to ArrowDirection.LEFT_BACK),
-                    "SWIPE_RIGHT_BACK" to ("Rebound Right" to ArrowDirection.RIGHT_BACK)
+                    "TAP" to (lsString(R.string.gest_tap) to ArrowDirection.TAP),
+                    "DOUBLE_TAP" to (lsString(R.string.gest_double_tap) to ArrowDirection.DOUBLE_TAP),
+                    "SWIPE_LEFT" to (lsString(R.string.gest_swipe_left) to ArrowDirection.SWIPE_LEFT),
+                    "SWIPE_RIGHT" to (lsString(R.string.gest_swipe_right) to ArrowDirection.SWIPE_RIGHT),
+                    "SWIPE_LEFT_BACK" to (lsString(R.string.gest_rebound_left) to ArrowDirection.LEFT_BACK),
+                    "SWIPE_RIGHT_BACK" to (lsString(R.string.gest_rebound_right) to ArrowDirection.RIGHT_BACK)
                 )
 
                 statusVectors.forEach { (vectorKey, pairInfo) ->
                     val (vectorTitle, arrowEnum) = pairInfo
                     GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_STATUSBAR_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                    GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_STATUSBAR_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                    GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_STATUSBAR_${vectorKey}_HOLD", lsString(R.string.gest_hold_modifier, vectorTitle), dynamicActionTokens, tokenLabelCache)
                 }
             }
 
@@ -151,8 +154,8 @@ fun HudSensorDeckSection(
                 mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_SWIPE_DOWN_STATUSBAR, false))
             }
             CollapsibleSubSection(
-                title = "HUD Strip Swipe-Down to Notifications",
-                subtitle = "Dual-Action Right Side Pull for split Notifications & Quick Settings",
+                title = lsString(R.string.sec_hud_strip_swipe_down_to_notifi),
+                subtitle = lsString(R.string.secd_dual_action_right_side_pull_fo),
                 icon = {
                     Icon(
                         imageVector = Icons.Default.ArrowDownward,
@@ -171,8 +174,8 @@ fun HudSensorDeckSection(
                     prefs = prefs,
                     prefKey = LightspeedPreferences.KEY_STATUSBAR_SWIPE_DOWN_NOTIFICATIONS,
                     defaultVal = false,
-                    title = "Swipe Down to Expand Notifications",
-                    subtitle = "Dual-Action Right Side Pull: If your system status bar opens Quick Settings on the right side, this sensor zone lets you access Notifications from the same side:\n• Short Swipe: Pull down within the thickness of the sensor strip to expand Notifications.\n• Deep Swipe / Adjacent Gap: Pull further down or swipe the exposed native bar beside the strip to open Quick Settings.",
+                    title = lsString(R.string.sens_swipe_down_title),
+                    subtitle = lsString(R.string.sens_swipe_down_sub),
                     onChanged = {
                         safeReloadPreferences()
                         onRefreshNeeded()
@@ -199,8 +202,8 @@ fun HudSensorDeckSection(
             val defaultBottomOffsetX = 0
 
             CollapsibleSubSection(
-                title = "Bottom Sensor Area",
-                subtitle = "Bottom-edge sensor zone for taps, swipes & continuous scrub",
+                title = lsString(R.string.sec_bottom_sensor_area),
+                subtitle = lsString(R.string.secd_bottom_edge_sensor_zone_for_ta),
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.TouchApp,
@@ -222,8 +225,8 @@ fun HudSensorDeckSection(
                         prefs = prefs,
                         prefKey = LightspeedPreferences.KEY_BOTTOM_STATUSBAR_ENABLED,
                         defaultVal = false,
-                        title = "Enable Bottom Sensor Area",
-                        subtitle = "Bottom-edge touch target overlay with continuous scrub support",
+                        title = lsString(R.string.sens_bot_enable_title),
+                        subtitle = lsString(R.string.sens_bot_enable_sub),
                         onChanged = {
                             safeReloadPreferences()
                             onRefreshNeeded()
@@ -232,8 +235,8 @@ fun HudSensorDeckSection(
 
                     // Sub: Bottom Geometry & Sensitivity
                     CollapsibleSubSection(
-                        title = "Geometry & Sensitivity",
-                        subtitle = "Span, thickness, horizontal & vertical offsets",
+                        title = lsString(R.string.sec_geometry_sensitivity),
+                        subtitle = lsString(R.string.secd_span_thickness_horizontal_vert),
                         isExpanded = isBottomGeoExpanded,
                         onToggle = {
                             isBottomGeoExpanded = !isBottomGeoExpanded
@@ -250,7 +253,7 @@ fun HudSensorDeckSection(
                         ) {
                             Column(modifier = Modifier.padding(10.dp)) {
                                 Text(
-                                    text = if (isLandscape) "✦ Bottom Sensor Calibration: LANDSCAPE (Tablet Mode)" else "✦ Bottom Sensor Calibration: PORTRAIT (Phone Mode)",
+                                    text = if (isLandscape) lsString(R.string.sens_bot_cal_land) else lsString(R.string.sens_bot_cal_port),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 11.5.sp,
                                     color = MaterialTheme.colorScheme.primary
@@ -258,27 +261,27 @@ fun HudSensorDeckSection(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = if (isLandscape) {
-                                        "Calibrating bottom sensor deck in landscape tablet mode."
+                                        lsString(R.string.sens_bot_cal_land_desc)
                                     } else {
-                                        "Calibrating bottom sensor deck in portrait phone mode. Rotate to landscape to calibrate tablet mode."
+                                        lsString(R.string.sens_bot_cal_port_desc)
                                     },
                                     fontSize = 10.5.sp,
                                     color = lsColors.textPrimary.copy(alpha = 0.8f)
                                 )
                             }
                         }
-                        PrefDottedSliderRow(context, prefs, bottomSpanKey, "", "Span (≥1000 = Full Width)", 50, 1080, 10, defaultBottomSpan)
-                        PrefDottedSliderRow(context, prefs, bottomThicknessKey, "", "Thickness", 10, 52, 2, defaultBottomThickness)
-                        PrefDottedSliderRow(context, prefs, bottomOffsetXKey, "", "Horizontal Offset (X Axis)", -300, 300, 5, defaultBottomOffsetX)
-                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_Y, "", "Vertical Offset from Bottom (Y Axis)", -100, 200, 5, 0)
-                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_BOTTOM_STATUSBAR_SENSITIVITY, "", "Touch Sensitivity", 10, 100, 5, 25)
-                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_BOTTOM_STATUSBAR_TRANSPARENCY, "", "Stealth Idle Glow", 0, 100, 5, 0)
+                        PrefDottedSliderRow(context, prefs, bottomSpanKey, "", lsString(R.string.sld_span_full), 50, 1080, 10, defaultBottomSpan)
+                        PrefDottedSliderRow(context, prefs, bottomThicknessKey, "", lsString(R.string.sld_thickness), 10, 52, 2, defaultBottomThickness)
+                        PrefDottedSliderRow(context, prefs, bottomOffsetXKey, "", lsString(R.string.sld_offset_x), -300, 300, 5, defaultBottomOffsetX)
+                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_Y, "", lsString(R.string.sld_offset_y_bottom), -100, 200, 5, 0)
+                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_BOTTOM_STATUSBAR_SENSITIVITY, "", lsString(R.string.sld_touch_sens), 10, 100, 5, 25)
+                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_BOTTOM_STATUSBAR_TRANSPARENCY, "", lsString(R.string.sld_stealth_glow), 0, 100, 5, 0)
                     }
 
                     // Sub: Bottom Gestures & Macros
                     CollapsibleSubSection(
-                        title = "Gestures & Macros",
-                        subtitle = "Tap, double-tap, swipe left/right/up with Hold Modifiers & Scrub",
+                        title = lsString(R.string.sec_gestures_macros),
+                        subtitle = lsString(R.string.secd_tap_double_tap_swipe_left_righ),
                         isExpanded = isBottomGesturesExpanded,
                         onToggle = {
                             isBottomGesturesExpanded = !isBottomGesturesExpanded
@@ -286,13 +289,13 @@ fun HudSensorDeckSection(
                         }
                     ) {
                         val bottomVectors = listOf(
-                            "TAP" to ("Tap" to ArrowDirection.TAP),
-                            "DOUBLE_TAP" to ("Tap (Double)" to ArrowDirection.DOUBLE_TAP),
-                            "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
-                            "SWIPE_LEFT" to ("Swipe Left" to ArrowDirection.SWIPE_LEFT),
-                            "SWIPE_RIGHT" to ("Swipe Right" to ArrowDirection.SWIPE_RIGHT),
-                            "SWIPE_LEFT_BACK" to ("Rebound Left" to ArrowDirection.LEFT_BACK),
-                            "SWIPE_RIGHT_BACK" to ("Rebound Right" to ArrowDirection.RIGHT_BACK)
+                            "TAP" to (lsString(R.string.gest_tap) to ArrowDirection.TAP),
+                            "DOUBLE_TAP" to (lsString(R.string.gest_double_tap) to ArrowDirection.DOUBLE_TAP),
+                            "SWIPE_UP" to (lsString(R.string.gest_swipe_up) to ArrowDirection.SWIPE_UP),
+                            "SWIPE_LEFT" to (lsString(R.string.gest_swipe_left) to ArrowDirection.SWIPE_LEFT),
+                            "SWIPE_RIGHT" to (lsString(R.string.gest_swipe_right) to ArrowDirection.SWIPE_RIGHT),
+                            "SWIPE_LEFT_BACK" to (lsString(R.string.gest_rebound_left) to ArrowDirection.LEFT_BACK),
+                            "SWIPE_RIGHT_BACK" to (lsString(R.string.gest_rebound_right) to ArrowDirection.RIGHT_BACK)
                         )
 
                         bottomVectors.forEach { (vectorKey, pairInfo) ->
@@ -314,7 +317,7 @@ fun HudSensorDeckSection(
                                 direction = arrowEnum,
                                 isHold = true,
                                 keyResName = "pref_macro_action_BOTTOM_STATUSBAR_${vectorKey}_HOLD",
-                                defaultTitle = "$vectorTitle + Hold Modifier",
+                                defaultTitle = lsString(R.string.gest_hold_modifier, vectorTitle),
                                 options = dynamicActionTokens,
                                 labelCache = tokenLabelCache,
                                 showBottomSensorQuickAccess = true

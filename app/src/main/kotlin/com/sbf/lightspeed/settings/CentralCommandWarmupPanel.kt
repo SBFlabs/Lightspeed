@@ -51,12 +51,15 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.annotation.StringRes
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.BuildConfig
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.InstalledTacticalToolsScanner
 import com.sbf.lightspeed.system.LightspeedWatchdogEngine
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -64,30 +67,30 @@ import kotlinx.coroutines.withContext
 import rikka.shizuku.Shizuku
 
 private data class WarmupStageSpec(
-    val title: String,
-    val detail: String,
+    @StringRes val titleRes: Int,
+    @StringRes val detailRes: Int,
     val targetProgress: Float
 )
 
 private val WARMUP_STAGES = listOf(
     WarmupStageSpec(
-        title = "Warming up avionics engines",
-        detail = "Priming 12-Theme optical surfaces & display metrics",
+        titleRes = R.string.warmup_stage_1_title,
+        detailRes = R.string.warmup_stage_1_detail,
         targetProgress = 0.28f
     ),
     WarmupStageSpec(
-        title = "Hooking Watchdogs & Shizuku",
-        detail = "Verifying Core & Perimeter watchdog telemetry links",
+        titleRes = R.string.warmup_stage_2_title,
+        detailRes = R.string.warmup_stage_2_detail,
         targetProgress = 0.56f
     ),
     WarmupStageSpec(
-        title = "Indexing active gesture bindings",
-        detail = "Resolving configured launcher actions & quick tools",
+        titleRes = R.string.warmup_stage_3_title,
+        detailRes = R.string.warmup_stage_3_detail,
         targetProgress = 0.84f
     ),
     WarmupStageSpec(
-        title = "Pre-composing flight deck tabs",
-        detail = "Preparing Deflectors & HUD Strip for smooth switching",
+        titleRes = R.string.warmup_stage_4_title,
+        detailRes = R.string.warmup_stage_4_detail,
         targetProgress = 1.0f
     )
 )
@@ -108,7 +111,7 @@ fun CentralCommandWarmupPanel(
     val lsColors = LightspeedStyle.colors
     var currentStageIndex by remember { mutableIntStateOf(0) }
     var progress by remember { mutableFloatStateOf(0.08f) }
-    var statusSubline by remember { mutableStateOf(WARMUP_STAGES[0].detail) }
+    var statusSublineRes by remember { mutableIntStateOf(WARMUP_STAGES[0].detailRes) }
     val currentCanStageDeck by rememberUpdatedState(canStageDeck)
 
     LaunchedEffect(Unit) {
@@ -120,8 +123,8 @@ fun CentralCommandWarmupPanel(
 
         // Stage 1: Watchdogs & Shizuku status verification off Main thread
         currentStageIndex = 1
-        statusSubline = WARMUP_STAGES[1].detail
-        val shizukuNote = withContext(Dispatchers.IO) {
+        statusSublineRes = WARMUP_STAGES[1].detailRes
+        val shizukuNoteRes = withContext(Dispatchers.IO) {
             val a11yReady = LightspeedWatchdogEngine.isAccessibilityServiceEnabled(context)
             val shizukuReady = try {
                 Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
@@ -129,18 +132,18 @@ fun CentralCommandWarmupPanel(
                 false
             }
             when {
-                a11yReady && shizukuReady -> "Core Watchdog & Shizuku telemetry hooked"
-                a11yReady -> "Core Watchdog active · Shizuku optional"
-                else -> "Avionics ready · arm Accessibility inside deck"
+                a11yReady && shizukuReady -> R.string.warmup_note_both
+                a11yReady -> R.string.warmup_note_a11y
+                else -> R.string.warmup_note_dormant
             }
         }
-        statusSubline = shizukuNote
+        statusSublineRes = shizukuNoteRes
         progress = WARMUP_STAGES[1].targetProgress
         delay(140L)
 
         // Stage 2: Resolve only active configured gesture tokens + installed launcher labels + tools
         currentStageIndex = 2
-        statusSubline = WARMUP_STAGES[2].detail
+        statusSublineRes = WARMUP_STAGES[2].detailRes
         val activeRawTokens = withContext(Dispatchers.IO) {
             val prefs = context.defaultPrefs()
             prefs.all
@@ -161,7 +164,7 @@ fun CentralCommandWarmupPanel(
 
         // Stage 3: Stage hidden Central Command pager behind this curtain so JIT & Compose warm up
         currentStageIndex = 3
-        statusSubline = WARMUP_STAGES[3].detail
+        statusSublineRes = WARMUP_STAGES[3].detailRes
         onStageDeck()
         repeat(5) {
             withFrameNanos { }
@@ -192,7 +195,7 @@ fun CentralCommandWarmupPanel(
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "✦ ENGINE IGNITION · v${BuildConfig.VERSION_NAME}",
+                    text = lsString(R.string.warmup_badge_version, BuildConfig.VERSION_NAME),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
@@ -214,14 +217,14 @@ fun CentralCommandWarmupPanel(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = WARMUP_STAGES[currentStageIndex].title,
+                        text = lsString(WARMUP_STAGES[currentStageIndex].titleRes),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = lsColors.textPrimary,
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        text = statusSubline,
+                        text = lsString(statusSublineRes),
                         fontSize = 11.sp,
                         color = lsColors.accentInfo,
                         textAlign = TextAlign.Center
@@ -257,7 +260,7 @@ fun CentralCommandWarmupPanel(
                                     .background(dotColor)
                             )
                             Text(
-                                text = stage.title,
+                                text = lsString(stage.titleRes),
                                 fontSize = 11.sp,
                                 fontWeight = if (isActive || isDone) FontWeight.SemiBold else FontWeight.Normal,
                                 color = when {
@@ -269,9 +272,9 @@ fun CentralCommandWarmupPanel(
                             )
                             Text(
                                 text = when {
-                                    isDone -> "READY"
+                                    isDone -> lsString(R.string.warmup_status_ready)
                                     isActive -> "..."
-                                    else -> "QUEUED"
+                                    else -> lsString(R.string.warmup_status_queued)
                                 },
                                 fontSize = 9.5.sp,
                                 fontFamily = FontFamily.Monospace,
@@ -299,7 +302,7 @@ fun CentralCommandWarmupPanel(
                         onProceedAnyway()
                         Toast.makeText(
                             context,
-                            "Opening deck while remaining warm-up finishes",
+                            lsString(R.string.warmup_toast_bypass),
                             Toast.LENGTH_SHORT
                         ).show()
                     },
@@ -308,14 +311,14 @@ fun CentralCommandWarmupPanel(
                     border = BorderStroke(0.9.dp, lsColors.textPrimary.copy(alpha = 0.26f))
                 ) {
                     Text(
-                        text = "Proceed to Central Command anyway",
+                        text = lsString(R.string.warmup_btn_proceed),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = lsColors.textPrimary
                     )
                 }
                 Text(
-                    text = "Might be laggy for a few seconds while background setup finishes",
+                    text = lsString(R.string.warmup_caution),
                     fontSize = 10.sp,
                     color = lsColors.textPrimary.copy(alpha = 0.58f),
                     textAlign = TextAlign.Center

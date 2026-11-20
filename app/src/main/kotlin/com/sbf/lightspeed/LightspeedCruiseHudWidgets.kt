@@ -1,5 +1,9 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Color
@@ -46,7 +50,7 @@ internal fun LightspeedCruiseOverlay.getSafeHudTopOffset(): Float {
     val sensorSafe = if (isSensorEnabled) sensorPx + 2f * dp else 0f
     val cutoutSafe = if (cutoutBottom > 0f) cutoutBottom + 2f * dp else 0f
     val baseSafeTop = if (isLandscape) 16f * dp else 34f * dp
-    return maxOf(baseSafeTop, cutoutSafe, sensorSafe).coerceIn(16f * dp, 44f * dp)
+    return maxOf(baseSafeTop, cutoutSafe, sensorSafe).coerceIn(16f * dp, 76f * dp)
 }
 
 internal fun LightspeedCruiseOverlay.getHudScale(): Float {
@@ -105,6 +109,8 @@ internal fun LightspeedCruiseOverlay.computeHudSlotBounds() {
         hudSlot2Rect.set(0f, 0f, 0f, 0f)
         hudStripRect.set(0f, 0f, 0f, 0f)
         hudContentBounds.set(0f, 0f, 0f, 0f)
+        hudMaxScroll = 0f
+        hudScrollOffset = 0f
         return
     }
 
@@ -122,13 +128,20 @@ internal fun LightspeedCruiseOverlay.computeHudSlotBounds() {
 
     hudContentBounds.set(overallBounds)
 
-    hudScrollOffset = 0f
     val maxAllowedHudHeight = if (isHudEditMode) h * 0.88f else h * 0.48f
-    val visibleBottom = if (!isFarSplit && overallBounds.height() > maxAllowedHudHeight) {
-        topY + maxAllowedHudHeight
+    val hudBottomLimit = if (isFarSplit || isHudEditMode) {
+        (h * 0.94f).coerceAtLeast(topY + 120f * dp)
+    } else {
+        minOf(topY + maxAllowedHudHeight, h * 0.58f)
+    }
+    val visibleBottom = if (overallBounds.bottom > hudBottomLimit) {
+        hudBottomLimit
     } else {
         overallBounds.bottom
     }
+    val nextMaxScroll = if (activeCategoryHudItems.isEmpty()) 0f else (overallBounds.bottom - visibleBottom).coerceAtLeast(0f)
+    hudMaxScroll = nextMaxScroll
+    hudScrollOffset = hudScrollOffset.coerceIn(0f, nextMaxScroll)
 
     if (isHudEditMode) {
         val marginX = if (isTablet) 28f * dp else if (isLandscape) 20f * dp else 16f * dp
@@ -205,6 +218,34 @@ internal fun LightspeedCruiseOverlay.getCategoryGridTop(catId: String): Float {
     }
 }
 
+/**
+ * Recomputes HUD widget slot bounds, clamps HUD scroll, updates AppWidget views, and rebuilds the
+ * app grid layout below the updated widget area so adding, removing, resizing, or reopening widgets
+ * immediately expands or springs back the app grid space.
+ */
+internal fun LightspeedCruiseOverlay.refreshHudAndAppGridLayout() {
+    computeHudSlotBounds()
+    hudScrollOffset = hudScrollOffset.coerceIn(0f, hudMaxScroll)
+    updateCategoryAppWidgetView()
+    categoryGridCache.clear()
+    categoryHeightCache.clear()
+    if (activeCatIndex in cachedCategories.indices) {
+        val catId = cachedCategories[activeCatIndex].id
+        if (cachedApps.isEmpty()) {
+            cachedApps = dataBridge.getAppsForCategory(catId)
+            categoryAppsCache[catId] = cachedApps
+        }
+        buildPackedGridLayout()
+        categoryGridCache[catId] = ArrayList(placedAppsList)
+        categoryHeightCache[catId] = totalGridContentHeight
+        val gTop = getCategoryGridTop(catId)
+        val gScope = (height.toFloat() * 0.98f - gTop).coerceAtLeast(1f)
+        val maxAppScroll = kotlin.math.max(0f, totalGridContentHeight - gScope)
+        viewportScrollOffset = viewportScrollOffset.coerceIn(0f, maxAppScroll)
+    }
+    invalidate()
+}
+
 internal fun LightspeedCruiseOverlay.handleTopHudStripTap(x: Float, y: Float): Boolean {
     if (isHudEditMode) {
         return handleHudEditModeTap(x, y)
@@ -279,7 +320,22 @@ internal fun LightspeedCruiseOverlay.handleSingleHudCardTap(
             val timelineTop = bounds.bottom - 31f * cardDp
             if (y in timelineTop..bounds.bottom) {
                 triggerHardwareHaptic(20, 100)
-                openInPlaceCountdownModal(catId)
+                openInPlaceCountdownModal(catId, slotIndex)
+                return true
+            }
+
+            val ignoreHit = screenTimeIgnoreBtnRects[slotIndex]
+            if (ignoreHit != null && !ignoreHit.isEmpty && RectF(ignoreHit).apply { inset(-3f * cardDp, -3f * cardDp) }.contains(x, y)) {
+                triggerHardwareHaptic(18, 90)
+                dismissOverlay()
+                try {
+                    val intent = Intent(context, com.sbf.lightspeed.settings.ConsciousAirlockConfigActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        putExtra(com.sbf.lightspeed.settings.ConsciousAirlockConfigActivity.EXTRA_MODE, com.sbf.lightspeed.settings.ConsciousAirlockConfigActivity.MODE_SCREEN_TIME_IGNORE)
+                        putExtra(com.sbf.lightspeed.settings.ConsciousAirlockConfigActivity.EXTRA_RETURN_CATEGORY_ID, catId)
+                    }
+                    context.startActivity(intent)
+                } catch (_: Exception) {}
                 return true
             }
 
@@ -291,13 +347,25 @@ internal fun LightspeedCruiseOverlay.handleSingleHudCardTap(
             val chipRowBottom = bounds.top + 33f * cardDp
             val bMode = LightspeedCruiseHudPods.getBatteryMode(context, catId, slotIndex)
             if (y <= chipRowBottom) {
-                val hasSpan = (bMode == "apps")
+                val hasSpan = (bMode == "apps" || bMode == "system")
+                val infoHit = if (hasSpan) hudChipInfoRects[slotIndex]?.takeIf { !it.isEmpty } else null
                 val viewHit = hudChipPrimaryRects[slotIndex]?.takeIf { !it.isEmpty }
                     ?: RectF(bounds.right - 90f * cardDp, bounds.top, bounds.right - 12f * cardDp, chipRowBottom)
                 val spanHit = hudChipSecondaryRects[slotIndex]?.takeIf { !it.isEmpty }
                     ?: if (hasSpan) RectF(viewHit.left - 80f * cardDp, bounds.top, viewHit.left - 4f * cardDp, chipRowBottom) else null
 
-                if (RectF(viewHit).apply { inset(-3f * cardDp, -4f * cardDp) }.contains(x, y)) {
+                if (infoHit != null && RectF(infoHit).apply { inset(-3f * cardDp, -4f * cardDp) }.contains(x, y)) {
+                    triggerHardwareHaptic(18, 90)
+                    batterySpanInfoBubbleRect.set(infoHit)
+                    val curSpan = LightspeedCruiseHudPods.getBatterySpan(context, catId, slotIndex)
+                    batterySpanInfoKey = if (bMode == "system") {
+                        if (curSpan == "today") "today" else "7d"
+                    } else curSpan
+                    batterySpanInfoMode = bMode
+                    isBatterySpanInfoBubbleOpen = !isBatterySpanInfoBubbleOpen
+                    invalidate()
+                    return true
+                } else if (RectF(viewHit).apply { inset(-3f * cardDp, -4f * cardDp) }.contains(x, y)) {
                     LightspeedCruiseHudPods.cycleBatteryMode(context, catId, slotIndex)
                     triggerHardwareHaptic(16, 80)
                     invalidate()
@@ -477,7 +545,13 @@ internal fun LightspeedCruiseOverlay.drawCategoryTopHudStrip(
         if (isOpenedFromLeftFlank) w else (w * 0.5f)
     } else w
     val hudTopLimit = getSafeHudTopOffset()
-    val hudBottomLimit = if (isFarSplit) height.toFloat() * 0.96f else (hudStripRect.bottom + 10f * dp)
+    val hudBottomLimit = if (isFarSplit || isHudEditMode) {
+        height.toFloat() * 0.94f
+    } else if (hudMaxScroll > 0f) {
+        hudStripRect.bottom + 2f * dp
+    } else {
+        hudStripRect.bottom + 10f * dp
+    }
 
     val hudLayerCount = canvas.saveLayer(hudStartX, hudTopLimit, hudEndX, hudBottomLimit, null)
     canvas.clipRect(hudStartX, hudTopLimit, hudEndX, hudBottomLimit)
@@ -512,6 +586,19 @@ internal fun LightspeedCruiseOverlay.drawCategoryTopHudStrip(
         }
     }
     canvas.translate(0f, hudScrollOffset)
+    if (hudMaxScroll > 2f) {
+        LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+            canvas = canvas,
+            left = hudStartX,
+            top = hudTopLimit,
+            right = hudEndX,
+            bottom = hudBottomLimit,
+            featherTopPx = if (hudScrollOffset > 0.5f) 16f * dp else 0f,
+            featherBottomPx = if (hudScrollOffset < hudMaxScroll - 0.5f) 18f * dp else 0f,
+            density = dp,
+            seed = 7331
+        )
+    }
     canvas.restoreToCount(hudLayerCount)
 
     if (!widgetSettlePending) {
@@ -549,9 +636,12 @@ internal fun LightspeedCruiseOverlay.drawSingleHudCard(
     val isFrameless = isWidgetLiveVisible || (mode == LightspeedCruiseHudPods.MODE_APP_AND_CAT)
 
     if (!isFrameless) {
-        // Card Surface Background
+        // Card Surface Background: use high masking opacity during Category Cruise so scrolling
+        // category names sliding underneath never bleed through Lightspeed's own widgets;
+        // preserve translucent 190/255 glass look in Grid & Sticky Pin.
+        val baseCardAlpha = if (currentLayer == CruiseLayer.CATEGORY) 246 else 190
         highlightPaint.style = Paint.Style.FILL
-        highlightPaint.color = Color.argb((190 * alphaFactor).toInt().coerceIn(0, 255), 10, 14, 22)
+        highlightPaint.color = Color.argb((baseCardAlpha * alphaFactor).toInt().coerceIn(0, 255), 10, 14, 22)
         canvas.drawRoundRect(bounds, cornerRadius, cornerRadius, highlightPaint)
 
         // Tactical Border
@@ -610,13 +700,13 @@ internal fun LightspeedCruiseOverlay.drawAppOnlyHudStrip(
     val subY = if (isSingleCell) bounds.centerY() + 11f * density else bounds.top + 39f * density
 
     textPaint.textAlign = Paint.Align.CENTER
-    textPaint.typeface = Typeface.DEFAULT_BOLD
+    textPaint.typeface = overlayTypeface(isBold = true)
     textPaint.textSize = if (isSingleCell) 12.5f * density else 13.5f * density
     textPaint.color = Color.WHITE
     textPaint.alpha = (255 * alpha).toInt()
     canvas.drawText(text, bounds.centerX(), textY, textPaint)
 
-    textPaint.typeface = Typeface.DEFAULT
+    textPaint.typeface = overlayTypeface(isBold = false)
     textPaint.textSize = if (isSingleCell) 9.2f * density else 10f * density
     textPaint.color = accent
     textPaint.alpha = (210 * alpha).toInt()
@@ -633,7 +723,7 @@ internal fun LightspeedCruiseOverlay.drawAppAndCatHudStrip(
 ) {
     val currentSector = (activeCatIndex + 1).coerceAtLeast(1).toString().padStart(2, '0')
     val totalSectors = cachedCategories.size.coerceAtLeast(1).toString().padStart(2, '0')
-    val line1 = "SECTOR $currentSector / $totalSectors  ·  ${categoryLabel.uppercase()}"
+    val line1 = lsString(R.string.hud_sector_hdr, currentSector, totalSectors, categoryLabel.uppercase())
 
     val focused = activeItem
     val line2 = if (focused != null) {
@@ -648,13 +738,13 @@ internal fun LightspeedCruiseOverlay.drawAppAndCatHudStrip(
     val line2Y = if (isSingleCell) bounds.centerY() + 11f * density else bounds.top + 39f * density
 
     textPaint.textAlign = Paint.Align.CENTER
-    textPaint.typeface = Typeface.DEFAULT_BOLD
+    textPaint.typeface = overlayTypeface(isBold = true)
     textPaint.textSize = if (isSingleCell) 11.5f * density else 12f * density
     textPaint.color = Color.WHITE
     textPaint.alpha = (255 * alpha).toInt()
     canvas.drawText(line1, bounds.centerX(), line1Y, textPaint)
 
-    textPaint.typeface = Typeface.DEFAULT
+    textPaint.typeface = overlayTypeface(isBold = false)
     textPaint.textSize = if (isSingleCell) 9.2f * density else 9.8f * density
     textPaint.color = accent
     textPaint.alpha = (220 * alpha).toInt()

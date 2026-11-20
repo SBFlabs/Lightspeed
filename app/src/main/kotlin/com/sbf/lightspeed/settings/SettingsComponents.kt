@@ -213,7 +213,12 @@ fun PowerGestureMappingRow(
                                 maxLines = 1
                             )
                         } else {
-                            val displayLabel = labelCache[currentValue] ?: resolveDynamicTokenLabel(context, currentValue)
+                            val cachedLabel by remember(currentValue, labelCache) {
+                                derivedStateOf { labelCache[currentValue] }
+                            }
+                            val displayLabel = remember(currentValue, cachedLabel) {
+                                cachedLabel ?: resolveDynamicTokenLabel(context, currentValue)
+                            }
                             Text(
                                 text = displayLabel,
                                 fontSize = 11.5.sp,

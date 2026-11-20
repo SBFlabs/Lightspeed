@@ -13,8 +13,14 @@ private val overlayScreenLoc = IntArray(2)
 internal fun LightspeedStatusBarOverlay.handleDraw(canvas: Canvas, superCall: () -> Unit) {
     superCall()
     val d = resources.displayMetrics.density
-    val screenW = resources.displayMetrics.widthPixels.toFloat()
-    val screenH = resources.displayMetrics.heightPixels.toFloat()
+    val wm = context.getSystemService(android.content.Context.WINDOW_SERVICE) as? android.view.WindowManager
+    val activeBounds = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && wm != null) {
+        wm.currentWindowMetrics.bounds
+    } else null
+    val metricsW = activeBounds?.width()?.toFloat() ?: resources.displayMetrics.widthPixels.toFloat()
+    val metricsH = activeBounds?.height()?.toFloat() ?: resources.displayMetrics.heightPixels.toFloat()
+    val screenW = if (width > 0) width.toFloat() else metricsW
+    val screenH = metricsH
     val h = height.toFloat()
 
     getLocationOnScreen(overlayScreenLoc)
@@ -26,7 +32,7 @@ internal fun LightspeedStatusBarOverlay.handleDraw(canvas: Canvas, superCall: ()
     )
 
     val orientation = resources.configuration.orientation
-    val isLandscape = orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape = (screenW > screenH) || (orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE)
 
     val m3Primary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         context.resources.getColor(android.R.color.system_accent1_300, context.theme)

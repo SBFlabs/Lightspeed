@@ -64,6 +64,14 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
     }
 
     windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    com.sbf.lightspeed.settings.DeckThemeManager.refresh(this)
+    com.sbf.lightspeed.settings.BackdropBlurModeManager.init(this)
+    com.sbf.lightspeed.settings.CentralCommandActivity.updateCrossWindowBlurState(
+        com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseNativeBlur(
+            windowManager,
+            com.sbf.lightspeed.settings.BackdropBlurModeManager.modeFlow.value
+        )
+    )
     displayManager = getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
     displayManager?.registerDisplayListener(displayListener, handler)
 

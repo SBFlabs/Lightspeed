@@ -27,6 +27,11 @@ internal fun LightspeedCruiseOverlay.performStartCruiseFromFlank(isLeft: Boolean
     currentDetectedGesture = MacroGesture.NONE
     overScrollBoundaryAccumulator = 0f
     settingsCategoryAppended = false
+    settingsRevealedByHold = false
+    settingsRevealHapticFired = false
+    cancelBottomHoldReveal()
+    categoryFilteredAnchorY = startRawY
+    overScrollAnchorRawY = -1f
 
     currentActiveZone = TouchZone.CENTER_CRUISE
     isCruising = true
@@ -235,8 +240,7 @@ internal fun LightspeedCruiseOverlay.performFlankTouchEvent(isLeft: Boolean, eve
                     val launchTarget = activeItem
                     if (launchTarget != null) {
                         val placed = placedAppsList.find { it.app == launchTarget }
-                        val focalX = placed?.bounds?.centerX() ?: (width / 2f)
-                        val focalY = placed?.bounds?.centerY() ?: (height / 2f)
+                        val (focalX, focalY) = resolvePlacedItemIconCenter(placed)
                         triggerHyperdriveWarpLaunch(focalX, focalY) {
                             executeLaunch(launchTarget)
                         }

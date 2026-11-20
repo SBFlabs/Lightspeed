@@ -1,5 +1,7 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.settings.verticalScrollWithEdgeFade
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,6 +26,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -121,10 +125,12 @@ fun RefuelingWidgetTuneModal(
     onResetSpec: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val activeDensity = LocalDensity.current
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
+        CompositionLocalProvider(LocalDensity provides activeDensity) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -166,6 +172,7 @@ fun RefuelingWidgetTuneModal(
                         .padding(14.dp)
                 )
             }
+        }
         }
     }
 }
@@ -253,7 +260,7 @@ private fun RefuelingWidgetTuneBody(
             modifier = Modifier
                 .weight(1f, fill = false)
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
+                .verticalScrollWithEdgeFade(),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             if (isGridMode) {

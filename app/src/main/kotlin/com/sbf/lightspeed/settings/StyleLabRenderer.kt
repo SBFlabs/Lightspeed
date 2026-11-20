@@ -74,18 +74,19 @@ private val ROCKET_ICON_SIZE_DP = 54.dp
 private fun rememberResolvedStyleColors(preset: DeckThemeSnapshot): ResolvedStyleColors {
     val scheme = MaterialTheme.colorScheme
     val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    return remember(preset.styleId, scheme, isApi31Plus) {
+    return remember(preset, scheme, isApi31Plus) {
         val basePanel = Color(preset.panelColorArgb)
         val baseTint = Color(preset.tintArgb)
         val baseBorder = Color(preset.borderColorArgb)
         val baseGlow = Color(preset.glowColorArgb)
 
-        if (preset.usesSystemDynamicColor && isApi31Plus && preset.styleId == "adaptive") {
+        val isMaterial3 = preset.styleId == DeckStylePresets.MATERIAL_3.styleId
+        if (preset.usesSystemDynamicColor && (isMaterial3 || (isApi31Plus && preset.styleId == "adaptive"))) {
             ResolvedStyleColors(
-                panelColor = scheme.surfaceContainerHigh,
+                panelColor = if (isMaterial3) scheme.surfaceContainerLow else scheme.surfaceContainerHigh,
                 tintColor = scheme.primary,
-                borderColor = scheme.primary.copy(alpha = 0.80f),
-                glowColor = scheme.tertiary
+                borderColor = if (isMaterial3) scheme.outlineVariant else scheme.primary.copy(alpha = 0.80f),
+                glowColor = if (isMaterial3) Color.Transparent else scheme.tertiary
             )
         } else {
             ResolvedStyleColors(basePanel, baseTint, baseBorder, baseGlow)
@@ -121,11 +122,11 @@ fun StyleLabCardPreview(
     }
 
     // Remembered native Paints for outer glow & shadow layers (API 28+, zero per-frame allocations)
-    val glowPaint = remember(preset.styleId, resolvedColors.glowColor, density, isApi28Plus) {
+    val glowPaint = remember(preset, resolvedColors.glowColor, density, isApi28Plus) {
         rememberOuterGlowPaint(preset, resolvedColors.glowColor, density, isApi28Plus)
     }
 
-    val shadowPaint = remember(preset.styleId, density, isApi28Plus) {
+    val shadowPaint = remember(preset.styleId, preset.shadowLayers, density, isApi28Plus) {
         if (isApi28Plus && preset.shadowLayers >= 1) {
             android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.DITHER_FLAG).apply {
                 isDither = true
@@ -137,22 +138,22 @@ fun StyleLabCardPreview(
     }
 
     // Remembered RenderEffects for API 31+ fixed blur and API 33+ progressive blur
-    val primaryBlurEffect = remember(preset.styleId, density, isApi31Plus, isApi33Plus) {
-        if (isApi31Plus) {
+    val primaryBlurEffect = remember(preset.styleId, preset.windowBlurRadiusPx, preset.inAppBlurRadiusDp, preset.progressiveStartBlurPx, density, isApi31Plus, isApi33Plus) {
+        if (isApi31Plus && preset.windowBlurRadiusPx > 0) {
             val radiusPx = if (preset.styleId == "jelly") {
-                3f
+                (preset.windowBlurRadiusPx * 0.14f).coerceIn(2f, 20f)
             } else if (isApi33Plus && preset.isProgressive) {
                 (preset.progressiveStartBlurPx * 0.55f).coerceAtLeast(3f)
             } else {
-                with(density) { (preset.inAppBlurRadiusDp * 0.75f).dp.toPx().coerceAtLeast(4f) }
+                (preset.windowBlurRadiusPx * 0.45f).coerceIn(3f, 36f)
             }
             RenderEffect.createBlurEffect(radiusPx, radiusPx, Shader.TileMode.CLAMP).asComposeRenderEffect()
         } else null
     }
 
-    val progressiveEndBlurEffect = remember(preset.styleId, isApi33Plus) {
-        if (isApi33Plus && preset.isProgressive) {
-            val endPx = (preset.progressiveEndBlurPx * 0.75f).coerceAtLeast(16f)
+    val progressiveEndBlurEffect = remember(preset.styleId, preset.windowBlurRadiusPx, preset.progressiveEndBlurPx, isApi33Plus) {
+        if (isApi33Plus && preset.isProgressive && preset.windowBlurRadiusPx > 0) {
+            val endPx = (maxOf(preset.progressiveEndBlurPx, preset.windowBlurRadiusPx) * 0.75f).coerceAtLeast(16f)
             RenderEffect.createBlurEffect(endPx, endPx, Shader.TileMode.CLAMP).asComposeRenderEffect()
         } else null
     }
@@ -165,13 +166,19 @@ fun StyleLabCardPreview(
             .height(PREVIEW_HEIGHT_DP)
             .clip(RoundedCornerShape(14.dp))
     ) {
-        // 1. Unblurred sample backdrop per style (gradients, soft blobs, paths & stars)
+        // 1. Unblurred sample backdrop per style (gradients, soft blobs, paths & stars) + backdrop opacity scrim
+        val backdropDimAlpha = (preset.dimAmount * 0.42f).coerceIn(0f, 0.72f)
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .drawWithCache {
                     val backdropSpec = buildSampleBackdropCache(preset.styleId, size, density)
-                    onDrawBehind { drawSampleBackdrop(backdropSpec) }
+                    onDrawBehind {
+                        drawSampleBackdrop(backdropSpec)
+                        if (backdropDimAlpha > 0.01f) {
+                            drawRect(Color.Black.copy(alpha = backdropDimAlpha))
+                        }
+                    }
                 }
         )
 
@@ -293,6 +300,7 @@ fun StyleLabCardPreview(
                 .padding(horizontal = 9.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val cardFg = if (preset.styleId == DeckStylePresets.MATERIAL_3.styleId) MaterialTheme.colorScheme.onSurface else Color.White
             Box(
                 modifier = Modifier
                     .size(26.dp)
@@ -305,7 +313,7 @@ fun StyleLabCardPreview(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Tune, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                Icon(Icons.Default.Tune, contentDescription = null, tint = cardFg, modifier = Modifier.size(14.dp))
             }
             Spacer(modifier = Modifier.width(7.dp))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
@@ -313,7 +321,7 @@ fun StyleLabCardPreview(
                     text = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CENTRAL_COMMAND),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = cardFg,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     lineHeight = 11.sp
@@ -321,7 +329,7 @@ fun StyleLabCardPreview(
                 Text(
                     text = "Quick access to your tools",
                     fontSize = 8.sp,
-                    color = Color.White.copy(alpha = 0.78f),
+                    color = cardFg.copy(alpha = 0.78f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     lineHeight = 9.5.sp
@@ -347,7 +355,7 @@ fun StyleLabCardPreview(
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.80f),
+                    tint = cardFg.copy(alpha = 0.80f),
                     modifier = Modifier.size(15.dp)
                 )
             }

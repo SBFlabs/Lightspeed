@@ -124,10 +124,10 @@ fun HudTelemetryIndicatorsSection(
     isHorizonRailTextExpanded: Boolean,
     onToggleHorizonRailText: () -> Unit,
     onShowNotificationAccessDialog: () -> Unit,
-    onRefreshNeeded: () -> Unit
+    onRefreshNeeded: () -> Unit,
+    languageMode: LightspeedLanguageEngine.LanguageMode = LightspeedLanguageEngine.modeFlow.value
 ) {
-    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
-    val (telemetryTitle, telemetrySub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.TELEMETRY_AND_INDICATORS, currentLanguageMode)
+    val (telemetryTitle, telemetrySub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.TELEMETRY_AND_INDICATORS, languageMode)
 
     CompactAccordionSection(
         title = telemetryTitle,

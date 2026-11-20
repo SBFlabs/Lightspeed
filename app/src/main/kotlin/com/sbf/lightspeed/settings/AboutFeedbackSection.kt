@@ -1,5 +1,7 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.system.lsString
+
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -92,9 +94,19 @@ fun AboutFeedbackSection(context: Context) {
     var showBuildVerificationDialog by rememberSaveable { mutableStateOf(false) }
     var showInfinityDialog by rememberSaveable { mutableStateOf(false) }
     var showSupporterReminderPreview by rememberSaveable { mutableStateOf(false) }
-    val buildVerification = remember { DistributionVerifier.inspectBuild(context) }
+    val buildVerification by produceState(
+        initialValue = DistributionVerifier.getCachedVerification(),
+        key1 = isExpanded || showBuildVerificationDialog
+    ) {
+        if (value == null && (isExpanded || showBuildVerificationDialog)) {
+            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                DistributionVerifier.inspectBuild(context)
+            }
+        }
+    }
     val openWhatsNewMorph = LocalOpenWhatsNew.current
     val testWarmupGate = LocalTestWarmupGate.current
+    val testCoreSetupGate = LocalTestCoreSetupGate.current
     val lsColors = LightspeedStyle.colors
 
     if (showSupporterReminderPreview) {
@@ -113,10 +125,10 @@ fun AboutFeedbackSection(context: Context) {
         LightspeedInfinityDialog(context = context, onDismiss = { showInfinityDialog = false })
     }
 
-    if (showBuildVerificationDialog) {
+    if (showBuildVerificationDialog && buildVerification != null) {
         BuildVerificationDialog(
             context = context,
-            verification = buildVerification,
+            verification = buildVerification!!,
             onDismiss = { showBuildVerificationDialog = false }
         )
     }
@@ -124,7 +136,7 @@ fun AboutFeedbackSection(context: Context) {
     if (showLicensesDialog) {
         DeckDialog(
             onDismissRequest = { showLicensesDialog = false },
-            title = { Text("Open-Source Notices", fontWeight = FontWeight.Bold) },
+            title = { Text(lsString(R.string.about_oss_title), fontWeight = FontWeight.Bold) },
             text = {
                 Column(
                     modifier = Modifier
@@ -185,7 +197,7 @@ fun AboutFeedbackSection(context: Context) {
     }
 
     CompactAccordionSection(
-        title = TEXT_SECTION_TITLE,
+        title = lsString(R.string.about_section_title),
         icon = {
             Icon(
                 imageVector = Icons.Outlined.Info,
@@ -211,32 +223,52 @@ fun AboutFeedbackSection(context: Context) {
                     modifier = Modifier.weight(1f)
                 )
                 Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                        .clickable {
-                            if (openWhatsNewMorph != null) {
-                                openWhatsNewMorph()
-                            } else {
-                                showSupporterReminderPreview = true
-                            }
-                        }
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = "What's New",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Open What's New",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                            .clickable { shareApp(context) }
+                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = TEXT_BUTTON_SHARE,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                            .clickable {
+                                if (openWhatsNewMorph != null) {
+                                    openWhatsNewMorph()
+                                } else {
+                                    showSupporterReminderPreview = true
+                                }
+                            }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = lsString(R.string.about_whats_new),
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = "Open What's New",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
             if (NightlyFeatures.isWarmupGateTesterEnabled && testWarmupGate != null) {
@@ -264,20 +296,29 @@ fun AboutFeedbackSection(context: Context) {
                     )
                 }
             }
-            Button(
-                onClick = { shareApp(context) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            if (NightlyFeatures.isCoreSetupGateTesterEnabled && testCoreSetupGate != null) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(lsColors.accent.copy(alpha = 0.12f))
+                        .clickable { testCoreSetupGate() }
+                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = null,
-                        modifier = Modifier.size(15.dp)
+                    Text(
+                        text = "Test Core Setup Gate${NightlyFeatures.BADGE_SUFFIX}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = lsColors.accent
                     )
-                    Text(TEXT_BUTTON_SHARE, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Test Core Setup Gate",
+                        tint = lsColors.accent,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
             Row(
@@ -288,13 +329,13 @@ fun AboutFeedbackSection(context: Context) {
                     onClick = { openIssuePage(context, buildBugUri(context)) },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(TEXT_BUTTON_BUG, fontSize = 11.5.sp, textAlign = TextAlign.Center)
+                    Text(lsString(R.string.about_btn_bug), fontSize = 11.5.sp, textAlign = TextAlign.Center)
                 }
                 OutlinedButton(
                     onClick = { openIssuePage(context, buildLanguageUri(context)) },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(TEXT_BUTTON_LANGUAGE, fontSize = 11.5.sp, textAlign = TextAlign.Center)
+                    Text(lsString(R.string.about_btn_lang), fontSize = 11.5.sp, textAlign = TextAlign.Center)
                 }
             }
 
@@ -315,126 +356,117 @@ fun AboutFeedbackSection(context: Context) {
                         contentDescription = null,
                         modifier = Modifier.size(15.dp)
                     )
-                    Text("Contribute OEM Diagnostics", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                    Text(lsString(R.string.about_oem_diag), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
 
-            AboutNoteBanner(text = TEXT_HINT)
+            AboutNoteBanner(text = lsString(R.string.about_hint_browser))
 
             OutlinedButton(
                 onClick = { openUrl(context, XDA_THREAD_URL) },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Forum,
-                        contentDescription = null,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Text("XDA Forums Thread", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
-
-            AboutNoteBanner(text = TEXT_COMMUNITIES_NOTE)
-
-            val (verifyIcon, verifyTint, verifySubtitle) = when (buildVerification.signatureStatus) {
-                SignatureStatus.OFFICIAL_RELEASE -> Triple(
-                    Icons.Default.CheckCircle,
-                    lsColors.accentOk,
-                    "Official SBF Labs Signature · ${buildVerification.installOrigin.displayName}"
-                )
-                SignatureStatus.NIGHTLY_DEV_BUILD -> Triple(
-                    Icons.Default.Shield,
-                    lsColors.accent,
-                    "Nightly Dev Build · ${buildVerification.installOrigin.displayName}"
-                )
-                SignatureStatus.CUSTOM_OR_UNVERIFIED -> Triple(
-                    Icons.Default.Warning,
-                    lsColors.accentWarn,
-                    "Custom Signature · Tap to verify & see official sources"
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(verifyTint.copy(alpha = 0.09f))
-                    .border(0.8.dp, verifyTint.copy(alpha = 0.30f), RoundedCornerShape(10.dp))
-                    .clickable { showBuildVerificationDialog = true }
-                    .padding(horizontal = 11.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(9.dp)
-            ) {
-                Icon(
-                    imageVector = verifyIcon,
-                    contentDescription = null,
-                    tint = verifyTint,
-                    modifier = Modifier.size(18.dp)
-                )
-                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Forum,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(lsString(R.string.about_xda), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                    }
                     Text(
-                        text = "Build Verification & Official Sources",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = lsColors.textPrimary
-                    )
-                    Text(
-                        text = verifySubtitle,
-                        fontSize = 10.5.sp,
+                        text = lsString(R.string.about_discussions),
+                        fontSize = 10.sp,
                         color = lsColors.textSecondary
                     )
                 }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "Inspect build verification",
-                    tint = verifyTint,
-                    modifier = Modifier.size(16.dp)
-                )
+            }
+
+            val resolvedVerification = buildVerification
+            if (resolvedVerification != null) {
+                val originLabel = if (resolvedVerification.installOrigin == com.sbf.lightspeed.system.InstallOrigin.DIRECT_SIDELOAD) {
+                    lsString(R.string.bver_origin_sideload)
+                } else {
+                    resolvedVerification.installOrigin.displayName
+                }
+                val (verifyIcon, verifyTint, verifySubtitle) = when (resolvedVerification.signatureStatus) {
+                    SignatureStatus.OFFICIAL_RELEASE -> Triple(
+                        Icons.Default.CheckCircle,
+                        lsColors.accentOk,
+                        lsString(R.string.about_verify_official, originLabel)
+                    )
+                    SignatureStatus.NIGHTLY_DEV_BUILD -> Triple(
+                        Icons.Default.Shield,
+                        lsColors.accent,
+                        lsString(R.string.about_verify_nightly, originLabel)
+                    )
+                    SignatureStatus.CUSTOM_OR_UNVERIFIED -> Triple(
+                        Icons.Default.Warning,
+                        lsColors.accentWarn,
+                        lsString(R.string.about_verify_custom)
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(verifyTint.copy(alpha = 0.09f))
+                        .border(0.8.dp, verifyTint.copy(alpha = 0.30f), RoundedCornerShape(10.dp))
+                        .clickable { showBuildVerificationDialog = true }
+                        .padding(horizontal = 11.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    Icon(
+                        imageVector = verifyIcon,
+                        contentDescription = null,
+                        tint = verifyTint,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = lsString(R.string.about_verify_title),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = lsColors.textPrimary
+                        )
+                        Text(
+                            text = verifySubtitle,
+                            fontSize = 10.5.sp,
+                            color = lsColors.textSecondary
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Inspect build verification",
+                        tint = verifyTint,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
 
             OutlinedButton(
                 onClick = { showLicensesDialog = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Open-Source Licenses (MIT / Apache 2.0)", fontSize = 11.5.sp)
+                Text(lsString(R.string.about_oss_lic), fontSize = 11.5.sp)
             }
 
-            // Support lives at the bottom: coffee, then the Infinity supporter tier.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // Support: Infinity supporter tier (Coffee is already pinned in the bottom bar).
+            OutlinedButton(
+                onClick = { showInfinityDialog = true },
+                modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedButton(
-                    onClick = {
-                        val url = if (com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) COFFEE_PAGE_URL else COFFEE_SHOP_URL
-                        openUrl(context, url)
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_buymeacoffee),
-                            contentDescription = "Buy Me a Coffee",
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(TEXT_BUTTON_COFFEE, fontSize = 11.5.sp, textAlign = TextAlign.Center)
-                    }
-                }
-                OutlinedButton(
-                    onClick = { showInfinityDialog = true },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Lightspeed ∞", fontSize = 11.5.sp, textAlign = TextAlign.Center)
-                }
+                Text("Lightspeed ∞", fontSize = 11.5.sp, textAlign = TextAlign.Center)
             }
 
-            AboutNoteBanner(annotatedText = buildGooglePayAnnotatedText(TEXT_SUPPORT_PAYMENT_NOTE))
+            AboutNoteBanner(annotatedText = buildGooglePayAnnotatedText(lsString(R.string.about_gpay_note)))
         }
     }
 }
@@ -625,7 +657,7 @@ private fun openIssuePage(context: Context, uri: Uri) {
         context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     } catch (e: ActivityNotFoundException) {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-        clipboard?.setPrimaryClip(ClipData.newPlainText("Lightspeed issue link", uri.toString()))
+        clipboard?.setPrimaryClip(ClipData.newPlainText(lsString(R.string.about_issue_link), uri.toString()))
         Toast.makeText(context, TEXT_NO_BROWSER, Toast.LENGTH_SHORT).show()
     }
 }

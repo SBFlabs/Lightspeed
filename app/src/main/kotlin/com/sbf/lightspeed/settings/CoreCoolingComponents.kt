@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -28,13 +31,13 @@ fun CoreCoolingRotarySchedulePicker(
     val lsColors = LightspeedStyle.colors
     val daysList = remember {
         listOf(
-            Pair(java.util.Calendar.MONDAY, "Monday"),
-            Pair(java.util.Calendar.TUESDAY, "Tuesday"),
-            Pair(java.util.Calendar.WEDNESDAY, "Wednesday"),
-            Pair(java.util.Calendar.THURSDAY, "Thursday"),
-            Pair(java.util.Calendar.FRIDAY, "Friday"),
-            Pair(java.util.Calendar.SATURDAY, "Saturday"),
-            Pair(java.util.Calendar.SUNDAY, "Sunday")
+            Pair(java.util.Calendar.MONDAY, lsString(R.string.day_mon)),
+            Pair(java.util.Calendar.TUESDAY, lsString(R.string.day_tue)),
+            Pair(java.util.Calendar.WEDNESDAY, lsString(R.string.day_wed)),
+            Pair(java.util.Calendar.THURSDAY, lsString(R.string.day_thu)),
+            Pair(java.util.Calendar.FRIDAY, lsString(R.string.day_fri)),
+            Pair(java.util.Calendar.SATURDAY, lsString(R.string.day_sat)),
+            Pair(java.util.Calendar.SUNDAY, lsString(R.string.day_sun))
         )
     }
 

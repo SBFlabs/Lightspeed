@@ -62,6 +62,13 @@ object NightlyFeatures {
         get() = BuildConfig.DEBUG
 
     /**
+     * Manual trigger inside About to replay the Arm Lightspeed Core setup gate (Shizuku 1-click vs
+     * Accessibility Service Only) in a simulated, side-effect-free preview. Nightly-Only.
+     */
+    val isCoreSetupGateTesterEnabled: Boolean
+        get() = BuildConfig.DEBUG
+
+    /**
      * Returns an inventory of all experimental features and their active gating status.
      * Used for pre-release audits and compliance verification.
      */
@@ -100,6 +107,13 @@ object NightlyFeatures {
                 description = "Manual debug launcher inside About to preview Post-Update What's New -> Engine Warm-Up Gate",
                 isNightlyOnly = true,
                 isEnabledInCurrentBuild = isWarmupGateTesterEnabled,
+                badge = if (BuildConfig.DEBUG) BADGE_SUFFIX.trim() else "HIDDEN_IN_STABLE"
+            ),
+            NightlyFeatureItem(
+                name = "Core Setup Gate Test Trigger",
+                description = "Manual debug launcher inside About to preview the Arm Lightspeed Core gate with simulated Shizuku states",
+                isNightlyOnly = true,
+                isEnabledInCurrentBuild = isCoreSetupGateTesterEnabled,
                 badge = if (BuildConfig.DEBUG) BADGE_SUFFIX.trim() else "HIDDEN_IN_STABLE"
             )
         )

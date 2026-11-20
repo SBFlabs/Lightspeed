@@ -37,6 +37,7 @@ import com.sbf.lightspeed.system.LightspeedNotificationListener
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedVocabulary
 import com.sbf.lightspeed.system.ShizukuGate
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collect
@@ -324,14 +325,14 @@ fun CentralCommandMatrixFields(
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Text(
-                            text = "CORE AVIONICS DORMANT",
+                            text = lsString(R.string.cc_core_dormant_title),
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
                     Text(
-                        text = "Lightspeed requires Accessibility Service to attach screen deflectors and capture gesture maneuvers.",
+                        text = lsString(R.string.cc_core_dormant_body),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
                     )
@@ -345,7 +346,7 @@ fun CentralCommandMatrixFields(
                                     if (rikka.shizuku.Shizuku.checkSelfPermission() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                                         val requested = ShizukuGate.requestIfAllowed()
                                         if (requested) {
-                                            android.widget.Toast.makeText(context, "Authorize Lightspeed in your Shizuku app or fork", android.widget.Toast.LENGTH_SHORT).show()
+                                            android.widget.Toast.makeText(context, lsString(R.string.cc_toast_authorize_shizuku), android.widget.Toast.LENGTH_SHORT).show()
                                             return@Button
                                         }
                                     }
@@ -353,11 +354,11 @@ fun CentralCommandMatrixFields(
                                 val revived = com.sbf.lightspeed.system.LightspeedWatchdogEngine.reviveAccessibilityService(context)
                                 if (revived) {
                                     isA11yActive = true
-                                    android.widget.Toast.makeText(context, ":: Core Avionics Armed!", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, lsString(R.string.cc_toast_core_armed), android.widget.Toast.LENGTH_SHORT).show()
                                 } else {
                                     com.sbf.lightspeed.system.LightspeedWatchdogEngine.openAccessibilitySettings(context)
                                     val serviceLabel = context.getString(R.string.accessibility_service_label)
-                                    android.widget.Toast.makeText(context, "Enable $serviceLabel in Accessibility Settings", android.widget.Toast.LENGTH_LONG).show()
+                                    android.widget.Toast.makeText(context, lsString(R.string.cc_toast_enable_a11y, serviceLabel), android.widget.Toast.LENGTH_LONG).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -366,7 +367,7 @@ fun CentralCommandMatrixFields(
                             ),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(":: ARM SERVICE", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(lsString(R.string.cc_core_dormant_arm), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
 
                         OutlinedButton(
@@ -375,8 +376,14 @@ fun CentralCommandMatrixFields(
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("◈ PERIMETER", fontSize = 12.sp)
+                            Text(lsString(R.string.cc_core_dormant_perimeter), fontSize = 12.sp)
                         }
+                    }
+                    OutlinedButton(
+                        onClick = { openLightspeedAppInfo(context) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(lsString(R.string.cc_core_dormant_restricted), fontSize = 11.5.sp)
                     }
                 }
             }
@@ -420,8 +427,8 @@ fun CentralCommandMatrixFields(
                     Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(22.dp))
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Media gestures need Notification Access", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = lsColors.textPrimary)
-                        Text("A gesture is set to control media, but Notification Access is off, so it will not work. Tap here to fix it.", fontSize = 11.sp, color = lsColors.textPrimary.copy(alpha = 0.85f))
+                        Text(lsString(R.string.cc_media_notif_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = lsColors.textPrimary)
+                        Text(lsString(R.string.cc_media_notif_body), fontSize = 11.sp, color = lsColors.textPrimary.copy(alpha = 0.85f))
                     }
                 }
             }

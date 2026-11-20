@@ -125,7 +125,7 @@ internal fun DeepSpaceRenderer.drawHangarGimbalAssembly(
                     val initial = appLabel.firstOrNull()?.uppercase() ?: "?"
                     textPaint.color = Color.WHITE
                     textPaint.textSize = currentSize * 0.44f
-                    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                    textPaint.typeface = hangarTypeface(state.context, isBold = true)
                     textPaint.textAlign = Paint.Align.CENTER
                     canvas.drawText(initial, iconCX, iconCY + (currentSize * 0.16f), textPaint)
 
@@ -249,16 +249,17 @@ internal fun DeepSpaceRenderer.drawHangarGimbalAssembly(
         val ny2 = cyGimbal + (innerHubR + 3.5f * d) * sin(a).toFloat()
         canvas.drawLine(nx1, ny1, nx2, ny2, elementPaint)
     }
-    textPaint.textSize = 8.5f * d
-    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    val hubTs = hangarTextScale(state.context).coerceIn(0.85f, 1.2f)
+    textPaint.textSize = 10.5f * d * hubTs
+    textPaint.typeface = hangarTypeface(state.context, isBold = true)
     textPaint.color = Color.WHITE
-    canvas.drawText("RING 0${activeHangarRing + 1}", cx, cyGimbal - 7f * d, textPaint)
-    textPaint.textSize = 8.5f * d
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ck_ring_num, activeHangarRing + 1).ifBlank { "RING 0${activeHangarRing + 1}" }, cx, cyGimbal - 7f * d, textPaint)
+    textPaint.textSize = 10.5f * d * hubTs
     textPaint.color = activeRingColor
-    canvas.drawText("[ ⊕ EDIT ]", cx, cyGimbal + 4f * d, textPaint)
-    textPaint.textSize = 7f * d
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ck_edit_badge).ifBlank { "[ ⊕ EDIT ]" }, cx, cyGimbal + 4f * d, textPaint)
+    textPaint.textSize = 9f * d * hubTs
     textPaint.color = Color.argb(160, 200, 220, 255)
-    canvas.drawText("${activeAppsList.size} APPS", cx, cyGimbal + 13f * d, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ck_apps_count, activeAppsList.size).ifBlank { "${activeAppsList.size} APPS" }, cx, cyGimbal + 13f * d, textPaint)
 
     // Target Indicator & Live Orbital Control Deck
     drawHangarOrbitalControls(

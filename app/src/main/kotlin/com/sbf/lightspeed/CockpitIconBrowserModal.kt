@@ -1,5 +1,7 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.settings.verticalEdgeFade
+
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -357,12 +359,15 @@ fun IconPackBrowserModal(
                     )
                 }
             } else {
+                val customGridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
                 LazyVerticalGrid(
+                    state = customGridState,
                     columns = GridCells.Adaptive(minSize = 64.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f, fill = false)
-                        .heightIn(max = 320.dp),
+                        .heightIn(max = 320.dp)
+                        .verticalEdgeFade(customGridState),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -430,11 +435,14 @@ fun IconPackBrowserModal(
                     )
                 }
             } else {
+                val vectorGridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
                 LazyVerticalGrid(
+                    state = vectorGridState,
                     columns = GridCells.Adaptive(minSize = 66.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f, fill = false),
+                        .weight(1f, fill = false)
+                        .verticalEdgeFade(vectorGridState),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -473,12 +481,15 @@ fun IconPackBrowserModal(
                     )
                 }
             } else {
+                val customGridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
                 LazyVerticalGrid(
+                    state = customGridState,
                     columns = GridCells.Adaptive(minSize = 64.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f, fill = false)
-                        .heightIn(max = 320.dp),
+                        .heightIn(max = 320.dp)
+                        .verticalEdgeFade(customGridState),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -543,12 +554,15 @@ fun IconPackBrowserModal(
                     )
                 }
             } else {
+                val packGridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
                 LazyVerticalGrid(
+                    state = packGridState,
                     columns = GridCells.Adaptive(minSize = 52.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f, fill = false)
-                        .heightIn(max = 320.dp),
+                        .heightIn(max = 320.dp)
+                        .verticalEdgeFade(packGridState),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {

@@ -1,6 +1,7 @@
 package com.sbf.lightspeed.system
 
 import android.content.Context
+import com.sbf.lightspeed.R
 
 data class MethodOption(
     val id: String,
@@ -33,32 +34,32 @@ object ActionMethods {
     fun options(token: String): List<MethodOption> {
         return when (canonical(token)) {
             "system:back" -> listOf(
-                MethodOption(AUTO, "Automatic", "Accessibility with Shizuku fallback"),
-                MethodOption(A11Y_ACTION, "Accessibility action", "performGlobalAction"),
-                MethodOption(SHIZUKU, "Shizuku", "Direct input injection / lsinputd")
+                MethodOption(AUTO, lsString(R.string.meth_automatic), lsString(R.string.meth_sub_a11y_shizuku)),
+                MethodOption(A11Y_ACTION, lsString(R.string.meth_a11y_action), "performGlobalAction"),
+                MethodOption(SHIZUKU, "Shizuku", lsString(R.string.meth_sub_direct_input))
             )
             "system:split_screen" -> listOf(
-                MethodOption(AUTO, "Automatic", "current fallback chain"),
+                MethodOption(AUTO, lsString(R.string.meth_automatic), lsString(R.string.meth_sub_fallback_chain)),
                 MethodOption(SHIZUKU, "Shizuku", ""),
-                MethodOption(A11Y_ACTION, "Accessibility action", "system split action"),
-                MethodOption(RECENTS_CLICK, "Recents click", "taps through Recents like a finger")
+                MethodOption(A11Y_ACTION, lsString(R.string.meth_a11y_action), lsString(R.string.meth_sub_system_split)),
+                MethodOption(RECENTS_CLICK, lsString(R.string.meth_recents_click), lsString(R.string.meth_sub_recents_click))
             )
             "system:close_app" -> listOf(
-                MethodOption(AUTO, "Automatic", ""),
+                MethodOption(AUTO, lsString(R.string.meth_automatic), ""),
                 MethodOption(SHIZUKU, "Shizuku", ""),
-                MethodOption(RECENTS_DISMISS, "Recents dismiss", "uses the card's dismiss action")
+                MethodOption(RECENTS_DISMISS, lsString(R.string.meth_recents_dismiss), lsString(R.string.meth_sub_recents_dismiss))
             )
             "system:popup_window" -> listOf(
-                MethodOption(AUTO, "Automatic", "current behavior"),
-                MethodOption(SHIZUKU, "Shizuku", "native freeform launch"),
-                MethodOption(RECENTS_BUTTON, "Recents button", "taps the pop-up button on the app's Recents card")
+                MethodOption(AUTO, lsString(R.string.meth_automatic), lsString(R.string.meth_sub_current_behavior)),
+                MethodOption(SHIZUKU, "Shizuku", lsString(R.string.meth_sub_native_freeform)),
+                MethodOption(RECENTS_BUTTON, lsString(R.string.meth_recents_button), lsString(R.string.meth_sub_recents_button))
             )
             "system:scroll_to_top", "system:scroll_to_bottom" -> listOf(
-                MethodOption(AUTO, "Automatic", "current fallback chain"),
-                MethodOption(SCROLL_POSITION, "Scroll to position", "direct position jump"),
-                MethodOption(SCROLL_PAGE, "Page scroll", "repeated page up/down"),
-                MethodOption(SCROLL_STEP, "Step scroll", "repeated directional scroll"),
-                MethodOption(SCROLL_SWIPE, "Swipe gesture", "simulated finger swipe")
+                MethodOption(AUTO, lsString(R.string.meth_automatic), lsString(R.string.meth_sub_fallback_chain)),
+                MethodOption(SCROLL_POSITION, lsString(R.string.meth_scroll_position), lsString(R.string.meth_sub_scroll_pos)),
+                MethodOption(SCROLL_PAGE, lsString(R.string.meth_scroll_page), lsString(R.string.meth_sub_scroll_page)),
+                MethodOption(SCROLL_STEP, lsString(R.string.meth_scroll_step), lsString(R.string.meth_sub_scroll_step)),
+                MethodOption(SCROLL_SWIPE, lsString(R.string.meth_scroll_swipe), lsString(R.string.meth_sub_scroll_swipe))
             )
             else -> emptyList()
         }
@@ -107,11 +108,11 @@ object ActionMethods {
 
     fun summaryLabel(token: String, selected: Set<String>): String {
         if (selected.isEmpty() || selected.contains(AUTO)) {
-            return "Auto"
+            return lsString(R.string.meth_auto)
         }
         val opts = options(token)
         val selectedTitles = opts.filter { selected.contains(it.id) }.map { it.title }
-        return if (selectedTitles.isEmpty()) "Auto" else selectedTitles.joinToString(" + ")
+        return if (selectedTitles.isEmpty()) lsString(R.string.meth_auto) else selectedTitles.joinToString(" + ")
     }
 
     fun getMethodAppsPrefKey(token: String, methodId: String): String {

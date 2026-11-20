@@ -1,5 +1,7 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+
 import android.content.Context
 import com.sbf.lightspeed.system.logSwallowed
 import android.content.Intent
@@ -34,10 +36,10 @@ fun HudRefuelingBaySection(
     isExpanded: Boolean,
     onToggle: () -> Unit,
     onShowAmoledWarning: () -> Unit,
-    onRefreshNeeded: () -> Unit
+    onRefreshNeeded: () -> Unit,
+    languageMode: LightspeedLanguageEngine.LanguageMode = LightspeedLanguageEngine.modeFlow.value
 ) {
-    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
-    val (refuelingTitle, refuelingSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.REFUELING_BAY, currentLanguageMode)
+    val (refuelingTitle, refuelingSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.REFUELING_BAY, languageMode)
 
     CompactAccordionSection(
         title = refuelingTitle,
@@ -76,14 +78,14 @@ fun HudRefuelingBaySection(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Operational Note: Manual Trigger Recommended",
+                            text = lsString(R.string.ref_note_title),
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.5.sp,
                             color = LightspeedStyle.colors.textPrimary
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
-                            text = "Automatic charging trigger is disabled by default to avoid screen collisions with OEM Always-On Displays. Keep it off and trigger Refueling Bay manually on demand (via gesture, shortcut, or the launch button below).",
+                            text = lsString(R.string.ref_note_desc),
                             fontSize = 11.sp,
                             color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.9f),
                             lineHeight = 14.5.sp
@@ -122,13 +124,13 @@ fun HudRefuelingBaySection(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "OEM Ambient Display / Dock Conflicts",
+                                    text = lsString(R.string.ref_oem_title),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = LightspeedStyle.colors.textPrimary
                                 )
                                 Text(
-                                    text = "OEM standby display style may overlap with Refueling Bay. Disable it in system settings to prevent screen collisions.",
+                                    text = lsString(R.string.ref_oem_desc),
                                     fontSize = 11.sp,
                                     color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.85f),
                                     lineHeight = 14.sp
@@ -330,11 +332,11 @@ fun HudRefuelingBaySection(
                 "60s" to "60 Seconds (Recommended)",
                 "120s" to "2 Minutes",
                 "300s" to "5 Minutes",
-                "never" to "Never (⚠️ AMOLED Risk)"
+                "never" to lsString(R.string.ref_never_amoled)
             )
 
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Text("INACTIVITY SLEEP TIMEOUT", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                Text(lsString(R.string.ref_sleep_hdr), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
                 Spacer(modifier = Modifier.height(4.dp))
                 Box {
                     OutlinedButton(
@@ -347,7 +349,7 @@ fun HudRefuelingBaySection(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(timeoutOptions.firstOrNull { it.first == currentTimeout }?.second ?: "60 Seconds", color = LightspeedStyle.colors.textPrimary, fontSize = 12.sp)
+                            Text(timeoutOptions.firstOrNull { it.first == currentTimeout }?.second ?: lsString(R.string.ref_60s), color = LightspeedStyle.colors.textPrimary, fontSize = 12.sp)
                             Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
@@ -378,8 +380,8 @@ fun HudRefuelingBaySection(
                 prefs = prefs,
                 prefKey = LightspeedPreferences.KEY_REFUELING_STACK_REMEMBER_PAGE,
                 defaultVal = false,
-                title = "Remember Smart Stack Active Page",
-                subtitle = "Resume the last active widget in Smart Stack instead of resetting to the first widget on launch.",
+                title = lsString(R.string.ref_rem_stack),
+                subtitle = lsString(R.string.ref_rem_stack_sub),
                 onChanged = { onRefreshNeeded() }
             )
 
@@ -387,8 +389,8 @@ fun HudRefuelingBaySection(
                 prefs = prefs,
                 prefKey = LightspeedPreferences.KEY_REFUELING_PIXEL_SHIFT,
                 defaultVal = true,
-                title = "Enable Pixel Shift Burn-In Shield",
-                subtitle = "Subtly shifts text and indicators by 2-4px every 2 minutes to protect OLED panels.",
+                title = lsString(R.string.ref_burnin),
+                subtitle = lsString(R.string.ref_burnin_sub),
                 onChanged = { onRefreshNeeded() }
             )
 
@@ -406,7 +408,7 @@ fun HudRefuelingBaySection(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Launch Refueling Bay Dashboard", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                    Text(lsString(R.string.ref_launch_btn), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -430,8 +432,8 @@ fun HudRefuelingBaySection(
                             Icon(Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("OEM Advisory Footnote: OEM Ambient Display / Dock Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
-                                Text("OEM standby display style may overlap with Refueling Bay. Tap to manage settings.", fontSize = 9.5.sp, color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.65f), lineHeight = 13.sp)
+                                Text(lsString(R.string.ref_oem_foot_title), fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
+                                Text(lsString(R.string.ref_oem_foot_sub), fontSize = 9.5.sp, color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.65f), lineHeight = 13.sp)
                             }
                             IconButton(
                                 onClick = {
@@ -466,7 +468,7 @@ fun HudRefuelingBaySection(
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                                 Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Settings", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
+                                Text(lsString(R.string.ref_settings_btn), fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }

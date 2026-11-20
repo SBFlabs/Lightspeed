@@ -221,6 +221,11 @@ class LightspeedAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instanceRef = java.lang.ref.WeakReference(this)
         initializeServiceSession()
+        // If Central Command or MainActivity is open waiting on Accessibility/Shizuku for blur, refresh live.
+        val activeCc = com.sbf.lightspeed.settings.CentralCommandActivity.activeInstance
+        if (activeCc != null) {
+            activeCc.runOnUiThread { activeCc.updateLiveWindowBlur() }
+        }
     }
 
     fun reloadPreferences() {

@@ -91,7 +91,7 @@ object CentralCommandWarmupCoordinator {
                     logSwallowed("CentralCommandWarmup", "DeckThemeManager", e)
                 }
                 try {
-                    BackdropBlurModeManager.getMode(appContext)
+                    BackdropBlurModeManager.warmCapabilities(appContext)
                 } catch (e: Exception) {
                     logSwallowed("CentralCommandWarmup", "BackdropBlurModeManager", e)
                 }

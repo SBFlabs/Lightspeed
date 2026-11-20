@@ -278,8 +278,9 @@ internal fun LightspeedCruiseOverlay.drawAlertsHistoryModal(
     canvas.drawLine(midDivX, listTop, midDivX, listBottom, highlightPaint)
 
     // Scrollable dual-column list
-    canvas.save()
+    val listLayerCount = canvas.saveLayer(listLeft, listTop, listRight, listBottom, null)
     canvas.clipRect(listLeft, listTop, listRight, listBottom)
+    canvas.save()
     canvas.translate(0f, -alertsHistoryScrollOffset)
 
     fun drawColumnEntries(entries: List<LightspeedNotificationListener.RecentAlertEntry>, cLeft: Float, kindColor: Int) {
@@ -376,6 +377,18 @@ internal fun LightspeedCruiseOverlay.drawAlertsHistoryModal(
     drawColumnEntries(notifs, col1Left, notifColor)
     drawColumnEntries(toasts, col2Left, toastColor)
     canvas.restore()
+    LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+        canvas = canvas,
+        left = listLeft,
+        top = listTop,
+        right = listRight,
+        bottom = listBottom,
+        featherTopPx = if (alertsHistoryScrollOffset > 0.5f) 16f * dp else 0f,
+        featherBottomPx = if (alertsHistoryScrollOffset < alertsHistoryMaxScroll - 0.5f) 18f * dp else 0f,
+        density = dp,
+        seed = 8404
+    )
+    canvas.restoreToCount(listLayerCount)
 }
 
 internal fun LightspeedCruiseOverlay.handleAlertsHistoryModalTouch(event: MotionEvent): Boolean {

@@ -43,7 +43,7 @@ fun TrackpadPillButton(
     val textColor = when {
         isLocked -> lsColors.accentGold
         isSelected -> lsColors.accent
-        else -> Color.White
+        else -> MaterialTheme.colorScheme.onSurface
     }
 
     Surface(

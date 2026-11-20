@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Typeface
@@ -25,8 +28,8 @@ fun HorizonRailTickerSection(
     onRefreshNeeded: () -> Unit
 ) {
     CollapsibleSubSection(
-        title = "Horizon Rail Micro-Text Ticker",
-        subtitle = "Typography, dual-wing marquee, bounce velocity & orientation rules",
+        title = lsString(R.string.sec_horizon_rail_micro_text_ticker),
+        subtitle = lsString(R.string.secd_typography_dual_wing_marquee_b),
         isExpanded = isExpanded,
         onToggle = onToggle
     ) {
@@ -35,8 +38,8 @@ fun HorizonRailTickerSection(
         }
 
         PrefToggleRow(
-            title = "Micro-Text Telemetry Ticker",
-            subtitle = "Streams active download filenames, song titles, episode numbers, and live track progress along the rail.",
+            title = lsString(R.string.hr_ticker_title),
+            subtitle = lsString(R.string.hr_ticker_sub),
             isChecked = isRailTextEnabled,
             onCheckedChange = {
                 isRailTextEnabled = it
@@ -49,12 +52,12 @@ fun HorizonRailTickerSection(
         if (isRailTextEnabled) {
             val currentTextOrientMode = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ORIENTATION_MODE, "both") ?: "both"
             val textOrientOptions = listOf(
-                "both" to "🔄 Both Orientations",
-                "landscape_only" to "📐 Landscape Only",
-                "portrait_only" to "📱 Portrait Only"
+                "both" to lsString(R.string.hr_both_orient),
+                "landscape_only" to lsString(R.string.hr_land_only),
+                "portrait_only" to lsString(R.string.hr_orient_port)
             )
             PrefDropdownSelector(
-                title = "MICRO-TEXT ORIENTATION FILTER",
+                title = lsString(R.string.hr_ticker_orient),
                 currentKey = currentTextOrientMode,
                 options = textOrientOptions,
                 onSelected = { key ->
@@ -66,12 +69,12 @@ fun HorizonRailTickerSection(
 
             val currentMetadataMode = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_METADATA_MODE, "adaptive") ?: "adaptive"
             val metadataOptions = listOf(
-                "adaptive" to "⚡ Adaptive (Title in Portrait, Full Metadata in Landscape)",
-                "full" to "📜 Full Metadata Always (Title + Artist + Episode/Album)",
-                "title_only" to "🏷 Title Only Always"
+                "adaptive" to lsString(R.string.hr_meta_adapt),
+                "full" to lsString(R.string.hr_meta_full),
+                "title_only" to lsString(R.string.hr_meta_title)
             )
             PrefDropdownSelector(
-                title = "METADATA DENSITY & ORIENTATION MODE",
+                title = lsString(R.string.hr_meta_header),
                 currentKey = currentMetadataMode,
                 options = metadataOptions,
                 onSelected = { key ->
@@ -85,19 +88,19 @@ fun HorizonRailTickerSection(
                 prefs = prefs,
                 prefKey = LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SHOW_TIMESTAMP,
                 defaultVal = false,
-                title = "Include Playback Progress Timestamp",
-                subtitle = "Appends live track position and duration (e.g. 02:45 / 05:10) to the micro-text ticker.",
+                title = lsString(R.string.hr_ts_title),
+                subtitle = lsString(R.string.hr_ts_sub),
                 onChanged = { onRefreshNeeded() }
             )
 
             val currentCasing = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_CASING, "natural") ?: "natural"
             val casingOptions = listOf(
-                "natural" to "✨ Original / Natural Casing (Title & Artist)",
-                "all_caps" to "🔤 ALL CAPS (Aviation HUD Avionics)",
-                "title_case" to "🔠 Title Case (Capitalize Every Word)"
+                "natural" to lsString(R.string.hr_case_orig),
+                "all_caps" to lsString(R.string.hr_case_caps),
+                "title_case" to lsString(R.string.hr_case_title)
             )
             PrefDropdownSelector(
-                title = "LETTER CASING FORMAT",
+                title = lsString(R.string.hr_case_header),
                 currentKey = currentCasing,
                 options = casingOptions,
                 onSelected = { key ->
@@ -111,7 +114,7 @@ fun HorizonRailTickerSection(
             val availableFonts = remember { DeviceFontScanner.getInstalledFonts() }
             val fontCache = remember { mutableMapOf<String, FontFamily?>() }
             PrefDropdownSelector(
-                title = "MICRO-TEXT FONT FAMILY",
+                title = lsString(R.string.hr_font_header),
                 currentKey = currentFont,
                 options = availableFonts,
                 onSelected = { key ->
@@ -143,13 +146,13 @@ fun HorizonRailTickerSection(
 
             val currentTextPos = prefs.getString("pref_horizon_rail_text_position", "below") ?: "below"
             val textPosOptions = listOf(
-                "below" to "Below Rail Line (Recommended)",
-                "above" to "Above Rail Line",
-                "embedded" to "Centered Inside Track",
-                "below_statusbar" to "Below Entire Status Bar Deck"
+                "below" to lsString(R.string.hr_pos_below),
+                "above" to lsString(R.string.hr_pos_above),
+                "embedded" to lsString(R.string.hr_pos_center),
+                "below_statusbar" to lsString(R.string.hr_pos_below_sb)
             )
             PrefDropdownSelector(
-                title = "MICRO-TEXT POSITION",
+                title = lsString(R.string.hr_pos_header),
                 currentKey = currentTextPos,
                 options = textPosOptions,
                 onSelected = { key ->
@@ -165,13 +168,13 @@ fun HorizonRailTickerSection(
 
             val currentMarqueeScope = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_SCOPE, "both_wings") ?: "both_wings"
             val marqueeScopeOptions = listOf(
-                "both_wings" to "🔀 Dual-Wing Independent (Marquee Overflowing Side)",
-                "right_wing_only" to "👉 Right Wing Only (Artist / Episode / Sider)",
-                "left_wing_only" to "👈 Left Wing Only (Title)",
-                "unified" to "🔗 Unified Stream (Split Across Wings & Marquee)"
+                "both_wings" to lsString(R.string.hr_marq_dual),
+                "right_wing_only" to lsString(R.string.hr_marq_right),
+                "left_wing_only" to lsString(R.string.hr_marq_left),
+                "unified" to lsString(R.string.hr_marq_unified)
             )
             PrefDropdownSelector(
-                title = "MARQUEE SCOPE & SIDER TARGET",
+                title = lsString(R.string.hr_marq_scope),
                 currentKey = currentMarqueeScope,
                 options = marqueeScopeOptions,
                 onSelected = { key ->
@@ -183,11 +186,11 @@ fun HorizonRailTickerSection(
 
             val currentMarqueeAnim = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_ANIM_MODE, "continuous_wrap") ?: "continuous_wrap"
             val marqueeAnimOptions = listOf(
-                "continuous_wrap" to "♾️ Continuous Loop (Seamless Wrap Across Edges)",
-                "bounce" to "🏓 Bounce / Ping-Pong (Back & Forth with Edge Pauses)"
+                "continuous_wrap" to lsString(R.string.hr_marq_loop),
+                "bounce" to lsString(R.string.hr_marq_bounce)
             )
             PrefDropdownSelector(
-                title = "MARQUEE ANIMATION STYLE",
+                title = lsString(R.string.hr_marq_style),
                 currentKey = currentMarqueeAnim,
                 options = marqueeAnimOptions,
                 onSelected = { key ->
@@ -199,11 +202,11 @@ fun HorizonRailTickerSection(
 
             val currentMarqueeDir = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_DIRECTION, "rtl") ?: "rtl"
             val marqueeDirOptions = listOf(
-                "rtl" to "⬅️ Right-to-Left (Standard RTL)",
-                "ltr" to "➡️ Left-to-Right (LTR)"
+                "rtl" to lsString(R.string.hr_dir_rtl),
+                "ltr" to lsString(R.string.hr_dir_ltr)
             )
             PrefDropdownSelector(
-                title = "MARQUEE SCROLL DIRECTION",
+                title = lsString(R.string.hr_dir_header),
                 currentKey = currentMarqueeDir,
                 options = marqueeDirOptions,
                 onSelected = { key ->
@@ -217,8 +220,8 @@ fun HorizonRailTickerSection(
 
             var isAvoidCutout by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, false)) }
             PrefToggleRow(
-                title = "Hardware Cutout & Punch-Hole Avoidance",
-                subtitle = "Splits title and subtitle into dual symmetrical wings around the camera cutout.",
+                title = lsString(R.string.hr_cutout_title),
+                subtitle = lsString(R.string.hr_cutout_sub),
                 isChecked = isAvoidCutout,
                 onCheckedChange = {
                     isAvoidCutout = it

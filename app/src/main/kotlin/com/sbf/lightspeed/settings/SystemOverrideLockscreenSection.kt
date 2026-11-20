@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.SharedPreferences
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -56,13 +59,13 @@ fun SystemOverrideLockscreenSection(
     var isCallDeflectorDropdownOpen by remember { mutableStateOf(false) }
 
     val lockscreenOptions = listOf(
-        "hide_deflectors" to "Hide Deflectors Only (Astrogation Core Active)",
-        "keep_active" to "Keep Deflectors Active on Lock Screen",
-        "full_lockdown" to "Full Lockdown (Hide All Overlays)"
+        "hide_deflectors" to lsString(R.string.sys_ls_hide_def),
+        "keep_active" to lsString(R.string.sys_ls_keep_def),
+        "full_lockdown" to lsString(R.string.sys_ls_lockdown)
     )
     val binaryOptions = listOf(
-        "hide" to "Hide on Lock Screen (Recommended)",
-        "keep_active" to "Keep Active on Lock Screen"
+        "hide" to lsString(R.string.sys_ls_hide_rec),
+        "keep_active" to lsString(R.string.sys_ls_keep_on)
     )
 
     DeckCard(
@@ -71,7 +74,7 @@ fun SystemOverrideLockscreenSection(
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             Text(
-                text = "LOCK SCREEN OVERLAY BEHAVIOR",
+                text = lsString(R.string.sys_ls_hdr),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -79,7 +82,7 @@ fun SystemOverrideLockscreenSection(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Granularly configure which overlay workspace components remain active while on the lock screen.",
+                text = lsString(R.string.sys_ls_desc),
                 fontSize = 11.sp,
                 color = lsColors.textSecondary.copy(alpha = 0.85f)
             )
@@ -95,7 +98,7 @@ fun SystemOverrideLockscreenSection(
                     modifier = Modifier.size(14.dp)
                 )
                 Text(
-                    text = "Astrogation Core pill remains active in Hide Deflectors mode so you can launch tools or gears from the lock screen.",
+                    text = lsString(R.string.sys_ls_core_note),
                     fontSize = 10.5.sp,
                     color = LightspeedTokens.StatusSky
                 )
@@ -103,7 +106,7 @@ fun SystemOverrideLockscreenSection(
 
             // 1. Kinetic Deflectors Dropdown
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Kinetic Deflectors", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
+            Text(text = lsString(R.string.sys_ls_deflectors), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
             Spacer(modifier = Modifier.height(2.dp))
             DeckDropdownAnchorBox { anchorWidth ->
                 OutlinedButton(
@@ -129,7 +132,7 @@ fun SystemOverrideLockscreenSection(
                             }
                             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
                             Text(
-                                text = lockscreenOptions.firstOrNull { it.first == currentLockscreenMode }?.second ?: "Hide Deflectors Only (Astrogation Core Active)",
+                                text = lockscreenOptions.firstOrNull { it.first == currentLockscreenMode }?.second ?: lsString(R.string.sys_ls_hide_def),
                                 color = lsColors.textPrimary,
                                 fontSize = 11.5.sp,
                                 maxLines = 1
@@ -166,7 +169,7 @@ fun SystemOverrideLockscreenSection(
 
             // 2. Sensor Touch Area Dropdown
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "HUD Strip Sensor Area", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
+            Text(text = lsString(R.string.sys_ls_sensor), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
             Spacer(modifier = Modifier.height(2.dp))
             DeckDropdownAnchorBox { anchorWidth ->
                 OutlinedButton(
@@ -188,7 +191,7 @@ fun SystemOverrideLockscreenSection(
                             val icon = if (currentSensorMode == "keep_active") Icons.Default.Visibility else Icons.Default.VisibilityOff
                             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
                             Text(
-                                text = binaryOptions.firstOrNull { it.first == currentSensorMode }?.second ?: "Hide on Lock Screen (Recommended)",
+                                text = binaryOptions.firstOrNull { it.first == currentSensorMode }?.second ?: lsString(R.string.sys_ls_hide_rec),
                                 color = lsColors.textPrimary,
                                 fontSize = 11.5.sp,
                                 maxLines = 1
@@ -221,7 +224,7 @@ fun SystemOverrideLockscreenSection(
 
             // 3. Horizon Rail Dropdown
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Horizon Status Rail", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
+            Text(text = lsString(R.string.sys_ls_rail), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
             Spacer(modifier = Modifier.height(2.dp))
             DeckDropdownAnchorBox { anchorWidth ->
                 OutlinedButton(
@@ -243,7 +246,7 @@ fun SystemOverrideLockscreenSection(
                             val icon = if (currentRailMode == "keep_active") Icons.Default.Visibility else Icons.Default.VisibilityOff
                             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
                             Text(
-                                text = binaryOptions.firstOrNull { it.first == currentRailMode }?.second ?: "Hide on Lock Screen (Recommended)",
+                                text = binaryOptions.firstOrNull { it.first == currentRailMode }?.second ?: lsString(R.string.sys_ls_hide_rec),
                                 color = lsColors.textPrimary,
                                 fontSize = 11.5.sp,
                                 maxLines = 1
@@ -276,7 +279,7 @@ fun SystemOverrideLockscreenSection(
 
             // 4. Orbital Capsule Dropdown (Disabled / Grayed Out)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Orbital Capsule (Camera Cutout Widget)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textDisabled)
+            Text(text = lsString(R.string.sys_ls_capsule), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textDisabled)
             Spacer(modifier = Modifier.height(2.dp))
             OutlinedButton(
                 onClick = { },
@@ -296,7 +299,7 @@ fun SystemOverrideLockscreenSection(
                     ) {
                         Icon(Icons.Default.Block, contentDescription = null, tint = lsColors.textDisabled, modifier = Modifier.size(15.dp))
                         Text(
-                            text = "Disabled in Experimental Labs",
+                            text = lsString(R.string.sys_ls_disabled_labs),
                             color = lsColors.textDisabled,
                             fontSize = 11.5.sp,
                             maxLines = 1
@@ -319,7 +322,7 @@ fun SystemOverrideLockscreenSection(
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             Text(
-                text = "DURING PHONE CALLS",
+                text = lsString(R.string.sys_calls_hdr),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -385,7 +388,7 @@ fun SystemOverrideLockscreenSection(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Status bar and sensor area are not affected.",
+                text = lsString(R.string.sys_calls_note),
                 fontSize = 10.5.sp,
                 color = lsColors.textSecondary.copy(alpha = 0.75f)
             )

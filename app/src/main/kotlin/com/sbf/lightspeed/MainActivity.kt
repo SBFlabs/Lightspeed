@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.registerHostWindow(window)
         com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
 
         // 1. Ensure core defaults are initialized on clean installs
@@ -70,37 +71,42 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val snapshot = com.sbf.lightspeed.settings.DeckThemeManager.snapshotFlow.collectAsState().value
+            val liveBackdropOverride = com.sbf.lightspeed.settings.DeckThemeManager.liveBackdropOpacityOverride.collectAsState().value
+            val blurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.modeFlow.collectAsState().value
             val fallbackBitmap = com.sbf.lightspeed.settings.CentralCommandBackdropBlur.backdropBitmap
-            androidx.compose.runtime.LaunchedEffect(snapshot, fallbackBitmap) {
+            androidx.compose.runtime.LaunchedEffect(snapshot, liveBackdropOverride, fallbackBitmap, blurMode) {
+                val effectiveDimAmount = (liveBackdropOverride ?: snapshot.dimAmount).coerceIn(0f, 0.95f)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    val blurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.getMode(this@MainActivity)
+                    val activeBlurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.getMode(this@MainActivity)
                     val nativeSupported = com.sbf.lightspeed.settings.BackdropBlurModeManager.isNativeBlurSupported(windowManager)
-                    val useNative = com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseNativeBlur(windowManager, blurMode)
-                    val useScreenshot = com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseScreenshotBlur(windowManager, blurMode)
+                    val useNative = com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseNativeBlur(windowManager, activeBlurMode) &&
+                        snapshot.windowBlurRadiusPx > 0
+                    val useScreenshot = com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseScreenshotBlur(windowManager, activeBlurMode) &&
+                        snapshot.windowBlurRadiusPx > 0
 
-                    com.sbf.lightspeed.settings.CentralCommandActivity.updateCrossWindowBlurState(nativeSupported && blurMode != com.sbf.lightspeed.settings.BackdropBlurMode.SCREENSHOT)
+                    com.sbf.lightspeed.settings.CentralCommandActivity.updateCrossWindowBlurState(nativeSupported && activeBlurMode != com.sbf.lightspeed.settings.BackdropBlurMode.SCREENSHOT)
                     if (useNative) {
                         window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                         val lp = window.attributes
                         lp.blurBehindRadius = snapshot.windowBlurRadiusPx.coerceIn(0, 150)
                         window.attributes = lp
-                        window.setDimAmount(snapshot.dimAmount)
+                        com.sbf.lightspeed.settings.BackdropBlurModeManager.applyWindowDimAmount(window, effectiveDimAmount)
                     } else {
                         window.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                         val lp = window.attributes
                         lp.blurBehindRadius = 0
                         window.attributes = lp
-                        window.setDimAmount(if (useScreenshot && fallbackBitmap != null) 0f else snapshot.dimAmount)
+                        val targetDim = if (useScreenshot && fallbackBitmap != null) 0f else effectiveDimAmount
+                        com.sbf.lightspeed.settings.BackdropBlurModeManager.applyWindowDimAmount(window, targetDim)
                     }
                 } else {
                     com.sbf.lightspeed.settings.CentralCommandActivity.updateCrossWindowBlurState(false)
-                    window.setDimAmount(snapshot.dimAmount)
+                    com.sbf.lightspeed.settings.BackdropBlurModeManager.applyWindowDimAmount(window, effectiveDimAmount)
                 }
             }
 
             LightspeedTheme {
                 DeckTheme {
-                    ShizukuChoiceDialog()
                     MainSettingsScreen()
                 }
             }
@@ -153,6 +159,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.unregisterHostWindow(window)
         com.sbf.lightspeed.settings.CentralCommandBackdropBlur.onWindowHidden(isChangingConfigurations)
         try {
             Shizuku.removeBinderReceivedListener(binderReceivedListener)

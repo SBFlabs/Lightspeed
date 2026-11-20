@@ -96,6 +96,20 @@ internal class DeepSpaceRenderer(
         get() = reactorRenderer.warpFocalPointY
         set(_) {}
 
+    /** Typography scale (80%..135%) for Cockpit Hangar Canvas labels: follows Central Command when global toggle is ON, or its own independent slider when OFF. */
+    internal fun hangarTextScale(context: Context): Float =
+        if (com.sbf.lightspeed.system.LightspeedPreferences.getApplyFontGlobally(context)) {
+            com.sbf.lightspeed.system.LightspeedPreferences.getCentralCommandFontScale(context)
+        } else {
+            com.sbf.lightspeed.system.LightspeedPreferences.getCockpitHangarFontScale(context)
+        }
+
+    internal fun hangarTypeface(
+        context: Context,
+        isBold: Boolean = false
+    ): android.graphics.Typeface =
+        com.sbf.lightspeed.system.DeviceFontScanner.resolveGlobalOverlayTypeface(context, isBold)
+
     // -------------------------------------------------------------------------
     // Public entry point — called from LightspeedCruiseOverlay.onDraw
     // -------------------------------------------------------------------------
@@ -132,9 +146,9 @@ internal class DeepSpaceRenderer(
         drawCosmicStarfield(canvas, screenW, screenH, d, 0.75f)
 
         // 2. Flight Telemetry Header
-        val hangarHeader = "◈ ASTROGATION COCKPIT // HANGAR DECK ◈"
-        textPaint.textSize = (if (layout.isLandscape) 11f else 12.5f) * d
-        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        val hangarHeader = com.sbf.lightspeed.system.lsString(R.string.ck_hangar_header).ifBlank { "◈ ASTROGATION COCKPIT // HANGAR DECK ◈" }
+        textPaint.textSize = (if (layout.isLandscape) 13f else 14.5f) * d * hangarTextScale(state.context)
+        textPaint.typeface = hangarTypeface(context, isBold = true)
         textPaint.textAlign = Paint.Align.CENTER
         val headerWidth = textPaint.measureText(hangarHeader)
 
@@ -191,8 +205,13 @@ internal class DeepSpaceRenderer(
     // Warp surge animation — called from LightspeedCruiseOverlay.onDraw
     // -------------------------------------------------------------------------
 
-    fun drawHyperdriveWarpSurge(canvas: Canvas, m3Primary: Int, density: Float) {
-        reactorRenderer.drawHyperdriveWarpSurge(canvas, m3Primary, density)
+    fun drawHyperdriveWarpSurge(
+        canvas: Canvas,
+        m3Primary: Int,
+        density: Float,
+        style: String = "photon_burst"
+    ) {
+        reactorRenderer.drawHyperdriveWarpSurge(canvas, m3Primary, density, style)
     }
 
     // -------------------------------------------------------------------------
@@ -223,8 +242,9 @@ internal class DeepSpaceRenderer(
         m3Secondary: Int,
         appName: String,
         density: Float,
-        reticleStyle: String = "tactical"
-    ) = drawFlightLockReticleImpl(canvas, targetCX, targetCY, bracketSize, m3Primary, m3Secondary, appName, density, reticleStyle)
+        reticleStyle: String = "tactical",
+        context: Context? = null
+    ) = drawFlightLockReticleImpl(canvas, targetCX, targetCY, bracketSize, m3Primary, m3Secondary, appName, density, reticleStyle, context)
 
     fun drawHolographicReactorCore(
         canvas: Canvas,

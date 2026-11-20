@@ -328,6 +328,7 @@ fun TimelineCountdownContent(onDismiss: () -> Unit) {
                         prefs.edit()
                             .putBoolean(LightspeedPreferences.KEY_TIMELINE_COUNTDOWN_ENABLED, true)
                             .putString(LightspeedPreferences.KEY_TIMELINE_COUNTDOWN_TITLE, name)
+                            .putLong(LightspeedPreferences.KEY_TIMELINE_COUNTDOWN_START_MS, System.currentTimeMillis())
                             .putLong(LightspeedPreferences.KEY_TIMELINE_COUNTDOWN_TARGET_MS, targetMs)
                             .apply()
                         Toast.makeText(context, "Countdown saved for $name", Toast.LENGTH_SHORT).show()

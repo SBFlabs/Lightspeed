@@ -8,6 +8,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedInfinityManager
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
@@ -43,13 +47,12 @@ fun LightspeedInfinityDialog(
     var isUnlocked by remember { mutableStateOf(LightspeedInfinityManager.isUnlocked(context)) }
 
     DeckDialog(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+        onDismissRequest = onDismiss
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(top = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
                 // Header Badge
@@ -71,7 +74,7 @@ fun LightspeedInfinityDialog(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = if (isUnlocked) "Flight Deck Unlocked • Lifetime Supporter" else "Support independent development to unlock unlimited decks & all themes.",
+                    text = if (isUnlocked) lsString(R.string.inf_subtitle_unlocked) else lsString(R.string.inf_subtitle_locked),
                     fontSize = 11.sp,
                     color = lsColors.textPrimary.copy(alpha = 0.75f),
                     textAlign = TextAlign.Center
@@ -89,42 +92,96 @@ fun LightspeedInfinityDialog(
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    PerkRow("∞", "Unlimited Cockpit Gear Sets", "Expand beyond the 2 default flight decks")
-                    PerkRow("◈", "All Available Themes", "Unlock all current and future optical themes")
-                    PerkRow("✦", "Independent Craftsman Support", "100% offline, zero trackers, DRM-free honor system")
+                    PerkRow("∞", lsString(R.string.inf_perk_gears_title), lsString(R.string.inf_perk_gears_sub))
+                    PerkRow("◈", lsString(R.string.inf_perk_themes_title), lsString(R.string.inf_perk_themes_sub))
+                    PerkRow("✦", lsString(R.string.inf_perk_craft_title), lsString(R.string.inf_perk_craft_sub))
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (isUnlocked) {
-                    // Already Unlocked State
+                    // Already Unlocked State — mask active key by default to prevent accidental screen/camera leaks
                     val activeKey = LightspeedInfinityManager.getActiveCode(context) ?: "ACTIVE"
-                    Box(
+                    var revealKey by remember { mutableStateOf(false) }
+                    val displayKey = if (revealKey) {
+                        activeKey
+                    } else {
+                        if (activeKey.startsWith("LSINF-")) "LSINF-••••••••-••••" else "••••••••••••"
+                    }
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
                             .background(lsColors.accentGold.copy(alpha = 0.12f))
                             .border(1.dp, lsColors.accentGold.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
+                            .clickable {
+                                LightspeedHapticEngine.tick(context)
+                                revealKey = !revealKey
+                            }
+                            .padding(vertical = 10.dp, horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "✓ KEY ACTIVE: $activeKey",
+                            text = lsString(R.string.inf_key_active, displayKey),
                             color = lsColors.accentGold,
-                            fontSize = 12.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = if (revealKey) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                            contentDescription = if (revealKey) lsString(R.string.inf_cd_hide_key) else lsString(R.string.inf_cd_reveal_key),
+                            tint = lsColors.accentGold.copy(alpha = 0.85f),
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    Button(
-                        onClick = onDismiss,
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.1f))
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Close Deck", color = lsColors.textPrimary, fontSize = 12.sp)
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(LightspeedTokens.StatusGoldAlt.copy(alpha = 0.18f))
+                                .border(0.8.dp, LightspeedTokens.StatusGoldAlt.copy(alpha = 0.48f), RoundedCornerShape(10.dp))
+                                .clickable {
+                                    openExternalUrl(context, "https://buymeacoffee.com/sbflabs")
+                                }
+                                .padding(vertical = 10.dp, horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_buymeacoffee),
+                                contentDescription = "Buy Me a Coffee",
+                                tint = LightspeedTokens.StatusGoldAlt,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Buy Me a Coffee",
+                                color = LightspeedTokens.StatusGoldAlt,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+
+                        Button(
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.1f))
+                        ) {
+                            Text(lsString(R.string.inf_close_deck), color = lsColors.textPrimary, fontSize = 12.sp)
+                        }
                     }
                 } else {
                     // Locked State: 1-Tap Buy Me a Coffee + Code Entry
@@ -148,17 +205,30 @@ fun LightspeedInfinityDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = buildGooglePayAnnotatedText("Get Lightspeed ∞ ($1.99 · Google Pay)"),
+                            text = buildGooglePayAnnotatedText(lsString(R.string.inf_get_btn)),
                             color = Color.Black,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = lsString(R.string.inf_google_play_note),
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp,
+                        color = lsColors.textSecondary.copy(alpha = 0.72f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp)
+                    )
+
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
-                        "OR ENTER ACTIVATION KEY",
+                        lsString(R.string.inf_or_enter_key),
                         fontSize = 9.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = lsColors.textPrimary.copy(alpha = 0.5f),
@@ -209,7 +279,7 @@ fun LightspeedInfinityDialog(
                             colors = ButtonDefaults.buttonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.08f)),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                         ) {
-                            Text("Paste", fontSize = 11.sp, color = lsColors.textPrimary)
+                            Text(lsString(R.string.inf_paste), fontSize = 11.sp, color = lsColors.textPrimary)
                         }
                     }
 
@@ -224,23 +294,23 @@ fun LightspeedInfinityDialog(
                         onClick = {
                             if (LightspeedInfinityManager.isLockedOut(context)) {
                                 val secs = LightspeedInfinityManager.getRemainingLockoutSeconds(context)
-                                errorMessage = "Too many attempts. Locked for ${secs}s."
+                                errorMessage = lsString(R.string.inf_err_lockout, secs)
                                 return@Button
                             }
                             if (LightspeedInfinityManager.validateAndUnlock(context, codeInput)) {
                                 isUnlocked = true
                                 onUnlocked()
-                                Toast.makeText(context, "★ Lightspeed Infinity Unlocked!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, lsString(R.string.inf_toast_unlocked), Toast.LENGTH_SHORT).show()
                             } else {
                                 LightspeedHapticEngine.triggerWarning(context)
-                                errorMessage = "Invalid Infinity Key. Please check the code."
+                                errorMessage = lsString(R.string.inf_err_invalid)
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = lsColors.accentGold.copy(alpha = 0.22f)),
                         border = androidx.compose.foundation.BorderStroke(1.dp, lsColors.accentGold.copy(alpha = 0.6f))
                     ) {
-                        Text("Authorize Key", color = lsColors.accentGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(lsString(R.string.inf_authorize_key), color = lsColors.accentGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
             }

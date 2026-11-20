@@ -26,10 +26,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.CockpitGearPickerActivity
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.ActionMethods
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.system.LightspeedOrientationEngine
 import com.sbf.lightspeed.system.LightspeedShortcutManager
 import com.sbf.lightspeed.system.TacticalToolItem
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 
@@ -37,7 +40,7 @@ import com.sbf.lightspeed.ui.theme.LocalDeckTheme
  * Tactical gesture mapping row integrating optical glass badges, gesture tracers,
  * and contextual micro-controls for gestures across the avionics deck.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun GestureMappingRow(
     context: Context,
@@ -76,14 +79,18 @@ fun GestureMappingRow(
         }
     }
 
-    val activeLabel = remember(currentRawValue, labelCache[currentRawValue]) {
+    val localeState = LightspeedLocaleEngine.state
+    val cachedLabel by remember(currentRawValue, labelCache) {
+        derivedStateOf { labelCache[currentRawValue] }
+    }
+    val activeLabel = remember(currentRawValue, cachedLabel, localeState) {
         if (currentRawValue.isBlank() || currentRawValue == "none") {
-            "None"
+            lsString(R.string.cc_common_none)
         } else if (currentRawValue.startsWith("shortcut:")) {
             val resolved = LightspeedShortcutManager.resolveLabel(context, currentRawValue)
-            if (resolved.isNotBlank()) resolved else (labelCache[currentRawValue] ?: currentRawValue)
+            if (resolved.isNotBlank()) resolved else (cachedLabel ?: currentRawValue)
         } else {
-            labelCache[currentRawValue] ?: currentRawValue
+            cachedLabel ?: currentRawValue
         }
     }
 
@@ -154,7 +161,7 @@ fun GestureMappingRow(
                     } else {
                         val intent = Intent(context, CockpitGearPickerActivity::class.java).apply {
                             putExtra("SINGLE_SELECT_PREF_KEY", key)
-                            putExtra("SINGLE_SELECT_TITLE", "$defaultTitle Action")
+                            putExtra("SINGLE_SELECT_TITLE", lsString(R.string.gest_action_picker_title, defaultTitle))
                             putExtra("IS_HOLD_GESTURE", isHold || isScrubAction)
                         }
                         pickerLauncher.launch(intent)
@@ -237,9 +244,9 @@ fun GestureMappingRow(
                 }
             }
 
-            // Line 3: Dedicated Action Chips & Dropdowns (2-row layout for Scrub actions, compact horizontal scroll otherwise)
+            // Line 3: Dedicated Action Chips & Dropdowns (wrapping FlowRow so translated chips never clip)
             if (hasControls) {
-                val contextualGestureChips: @Composable RowScope.() -> Unit = {
+                val contextualGestureChips: @Composable FlowRowScope.() -> Unit = {
                     if (isHold) {
                         GestureHoldDurationControl(context, prefs, key, activeSnapshot, opticalColors, readableTint)
                     }
@@ -285,13 +292,12 @@ fun GestureMappingRow(
                         )
                     }
                 } else {
-                    Row(
+                    FlowRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 6.dp)
-                            .horizontalScroll(rememberScrollState()),
+                            .padding(top = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         contextualGestureChips()
 

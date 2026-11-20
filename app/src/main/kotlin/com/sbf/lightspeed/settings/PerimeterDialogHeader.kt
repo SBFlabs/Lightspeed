@@ -1,5 +1,9 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import android.content.Context
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
@@ -127,14 +131,14 @@ fun PerimeterDialogHeader(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
-                        "PERIMETER SENTINELS",
+                        lsString(R.string.per_title),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Black,
                         color = LightspeedStyle.colors.textPrimary,
                         letterSpacing = 0.5.sp
                     )
                     Text(
-                        "Universal accessibility manager & privileged controls",
+                        lsString(R.string.per_sub),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                     )

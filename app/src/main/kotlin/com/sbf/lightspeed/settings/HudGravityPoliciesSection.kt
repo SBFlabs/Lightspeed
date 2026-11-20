@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.SharedPreferences
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,15 +34,15 @@ fun HudGravityPoliciesSection(
     ) ?: LightspeedPreferences.DEFAULT_ORIENTATION_OVERRIDE_EXPIRATION
     var isOverrideExpirationDropdownOpen by remember { mutableStateOf(false) }
     val overrideExpirationOptions = listOf(
-        LightspeedPreferences.ORIENTATION_OVERRIDE_EXPIRATION_UNTIL_APP_SWITCH to "Until App Switch (Temporary)",
-        LightspeedPreferences.ORIENTATION_OVERRIDE_EXPIRATION_UNTIL_SCREEN_OFF to "Until Screen Off / Lock",
-        LightspeedPreferences.ORIENTATION_OVERRIDE_EXPIRATION_PERSISTENT to "Persistent (Won't Reset / Manual Only)",
-        LightspeedPreferences.ORIENTATION_OVERRIDE_EXPIRATION_DISABLED to "Disabled (Action Won't Work / Buckets Only)"
+        LightspeedPreferences.ORIENTATION_OVERRIDE_EXPIRATION_UNTIL_APP_SWITCH to lsString(R.string.grav_dur_switch),
+        LightspeedPreferences.ORIENTATION_OVERRIDE_EXPIRATION_UNTIL_SCREEN_OFF to lsString(R.string.grav_dur_lock),
+        LightspeedPreferences.ORIENTATION_OVERRIDE_EXPIRATION_PERSISTENT to lsString(R.string.grav_dur_persist),
+        LightspeedPreferences.ORIENTATION_OVERRIDE_EXPIRATION_DISABLED to lsString(R.string.grav_dur_disabled)
     )
 
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text("MANUAL ACTION OVERRIDE DURATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-        Text("When you trigger an on-the-fly orientation action via gestures or deflector, choose how long it stays active before returning to bucket/system defaults:", fontSize = 10.sp, color = lsColors.textSecondary.copy(alpha = 0.75f), lineHeight = 13.sp)
+        Text(lsString(R.string.grav_dur_hdr), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+        Text(lsString(R.string.grav_dur_desc), fontSize = 10.sp, color = lsColors.textSecondary.copy(alpha = 0.75f), lineHeight = 13.sp)
         Spacer(modifier = Modifier.height(4.dp))
         Box {
             OutlinedButton(
@@ -54,7 +57,7 @@ fun HudGravityPoliciesSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = overrideExpirationOptions.firstOrNull { it.first == currentOverrideExpiration }?.second ?: "Persistent (Won't Reset / Manual Only)",
+                        text = overrideExpirationOptions.firstOrNull { it.first == currentOverrideExpiration }?.second ?: lsString(R.string.grav_dur_persist),
                         color = lsColors.textPrimary,
                         fontSize = 12.sp,
                         maxLines = 1,
@@ -95,14 +98,14 @@ fun HudGravityPoliciesSection(
     ) ?: LightspeedPreferences.MANUAL_NATIVE_POLICY_BUCKET_WINS
     var isNativePolicyDropdownOpen by remember { mutableStateOf(false) }
     val nativePolicyOptions = listOf(
-        LightspeedPreferences.MANUAL_NATIVE_POLICY_BUCKET_WINS to "Bucket wins (default)",
-        LightspeedPreferences.MANUAL_NATIVE_POLICY_UNTIL_APP_SWITCH to "Manual wins until app switch",
-        LightspeedPreferences.MANUAL_NATIVE_POLICY_UNTIL_SCREEN_LOCK to "Manual wins until screen lock"
+        LightspeedPreferences.MANUAL_NATIVE_POLICY_BUCKET_WINS to lsString(R.string.grav_nat_bucket),
+        LightspeedPreferences.MANUAL_NATIVE_POLICY_UNTIL_APP_SWITCH to lsString(R.string.grav_nat_switch),
+        LightspeedPreferences.MANUAL_NATIVE_POLICY_UNTIL_SCREEN_LOCK to lsString(R.string.grav_nat_lock)
     )
 
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text("MANUAL NATIVE ROTATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-        Text("If you flip the system auto-rotate toggle while an app bucket is active, choose who wins:", fontSize = 10.sp, color = lsColors.textSecondary.copy(alpha = 0.75f), lineHeight = 13.sp)
+        Text(lsString(R.string.grav_nat_hdr), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+        Text(lsString(R.string.grav_nat_desc), fontSize = 10.sp, color = lsColors.textSecondary.copy(alpha = 0.75f), lineHeight = 13.sp)
         Spacer(modifier = Modifier.height(4.dp))
         Box {
             OutlinedButton(
@@ -117,7 +120,7 @@ fun HudGravityPoliciesSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = nativePolicyOptions.firstOrNull { it.first == currentNativePolicy }?.second ?: "Bucket wins (default)",
+                        text = nativePolicyOptions.firstOrNull { it.first == currentNativePolicy }?.second ?: lsString(R.string.grav_nat_bucket),
                         color = lsColors.textPrimary,
                         fontSize = 12.sp,
                         maxLines = 1,

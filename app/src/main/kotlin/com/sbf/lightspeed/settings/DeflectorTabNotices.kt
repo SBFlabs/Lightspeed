@@ -1,7 +1,12 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -70,7 +75,7 @@ fun EdgeSovereigntyNoticeCard(
                         modifier = Modifier.size(15.dp)
                     )
                     Text(
-                        text = "ANDROID EDGE GESTURE NOTICE (COLLAPSED)",
+                        text = lsString(R.string.def_edge_notice),
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = LightspeedStyle.colors.textSecondary
@@ -184,10 +189,12 @@ fun DeflectorOverridesDialog(
     onDismiss: () -> Unit
 ) {
     if (!visible) return
+    val activeDensity = LocalDensity.current
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        CompositionLocalProvider(LocalDensity provides activeDensity) {
         DeckGlassCardSurface(
             modifier = Modifier
                 .fillMaxWidth(0.96f)
@@ -223,6 +230,7 @@ fun DeflectorOverridesDialog(
                     SystemOverrideDeckContents(context, prefs)
                 }
             }
+        }
         }
     }
 }

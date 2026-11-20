@@ -1,5 +1,9 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.pm.PackageManager
@@ -190,7 +194,7 @@ fun PerimeterServiceCard(
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = if (isProtected) "SHIELDED" else "ARM SHIELD",
+                            text = if (isProtected) lsString(R.string.per_badge_shielded) else lsString(R.string.per_btn_arm),
                             fontSize = 9.5.sp,
                             fontWeight = if (isProtected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isProtected) MaterialTheme.colorScheme.primary else lsColors.textSecondary.copy(alpha = 0.8f),
@@ -231,7 +235,7 @@ fun PerimeterServiceCard(
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = if (isBatteryWhitelisted) "BATTERY SAFE" else "WHITELIST BATTERY",
+                            text = if (isBatteryWhitelisted) lsString(R.string.bat_badge_safe) else lsString(R.string.bat_btn_whitelist),
                             fontSize = 9.5.sp,
                             fontWeight = if (isBatteryWhitelisted) FontWeight.Bold else FontWeight.Medium,
                             color = if (isBatteryWhitelisted) successGreen else cautionAmber,
@@ -269,9 +273,9 @@ fun PerimeterServiceCard(
                     ) {
                         Text(
                             text = when (policy) {
-                                PerimeterPolicy.ALWAYS_REVIVE -> "POLICY: ALWAYS REVIVE"
-                                PerimeterPolicy.KEEP_OFF -> "POLICY: KEEP OFF"
-                                PerimeterPolicy.NORMAL -> "POLICY: NORMAL"
+                                PerimeterPolicy.ALWAYS_REVIVE -> lsString(R.string.per_pol_revive)
+                                PerimeterPolicy.KEEP_OFF -> lsString(R.string.per_pol_keep_off)
+                                PerimeterPolicy.NORMAL -> lsString(R.string.per_pol_normal)
                             },
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,

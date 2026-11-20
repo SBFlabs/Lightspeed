@@ -2,11 +2,14 @@ package com.sbf.lightspeed
 
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.Typeface
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.sin
 
 /**
@@ -20,6 +23,7 @@ internal class LightspeedReactorRenderer {
     // Holographic Reactor Core — radial backplane shader cache
     private var reactorGradKey: Long = Long.MIN_VALUE
     private var reactorGradShader: RadialGradient? = null
+    private val sparkPath = Path()
 
     private fun reactorKey(cx: Float, cy: Float, radius: Float, isActive: Boolean, color: Int): Long =
         (cx.toBits().toLong() xor (cy.toBits().toLong() shl 16)) xor
@@ -46,57 +50,236 @@ internal class LightspeedReactorRenderer {
         isWarpLaunching = false
     }
 
-    fun drawHyperdriveWarpSurge(canvas: Canvas, m3Primary: Int, density: Float) {
+    fun drawHyperdriveWarpSurge(
+        canvas: Canvas,
+        m3Primary: Int,
+        density: Float,
+        style: String = "photon_burst"
+    ) {
         if (!isWarpLaunching) return
         val elapsed = (System.currentTimeMillis() - warpStartTime).toFloat()
-        val progress = (elapsed / 130f).coerceIn(0f, 1f)
-        val easeProgress = progress * progress
+        val p = (elapsed / 130f).coerceIn(0f, 1f)
+        val ease = 1f - (1f - p) * (1f - p)
+        val fade = (1f - p).pow(1.35f).coerceIn(0f, 1f)
 
         val cx = warpFocalPointX
         val cy = warpFocalPointY
+        val pR = Color.red(m3Primary)
+        val pG = Color.green(m3Primary)
+        val pB = Color.blue(m3Primary)
 
-        val shockwaveR = easeProgress * 340f * density
-        val shockAlpha = ((1f - progress) * 255).toInt().coerceIn(0, 255)
-
-        elementPaint.style = Paint.Style.STROKE
-        elementPaint.strokeWidth = (4.0f * (1f - progress) + 1.0f) * density
-        elementPaint.color = Color.argb(shockAlpha, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-        canvas.drawCircle(cx, cy, shockwaveR, elementPaint)
-
-        elementPaint.strokeWidth = 1.4f * density
-        elementPaint.color = Color.argb((shockAlpha * 0.75f).toInt(), 0, 229, 255)
-        canvas.drawCircle(cx, cy, shockwaveR * 0.84f, elementPaint)
-
-        val lineCount = 36
-        val angleStep = (2 * Math.PI) / lineCount
-        elementPaint.style = Paint.Style.STROKE
-
-        for (i in 0 until lineCount) {
-            val angle = i * angleStep
-            val rStart = (easeProgress * 35f * density) + (i % 4) * 8f * density
-            val streakLength = (easeProgress * 230f * density) + (i % 3) * 35f * density
-            val rEnd = rStart + streakLength
-
-            val x1 = cx + (rStart * cos(angle)).toFloat()
-            val y1 = cy + (rStart * sin(angle)).toFloat()
-            val x2 = cx + (rEnd * cos(angle)).toFloat()
-            val y2 = cy + (rEnd * sin(angle)).toFloat()
-
-            val lineAlpha = ((1f - progress) * (180 + (i * 13) % 75)).toInt().coerceIn(0, 255)
-            elementPaint.strokeWidth = if (i % 3 == 0) 2.4f * density else 1.2f * density
-            elementPaint.color = when (i % 3) {
-                0 -> Color.argb(lineAlpha, 255, 255, 255)
-                1 -> Color.argb(lineAlpha, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-                else -> Color.argb(lineAlpha, 0, 229, 255)
-            }
-            canvas.drawLine(x1, y1, x2, y2, elementPaint)
+        when (style) {
+            "clean_fade" -> drawMinimalPulseSpark(canvas, cx, cy, ease, fade, pR, pG, pB, density)
+            "nova_bloom" -> drawHaloRippleSpark(canvas, cx, cy, ease, fade, pR, pG, pB, density)
+            "quantum_cross" -> drawOpticalFlareSpark(canvas, cx, cy, ease, fade, pR, pG, pB, density)
+            "ion_embers" -> drawEmberDriftSpark(canvas, cx, cy, p, ease, fade, pR, pG, pB, density)
+            else -> drawPhotonBurstSpark(canvas, cx, cy, ease, fade, pR, pG, pB, density)
         }
+        elementPaint.shader = null
+    }
 
-        val flashRadius = (1f - progress) * 50f * density
-        val flashAlpha = ((1f - progress) * 230).toInt().coerceIn(0, 255)
+    private fun drawSoftRadialGlow(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        radius: Float,
+        centerColor: Int,
+        midColor: Int
+    ) {
+        if (radius <= 1f) return
         elementPaint.style = Paint.Style.FILL
-        elementPaint.color = Color.argb(flashAlpha, 255, 255, 255)
-        canvas.drawCircle(cx, cy, flashRadius, elementPaint)
+        elementPaint.shader = RadialGradient(
+            cx, cy, radius,
+            intArrayOf(centerColor, midColor, Color.TRANSPARENT),
+            floatArrayOf(0f, 0.45f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawCircle(cx, cy, radius, elementPaint)
+        elementPaint.shader = null
+    }
+
+    private fun drawTaperedPetal(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        angleRad: Double,
+        innerR: Float,
+        outerR: Float,
+        halfWidth: Float,
+        color: Int
+    ) {
+        val cosA = cos(angleRad).toFloat()
+        val sinA = sin(angleRad).toFloat()
+        val midR = (innerR + outerR) * 0.46f
+        val xStart = cx + cosA * innerR
+        val yStart = cy + sinA * innerR
+        val xEnd = cx + cosA * outerR
+        val yEnd = cy + sinA * outerR
+        val px = -sinA * halfWidth
+        val py = cosA * halfWidth
+        val xMid = cx + cosA * midR
+        val yMid = cy + sinA * midR
+
+        sparkPath.reset()
+        sparkPath.moveTo(xStart, yStart)
+        sparkPath.lineTo(xMid + px, yMid + py)
+        sparkPath.lineTo(xEnd, yEnd)
+        sparkPath.lineTo(xMid - px, yMid - py)
+        sparkPath.close()
+
+        elementPaint.style = Paint.Style.FILL
+        elementPaint.shader = LinearGradient(
+            xStart, yStart, xEnd, yEnd,
+            intArrayOf(Color.TRANSPARENT, color, Color.TRANSPARENT),
+            floatArrayOf(0f, 0.38f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawPath(sparkPath, elementPaint)
+        elementPaint.shader = null
+    }
+
+    private fun drawPhotonBurstSpark(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        ease: Float,
+        fade: Float,
+        pR: Int,
+        pG: Int,
+        pB: Int,
+        density: Float
+    ) {
+        val bloomR = (30f + ease * 40f) * density
+        drawSoftRadialGlow(
+            canvas, cx, cy, bloomR,
+            Color.argb((165 * fade).toInt(), 255, 255, 255),
+            Color.argb((95 * fade).toInt(), pR, pG, pB)
+        )
+        val innerR = (6f + ease * 10f) * density
+        val outerR = (26f + ease * 36f) * density
+        val halfW = (2.6f * fade + 0.6f) * density
+        for (i in 0 until 6) {
+            val angle = i * (Math.PI / 3.0) + 0.25
+            val petalColor = if (i % 2 == 0) {
+                Color.argb((175 * fade).toInt(), 255, 255, 255)
+            } else {
+                Color.argb((165 * fade).toInt(), pR, pG, pB)
+            }
+            drawTaperedPetal(canvas, cx, cy, angle, innerR, outerR, halfW, petalColor)
+        }
+    }
+
+    private fun drawHaloRippleSpark(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        ease: Float,
+        fade: Float,
+        pR: Int,
+        pG: Int,
+        pB: Int,
+        density: Float
+    ) {
+        val outerR = (24f + ease * 52f) * density
+        if (outerR <= 2f) return
+        elementPaint.style = Paint.Style.FILL
+        elementPaint.shader = RadialGradient(
+            cx, cy, outerR,
+            intArrayOf(
+                Color.argb((75 * fade).toInt(), 255, 255, 255),
+                Color.TRANSPARENT,
+                Color.argb((130 * fade).toInt(), pR, pG, pB),
+                Color.argb((75 * fade).toInt(), 56, 189, 248),
+                Color.TRANSPARENT
+            ),
+            floatArrayOf(0f, 0.34f, 0.66f, 0.84f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawCircle(cx, cy, outerR, elementPaint)
+        elementPaint.shader = null
+    }
+
+    private fun drawOpticalFlareSpark(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        ease: Float,
+        fade: Float,
+        pR: Int,
+        pG: Int,
+        pB: Int,
+        density: Float
+    ) {
+        val coreR = (18f + ease * 18f) * density
+        drawSoftRadialGlow(
+            canvas, cx, cy, coreR,
+            Color.argb((185 * fade).toInt(), 255, 255, 255),
+            Color.argb((90 * fade).toInt(), pR, pG, pB)
+        )
+        val majorLen = (28f + ease * 42f) * density
+        val minorLen = (20f + ease * 28f) * density
+        val majorW = (2.4f * fade + 0.5f) * density
+        val minorW = (1.6f * fade + 0.4f) * density
+        val majorCol = Color.argb((195 * fade).toInt(), 255, 255, 255)
+        val minorCol = Color.argb((160 * fade).toInt(), pR, pG, pB)
+        drawTaperedPetal(canvas, cx, cy, 0.0, -majorLen, majorLen, majorW, majorCol)
+        drawTaperedPetal(canvas, cx, cy, Math.PI / 2.0, -minorLen, minorLen, minorW, minorCol)
+    }
+
+    private fun drawEmberDriftSpark(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        p: Float,
+        ease: Float,
+        fade: Float,
+        pR: Int,
+        pG: Int,
+        pB: Int,
+        density: Float
+    ) {
+        val coreR = (24f + ease * 18f) * density
+        drawSoftRadialGlow(
+            canvas, cx, cy, coreR,
+            Color.argb((110 * fade).toInt(), pR, pG, pB),
+            Color.argb((45 * fade).toInt(), 56, 189, 248)
+        )
+        elementPaint.style = Paint.Style.FILL
+        val emberCount = 8
+        for (i in 0 until emberCount) {
+            val baseAngle = (i * (2.0 * Math.PI / emberCount)) + (p * 0.45)
+            val dist = (10f + ease * (32f + (i % 3) * 10f)) * density
+            val ex = cx + (cos(baseAngle) * dist).toFloat()
+            val ey = cy + (sin(baseAngle) * dist).toFloat()
+            val er = ((2.4f - p * 0.9f) + (i % 2) * 0.6f).coerceAtLeast(0.8f) * density
+            elementPaint.color = if (i % 2 == 0) {
+                Color.argb((85 * fade).toInt(), pR, pG, pB)
+            } else {
+                Color.argb((85 * fade).toInt(), 56, 189, 248)
+            }
+            canvas.drawCircle(ex, ey, er * 2.1f, elementPaint)
+            elementPaint.color = Color.argb((220 * fade).toInt(), 255, 255, 255)
+            canvas.drawCircle(ex, ey, er * 0.8f, elementPaint)
+        }
+    }
+
+    private fun drawMinimalPulseSpark(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        ease: Float,
+        fade: Float,
+        pR: Int,
+        pG: Int,
+        pB: Int,
+        density: Float
+    ) {
+        val pulseR = (26f + ease * 20f) * density
+        drawSoftRadialGlow(
+            canvas, cx, cy, pulseR,
+            Color.argb((135 * fade).toInt(), 255, 255, 255),
+            Color.argb((75 * fade).toInt(), pR, pG, pB)
+        )
     }
 
     fun drawHolographicReactorCore(

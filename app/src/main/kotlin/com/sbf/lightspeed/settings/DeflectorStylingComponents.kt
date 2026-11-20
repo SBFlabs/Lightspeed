@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import com.sbf.lightspeed.system.safeReloadPreferences
 
 import android.content.Context
@@ -74,7 +77,7 @@ fun DeflectorPillStylingContent(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                Text("Central Pill Active Glow", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
+                Text(lsString(R.string.def_pill_glow), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
                 Text(
                     if (glowEnabled) "Tactile static bezel indicator active" else "Pill hidden / dormant",
                     fontSize = 12.sp,
@@ -111,8 +114,8 @@ fun DeflectorPillStylingContent(
         val isCustomLandscape = landscapeMode == LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM
 
         CollapsibleSubSection(
-            title = "Sensor Geometry",
-            subtitle = "Span, touch reach, alignment & stealth glow",
+            title = lsString(R.string.sec_sensor_geometry),
+            subtitle = lsString(R.string.secd_span_touch_reach_alignment_ste),
             icon = {
                 Icon(
                     imageVector = Icons.Outlined.Straighten,
@@ -156,7 +159,7 @@ fun DeflectorPillStylingContent(
             )
             
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Pill Geometry Style", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
+                Text(lsString(R.string.def_pill_style), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     pillOptions1.forEach { (id, label) ->
                         val isSelected = pillStyle == id
@@ -237,7 +240,7 @@ fun DeflectorPillStylingContent(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                    Text("Material 3 Dynamic Color", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
+                    Text(lsString(R.string.def_m3_dyn), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
                     Text(
                         if (useM3Color) "Tints pill with dynamic wallpaper theme color" else "Use custom aesthetic shading palette",
                         fontSize = 12.sp,
@@ -358,7 +361,7 @@ fun DeflectorPillStylingContent(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                    Text("Glow on Gesture Registration", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
+                    Text(lsString(R.string.def_glow_reg), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
                     Text(
                         "Briefly pulse pill when gesture recognition begins",
                         fontSize = 12.sp,
@@ -397,7 +400,7 @@ fun DeflectorPillStylingContent(
                     contentColor = MaterialTheme.colorScheme.primary
                 )
             ) {
-                Text("PREVIEW PILL GLOW FX", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(lsString(R.string.def_prev_glow), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -1,5 +1,9 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -71,8 +75,8 @@ internal fun CockpitGearPickerHeaderRow(
             )
             Text(
                 text = if (isSingleSelect) {
-                    if (isSplitMode) "Tap any app or shortcut" else "Tap any app, deep shortcut or system action to assign"
-                } else "Profile: $profileName ($selectedCount selected)",
+                    if (isSplitMode) lsString(R.string.picker_gear_tap_short) else lsString(R.string.picker_gear_tap_full)
+                } else lsString(R.string.picker_gear_profile, profileName, selectedCount),
                 fontSize = 12.sp,
                 color = dynamicSecondary
             )
@@ -101,7 +105,7 @@ internal fun CockpitGearPickerSearchBar(
     TextField(
         value = query,
         onValueChange = onQueryChange,
-        placeholder = { Text("Search apps, shortcuts & actions...", color = lsColors.textPrimary.copy(alpha = 0.45f), fontSize = 13.sp) },
+        placeholder = { Text(lsString(R.string.picker_gear_search), color = lsColors.textPrimary.copy(alpha = 0.45f), fontSize = 13.sp) },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = lsColors.textPrimary.copy(alpha = 0.6f), modifier = Modifier.size(18.dp)) },
         trailingIcon = {
             if (query.isNotEmpty()) {
@@ -152,8 +156,8 @@ internal fun CockpitGearPickerNoneRow(
         Icon(Icons.Default.Close, contentDescription = null, tint = LightspeedTokens.StatusErrorSoft, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text("None (No Action)", color = lsColors.textPrimary, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
-            Text("Clear and disable action for this gesture", color = lsColors.textSecondary.copy(alpha = 0.5f), fontSize = 10.5.sp)
+            Text(lsString(R.string.picker_none_action), color = lsColors.textPrimary, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+            Text(lsString(R.string.picker_none_action_sub), color = lsColors.textSecondary.copy(alpha = 0.5f), fontSize = 10.5.sp)
         }
         if (isSelected) {
             Box(
@@ -162,7 +166,7 @@ internal fun CockpitGearPickerNoneRow(
                     .padding(horizontal = 8.dp, vertical = 3.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("ACTIVE", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                Text(lsString(R.string.cc_common_active), color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
             }
         }
     }
@@ -191,7 +195,7 @@ internal fun CockpitGearPickerWarningBanner(modifier: Modifier = Modifier) {
             Icon(imageVector = Icons.Default.WarningAmber, contentDescription = null, tint = lsColors.accentWarn, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Deep activities bypass standard app entry points and may produce unpredictable results.",
+                text = lsString(R.string.picker_deep_warn),
                 fontSize = 11.sp,
                 color = LightspeedTokens.StatusGoldBadge,
                 lineHeight = 14.sp
@@ -226,7 +230,7 @@ internal fun CockpitGearPickerBottomBar(
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.dp, lsColors.textPrimary.copy(alpha = 0.20f))
         ) {
-            Text("CANCEL", color = lsColors.textPrimary.copy(alpha = 0.8f), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            Text(lsString(R.string.cc_common_cancel), color = lsColors.textPrimary.copy(alpha = 0.8f), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
         }
 
         Button(
@@ -237,7 +241,7 @@ internal fun CockpitGearPickerBottomBar(
                 .weight(1f)
                 .height(46.dp)
         ) {
-            Text("SAVE ($selectedCount)", color = lsColors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(lsString(R.string.picker_save_cnt, selectedCount), color = lsColors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
         }
     }
 }

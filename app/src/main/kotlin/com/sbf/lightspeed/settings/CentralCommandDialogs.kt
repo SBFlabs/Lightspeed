@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 
 import com.sbf.lightspeed.system.safeReloadPreferences
@@ -73,7 +76,7 @@ fun ResetConfirmDialog(
 
     DeckDialog(
         onDismissRequest = { showState.value = false },
-        title = { Text("Reset to Factory Defaults?", fontWeight = FontWeight.Bold) },
+        title = { Text(lsString(R.string.cc_dlg_reset_title), fontWeight = FontWeight.Bold) },
         text = {
             Text(
                 "This will wipe all customized gestures, sensitivity sliders, and custom gear sets. This action cannot be undone.",
@@ -82,11 +85,11 @@ fun ResetConfirmDialog(
         },
         confirmButton = {
             DeckButton(
-                text = "Reset Everything",
+                text = lsString(R.string.cc_dlg_reset_btn),
                 onClick = {
                     viewModel.resetToDefaults(context)
                     showState.value = false
-                    Toast.makeText(context, "Preferences reset to factory defaults", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, lsString(R.string.cc_dlg_reset_toast), Toast.LENGTH_SHORT).show()
                     onRefreshNeeded()
                 },
                 isDestructive = true
@@ -94,7 +97,7 @@ fun ResetConfirmDialog(
         },
         dismissButton = {
             DeckButton(
-                text = "Cancel",
+                text = lsString(R.string.cc_dlg_cancel),
                 onClick = { showState.value = false }
             )
         }
@@ -116,7 +119,7 @@ fun ImportStatusDialog(
         onDismissRequest = { viewModel.clearImportStatus() },
         title = {
             Text(
-                text = if (isImportSuccess) "Backup Restored" else "Import Status",
+                text = if (isImportSuccess) lsString(R.string.cc_dlg_backup_restored) else lsString(R.string.cc_dlg_import_status),
                 fontWeight = FontWeight.Bold,
                 color = if (isImportSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
             )
@@ -130,7 +133,7 @@ fun ImportStatusDialog(
         },
         confirmButton = {
             DeckButton(
-                text = if (isImportSuccess) "Done" else "Dismiss",
+                text = if (isImportSuccess) lsString(R.string.cc_dlg_done) else lsString(R.string.cc_dlg_dismiss),
                 onClick = {
                     val wasSuccess = isImportSuccess
                     viewModel.clearImportStatus()
@@ -158,13 +161,13 @@ fun ImportOptionsDialog(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.CloudDownload, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(10.dp))
-                Text("Restore Configuration", fontWeight = FontWeight.Bold)
+                Text(lsString(R.string.cc_dlg_restore_title), fontWeight = FontWeight.Bold)
             }
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    "SELECT RESTORE METHOD",
+                    lsString(R.string.cc_dlg_select_restore),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -188,8 +191,8 @@ fun ImportOptionsDialog(
                     Icon(Icons.Default.FolderOpen, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Choose Backup File", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = LightspeedStyle.colors.textPrimary)
-                        Text("Select your backup .json file from storage", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(lsString(R.string.cc_dlg_choose_file), fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = LightspeedStyle.colors.textPrimary)
+                        Text(lsString(R.string.cc_dlg_choose_file_sub), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
@@ -211,8 +214,8 @@ fun ImportOptionsDialog(
                     Icon(Icons.Default.ContentPaste, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Paste JSON Text Directly", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = LightspeedStyle.colors.textPrimary)
-                        Text("Paste backup payload from clipboard", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(lsString(R.string.cc_dlg_paste_json), fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = LightspeedStyle.colors.textPrimary)
+                        Text(lsString(R.string.cc_dlg_paste_json_sub), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
@@ -243,7 +246,7 @@ fun ImportOptionsDialog(
         },
         dismissButton = {
             DeckButton(
-                text = "Cancel",
+                text = lsString(R.string.cc_dlg_cancel),
                 onClick = { showState.value = false }
             )
         }
@@ -261,10 +264,10 @@ fun PasteJsonDialog(
 
     DeckDialog(
         onDismissRequest = { showState.value = false },
-        title = { Text("Paste Backup JSON", fontWeight = FontWeight.Bold) },
+        title = { Text(lsString(R.string.cc_dlg_paste_title), fontWeight = FontWeight.Bold) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text("Paste your exported JSON payload below:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(lsString(R.string.cc_dlg_paste_hint), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = pastedJsonTextState.value,
@@ -280,7 +283,7 @@ fun PasteJsonDialog(
         },
         confirmButton = {
             DeckButton(
-                text = "Restore",
+                text = lsString(R.string.cc_dlg_restore_btn),
                 onClick = {
                     val text = pastedJsonTextState.value.trim()
                     showState.value = false
@@ -293,7 +296,7 @@ fun PasteJsonDialog(
         },
         dismissButton = {
             DeckButton(
-                text = "Cancel",
+                text = lsString(R.string.cc_dlg_cancel),
                 onClick = { showState.value = false }
             )
         }
@@ -307,20 +310,20 @@ fun SymmetryInfoDialog(showState: MutableState<Boolean>) {
     DeckDialog(
         onDismissRequest = { showState.value = false },
         icon = { Icon(Icons.Default.SyncAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-        title = { Text("Deflector Symmetry & Coupling", fontWeight = FontWeight.Bold) },
+        title = { Text(lsString(R.string.cc_dlg_sym_title), fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("The 3-position selector acts as a non-destructive Flight Profile Switch:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
-                Text("• CLONE LEFT: Left Wing is master. Right Wing automatically mirrors its geometry or inverts and executes its gestures.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("• INDEPENDENT: Bilateral multi-role setup. Both wings have dedicated, independent gesture maps and dimensions.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("• CLONE RIGHT: Right Wing is master. Left Wing automatically mirrors its geometry or opens the Cockpit / executes its gestures.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(lsString(R.string.cc_dlg_sym_intro), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(lsString(R.string.cc_dlg_sym_left), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(lsString(R.string.cc_dlg_sym_indep), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(lsString(R.string.cc_dlg_sym_right), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("🔒 Switching profiles never deletes your custom setups. Switching back to INDEPENDENT restores all unique mappings instantly.", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                Text(lsString(R.string.cc_dlg_sym_safe), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
             }
         },
         confirmButton = {
             DeckButton(
-                text = "Got it",
+                text = lsString(R.string.cc_dlg_got_it),
                 onClick = { showState.value = false },
                 isActive = true
             )
@@ -335,20 +338,20 @@ fun UnifyInfoDialog(showState: MutableState<Boolean>) {
     DeckDialog(
         onDismissRequest = { showState.value = false },
         icon = { Icon(Icons.Default.Link, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-        title = { Text("Unified Flank Actions & Dual Scrubbers", fontWeight = FontWeight.Bold) },
+        title = { Text(lsString(R.string.cc_dlg_unify_title), fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("This unifies your gesture configuration while preserving ergonomics:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
-                Text("• Single Gesture Set: Configure standard directional gestures (Tap, Swipe In, Swipe Up/Down, Hold) once for the whole flank.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("• Dual Scrubbers: Independent inward scrubbing selectors for the upper half (e.g. Brightness) and lower half (e.g. Volume).", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("• Independent Geometry: Top and bottom wing spans, reaches, and glows remain independently tunable for natural grip comfort.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(lsString(R.string.cc_dlg_unify_intro), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(lsString(R.string.cc_dlg_unify_b1), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(lsString(R.string.cc_dlg_unify_b2), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(lsString(R.string.cc_dlg_unify_b3), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("🔒 Toggling OFF immediately restores your previous separate upper and lower gesture mappings without data loss.", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                Text(lsString(R.string.cc_dlg_unify_safe), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
             }
         },
         confirmButton = {
             DeckButton(
-                text = "Got it",
+                text = lsString(R.string.cc_dlg_got_it),
                 onClick = { showState.value = false },
                 isActive = true
             )
@@ -375,11 +378,11 @@ fun UnifyTemplateDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Choose an action template to initialize your unified flank set:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(lsString(R.string.cc_dlg_unify_choose), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
                 listOf(
-                    0 to "Clone Upper Vector Actions (Top Half)",
-                    1 to "Clone Lower Vector Actions (Bottom Half)",
-                    2 to "Use Dedicated Unified Set"
+                    0 to lsString(R.string.cc_dlg_unify_clone_up),
+                    1 to lsString(R.string.cc_dlg_unify_clone_lo),
+                    2 to lsString(R.string.cc_dlg_unify_ded)
                 ).forEach { (optIdx, optLabel) ->
                     Row(
                         modifier = Modifier
@@ -403,7 +406,7 @@ fun UnifyTemplateDialog(
         },
         confirmButton = {
             DeckButton(
-                text = "Unify Actions",
+                text = lsString(R.string.cc_dlg_unify_btn),
                 onClick = {
                     showState.value = false
                     onConfirm(selectedOption)
@@ -413,7 +416,7 @@ fun UnifyTemplateDialog(
         },
         dismissButton = {
             DeckButton(
-                text = "Cancel",
+                text = lsString(R.string.cc_dlg_cancel),
                 onClick = { showState.value = false }
             )
         }
@@ -438,26 +441,26 @@ fun OemShieldDialog(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("OEM Compatibility Shield", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(lsString(R.string.cc_dlg_oem_shield), fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Configure hardware-level passthrough guardrails to ensure native Android system shortcuts remain responsive on your specific device hardware.",
+                    lsString(R.string.cc_dlg_oem_shield_desc),
                     fontSize = 13.sp,
                     color = lsColors.textSecondary.copy(alpha = 0.85f),
                     lineHeight = 17.sp
                 )
                 PrefToggleRow(
-                    title = "Preserve Screenshot Shortcut",
-                    subtitle = "Whitelist immediate pass-through for Power + Vol Down screenshot captures",
+                    title = lsString(R.string.cc_dlg_pres_shot),
+                    subtitle = lsString(R.string.cc_dlg_pres_shot_sub),
                     isChecked = preserveScreenshot,
                     onCheckedChange = { preserveScreenshot = it }
                 )
                 PrefToggleRow(
-                    title = "Preserve Accessibility Shortcut",
-                    subtitle = "Bypass custom chords after 1.5s simultaneous hold and yield directly to Android TalkBack / accessibility shortcut",
+                    title = lsString(R.string.cc_dlg_pres_a11y),
+                    subtitle = lsString(R.string.cc_dlg_pres_a11y_sub),
                     isChecked = preserveAccessibility,
                     onCheckedChange = { preserveAccessibility = it }
                 )
@@ -465,7 +468,7 @@ fun OemShieldDialog(
         },
         confirmButton = {
             DeckButton(
-                text = "APPLY SHIELD",
+                text = lsString(R.string.cc_dlg_apply_shield),
                 onClick = {
                     prefs.edit()
                         .putBoolean(LightspeedPreferences.KEY_OEM_SHIELD_COMPLETED, true)
@@ -480,7 +483,7 @@ fun OemShieldDialog(
         },
         dismissButton = {
             DeckButton(
-                text = "DISMISS",
+                text = lsString(R.string.cc_dlg_dismiss_caps),
                 onClick = { showState.value = false }
             )
         }
@@ -499,7 +502,7 @@ fun BatteryWarningDialog(
     DeckDialog(
         onDismissRequest = { showState.value = false },
         title = {
-            Text("⚠️ High Battery Usage Warning", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text(lsString(R.string.cc_dlg_high_bat_title), fontWeight = FontWeight.Bold, fontSize = 17.sp)
         },
         text = {
             Text(
@@ -511,7 +514,7 @@ fun BatteryWarningDialog(
         },
         confirmButton = {
             DeckButton(
-                text = "ENABLE ANYWAY",
+                text = lsString(R.string.cc_dlg_enable_anyway_caps),
                 onClick = {
                     prefs.edit().putString(LightspeedPreferences.KEY_BACK_TAP_SCOPE, pendingBackTapScope).apply()
                     showState.value = false
@@ -546,7 +549,7 @@ fun NotificationAccessDialog(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Notification Access Required", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text(lsString(R.string.cc_dlg_notif_req), fontWeight = FontWeight.Bold, fontSize = 17.sp)
             }
         },
         text = {
@@ -559,7 +562,7 @@ fun NotificationAccessDialog(
         },
         confirmButton = {
             DeckButton(
-                text = "OPEN SETTINGS",
+                text = lsString(R.string.cc_dlg_open_settings),
                 onClick = {
                     showState.value = false
                     try {
@@ -581,7 +584,7 @@ fun NotificationAccessDialog(
         },
         dismissButton = {
             DeckButton(
-                text = "NOT NOW",
+                text = lsString(R.string.cc_dlg_not_now),
                 onClick = { showState.value = false }
             )
         }
@@ -606,7 +609,7 @@ fun AmoledWarningDialog(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Hardware Notice: AMOLED Image Retention", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text(lsString(R.string.cc_dlg_amoled_title), fontWeight = FontWeight.Bold, fontSize = 17.sp)
             }
         },
         text = {
@@ -619,7 +622,7 @@ fun AmoledWarningDialog(
         },
         confirmButton = {
             DeckButton(
-                text = "Keep Auto-Sleep (Recommended)",
+                text = lsString(R.string.cc_dlg_keep_autosleep),
                 onClick = {
                     prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s").apply()
                     showState.value = false
@@ -630,7 +633,7 @@ fun AmoledWarningDialog(
         },
         dismissButton = {
             DeckButton(
-                text = "Enable Always-On",
+                text = lsString(R.string.cc_dlg_enable_aod),
                 onClick = {
                     prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "never").apply()
                     showState.value = false

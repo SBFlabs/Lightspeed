@@ -10,6 +10,8 @@ class LightspeedApplication : Application() {
         ShizukuGate.init(this)
         com.sbf.lightspeed.system.ElevatedTaskCloser.exemptHiddenApis()
         com.sbf.lightspeed.system.LightspeedPreferences.initializeDefaults(this)
+        com.sbf.lightspeed.settings.DeckThemeManager.refresh(this)
+        com.sbf.lightspeed.settings.BackdropBlurModeManager.init(this)
         com.sbf.lightspeed.system.LightspeedLanguageEngine.init(this)
         LightspeedCrashSentinel.init(this)
         com.sbf.lightspeed.system.FlightLog.init(this)

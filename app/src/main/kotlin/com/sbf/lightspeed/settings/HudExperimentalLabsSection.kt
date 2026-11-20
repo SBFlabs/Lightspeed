@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.clickable
@@ -49,15 +52,15 @@ fun HudExperimentalLabsSection(
     isRefuelingExpanded: Boolean = false,
     onToggleRefueling: () -> Unit = {},
     onShowAmoledWarning: () -> Unit = {},
-    onRefreshNeeded: () -> Unit
+    onRefreshNeeded: () -> Unit,
+    languageMode: LightspeedLanguageEngine.LanguageMode = LightspeedLanguageEngine.modeFlow.value
 ) {
     val lsColors = LightspeedStyle.colors
     val cautionAmber = lsColors.accentWarn
-    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
 
     HazardAccordionSection(
-        title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.EXPERIMENTAL_LABS, currentLanguageMode),
-        subtitle = "Features in this deck are unstable and/or not well tested yet. Use at your own discretion.",
+        title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.EXPERIMENTAL_LABS, languageMode),
+        subtitle = lsString(R.string.secd_features_in_this_deck_are_unst),
         isExpanded = isExpanded,
         onToggle = onToggle
     ) {
@@ -73,7 +76,7 @@ fun HudExperimentalLabsSection(
                     Icon(Icons.Default.WarningAmber, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Experimental Labs: Active testing ground for cutting-edge features, hardware-specific gesture remaps, and deep system automations. These experimental tools are in active testing and may be unstable or behave differently across various OEM Android firmwares.",
+                        text = lsString(R.string.lab_warn_banner),
                         fontSize = 11.sp,
                         color = cautionAmber.copy(alpha = 0.95f),
                         lineHeight = 14.5.sp
@@ -92,8 +95,8 @@ fun HudExperimentalLabsSection(
                 )
             }
             CollapsibleSubSection(
-                title = "Cybernetic Trackpad",
-                subtitle = "120Hz cursor dome & 3 per-window smart macro buttons",
+                title = lsString(R.string.sec_cybernetic_trackpad),
+                subtitle = lsString(R.string.secd_120hz_cursor_dome_3_per_window),
                 icon = {
                     Icon(
                         imageVector = Icons.Default.ControlCamera,
@@ -112,12 +115,12 @@ fun HudExperimentalLabsSection(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Enable Cybernetic Trackpad",
+                            text = lsString(R.string.lab_trackpad_title),
                             fontSize = 12.sp,
                             color = lsColors.textPrimary
                         )
                         Text(
-                            text = if (isTrackpadLabsEnabled) "Visible in Deflector tabs. Configure below or jump to Deflector." else "Hidden from Deflector tabs and overlays.",
+                            text = if (isTrackpadLabsEnabled) lsString(R.string.lab_trackpad_vis) else lsString(R.string.lab_trackpad_hid),
                             fontSize = 10.sp,
                             color = lsColors.textSecondary
                         )
@@ -177,13 +180,13 @@ fun HudExperimentalLabsSection(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         TrackpadPillButton(
-                            text = "RIGHT DEFLECTOR",
+                            text = lsString(R.string.lab_right_def),
                             isSelected = !trackpadFlankLeft,
                             onClick = { trackpadFlankLeft = false },
                             modifier = Modifier.weight(1f)
                         )
                         TrackpadPillButton(
-                            text = "LEFT DEFLECTOR",
+                            text = lsString(R.string.lab_left_def),
                             isSelected = trackpadFlankLeft,
                             onClick = { trackpadFlankLeft = true },
                             modifier = Modifier.weight(1f)
@@ -209,8 +212,8 @@ fun HudExperimentalLabsSection(
             // 1. Sonic Deck / Universal Audio Control (Experimental)
             var isSonicDeckExpanded by rememberSaveable { mutableStateOf(false) }
             var showSonicPowerWarning by remember { mutableStateOf(false) }
-            val (sonicDeckTitle, sonicDeckSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.SONIC_DECK, currentLanguageMode)
-            val sonicSubtitle = if (sonicDeckSub != null) "$sonicDeckSub • Per-app volume mixer" else "Per-app volume mixer & sovereign audio controls"
+            val (sonicDeckTitle, sonicDeckSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.SONIC_DECK, languageMode)
+            val sonicSubtitle = if (sonicDeckSub != null) "$sonicDeckSub • Per-app volume mixer" else lsString(R.string.lab_sonic_sub)
             CollapsibleSubSection(
                 title = sonicDeckTitle,
                 subtitle = sonicSubtitle,
@@ -230,7 +233,7 @@ fun HudExperimentalLabsSection(
                     prefKey = LightspeedPreferences.KEY_SONIC_DECK_ENABLED,
                     defaultVal = false,
                     title = "Enable $sonicDeckTitle",
-                    subtitle = "Pull outward (horizontally from deflectors or vertically from top progress rail) while scrubbing volume to open per-app mixer.",
+                    subtitle = lsString(R.string.lab_sonic_pull),
                     onChanged = { enabled ->
                         SonicDeckManager.onMasterToggle(context, enabled)
                         if (enabled && !prefs.getBoolean(LightspeedPreferences.KEY_SONIC_POWER_WARNING_DISMISSED, false)) {
@@ -240,7 +243,7 @@ fun HudExperimentalLabsSection(
                     }
                 )
                 Text(
-                    text = "⚠ Uses extra RAM and battery: runs a separate background audio service while enabled.",
+                    text = lsString(R.string.lab_sonic_ram_warn),
                     fontSize = 11.sp,
                     color = lsColors.accentDanger,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
@@ -257,7 +260,7 @@ fun HudExperimentalLabsSection(
                         onDismissRequest = dismissWarning,
                         title = {
                             Text(
-                                text = "⚠ Power & memory usage",
+                                text = lsString(R.string.lab_sonic_dlg_title),
                                 fontSize = 15.sp,
                                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                                 color = lsColors.accentDanger
@@ -266,7 +269,7 @@ fun HudExperimentalLabsSection(
                         text = {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
-                                    text = "Sonic Deck keeps a separate privileged audio service running (about 100–150 MB of RAM) and keeps monitoring audio players. This costs extra memory and battery. Turn Sonic Deck off to stop the service completely.",
+                                    text = lsString(R.string.lab_sonic_dlg_body),
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                                 )
@@ -275,13 +278,13 @@ fun HudExperimentalLabsSection(
                                     modifier = Modifier.clickable { dontRemind = !dontRemind }
                                 ) {
                                     Checkbox(checked = dontRemind, onCheckedChange = { dontRemind = it })
-                                    Text("Don't remind me again", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+                                    Text(lsString(R.string.lab_dont_remind), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
                                 }
                             }
                         },
                         confirmButton = {
                             TextButton(onClick = dismissWarning) {
-                                Text("GOT IT", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text(lsString(R.string.cc_dlg_got_it_caps), fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     )
@@ -291,16 +294,16 @@ fun HudExperimentalLabsSection(
                         prefs = prefs,
                         prefKey = LightspeedPreferences.KEY_SONIC_DECK_LEFT_ENABLED,
                         defaultVal = true,
-                        title = "Left Deflector Launch",
-                        subtitle = "Pull inward from left deflector during volume scrub to launch Sonic Deck.",
+                        title = lsString(R.string.lab_left_launch),
+                        subtitle = lsString(R.string.lab_sonic_left_sub),
                         onChanged = { onRefreshNeeded() }
                     )
                     PrefToggleRow(
                         prefs = prefs,
                         prefKey = LightspeedPreferences.KEY_SONIC_DECK_RIGHT_ENABLED,
                         defaultVal = true,
-                        title = "Right Deflector Launch",
-                        subtitle = "Pull inward from right deflector during volume scrub to launch Sonic Deck.",
+                        title = lsString(R.string.lab_right_launch),
+                        subtitle = lsString(R.string.lab_sonic_right_sub),
                         onChanged = { onRefreshNeeded() }
                     )
                 }
@@ -311,20 +314,20 @@ fun HudExperimentalLabsSection(
                         if (svc != null) {
                             com.sbf.lightspeed.system.SonicDeckManager.show(svc)
                         } else {
-                            android.widget.Toast.makeText(context, "Accessibility Service is not active", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, lsString(R.string.lab_a11y_inactive), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(42.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Launch Sonic Deck ↗", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                    Text(lsString(R.string.lab_launch_sonic), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
             // 1b. Vista Deck / Display & Visual Optics Control (Experimental)
             var isVistaDeckExpanded by rememberSaveable { mutableStateOf(false) }
-            val (vistaDeckTitle, vistaDeckSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.VISTA_DECK, currentLanguageMode)
-            val vistaSubtitle = if (vistaDeckSub != null) "$vistaDeckSub • Brightness & display optics" else "Display wellness, video takeover & optics controls"
+            val (vistaDeckTitle, vistaDeckSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.VISTA_DECK, languageMode)
+            val vistaSubtitle = if (vistaDeckSub != null) "$vistaDeckSub • Brightness & display optics" else lsString(R.string.lab_vista_sub)
             CollapsibleSubSection(
                 title = vistaDeckTitle,
                 subtitle = vistaSubtitle,
@@ -344,7 +347,7 @@ fun HudExperimentalLabsSection(
                     prefKey = LightspeedPreferences.KEY_VISTA_DECK_ENABLED,
                     defaultVal = true,
                     title = "Enable $vistaDeckTitle",
-                    subtitle = "Pull outward (horizontally from deflectors or vertically from top progress rail) while scrubbing brightness to open expanded display controls.",
+                    subtitle = lsString(R.string.lab_vista_pull),
                     onChanged = { onRefreshNeeded() }
                 )
                 if (prefs.getBoolean(LightspeedPreferences.KEY_VISTA_DECK_ENABLED, true)) {
@@ -352,16 +355,16 @@ fun HudExperimentalLabsSection(
                         prefs = prefs,
                         prefKey = LightspeedPreferences.KEY_VISTA_DECK_LEFT_ENABLED,
                         defaultVal = true,
-                        title = "Left Deflector Launch",
-                        subtitle = "Pull inward from left deflector during brightness scrub to launch Vista Deck.",
+                        title = lsString(R.string.lab_left_launch),
+                        subtitle = lsString(R.string.lab_vista_left_sub),
                         onChanged = { onRefreshNeeded() }
                     )
                     PrefToggleRow(
                         prefs = prefs,
                         prefKey = LightspeedPreferences.KEY_VISTA_DECK_RIGHT_ENABLED,
                         defaultVal = true,
-                        title = "Right Deflector Launch",
-                        subtitle = "Pull inward from right deflector during brightness scrub to launch Vista Deck.",
+                        title = lsString(R.string.lab_right_launch),
+                        subtitle = lsString(R.string.lab_vista_right_sub),
                         onChanged = { onRefreshNeeded() }
                     )
                 }
@@ -372,13 +375,13 @@ fun HudExperimentalLabsSection(
                         if (svc != null) {
                             com.sbf.lightspeed.system.VistaDeckManager.show(svc)
                         } else {
-                            android.widget.Toast.makeText(context, "Accessibility Service is not active", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, lsString(R.string.lab_a11y_inactive), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(42.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Launch Vista Deck ↗", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                    Text(lsString(R.string.lab_launch_vista), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -387,7 +390,7 @@ fun HudExperimentalLabsSection(
                 context = context,
                 prefs = prefs,
                 cautionAmber = cautionAmber,
-                currentLanguageMode = currentLanguageMode,
+                currentLanguageMode = languageMode,
                 isNotchCalibExpanded = isNotchCalibExpanded,
                 onToggleNotchCalib = onToggleNotchCalib,
                 isOemNoticeDemoted = isOemNoticeDemoted,
@@ -403,7 +406,7 @@ fun HudExperimentalLabsSection(
                 context = context,
                 prefs = prefs,
                 cautionAmber = cautionAmber,
-                currentLanguageMode = currentLanguageMode,
+                currentLanguageMode = languageMode,
                 isSubPowerExpanded = isSubPowerExpanded,
                 onToggleSubPower = onToggleSubPower,
                 isSinglePressUnlocked = isSinglePressUnlocked,
@@ -419,8 +422,8 @@ fun HudExperimentalLabsSection(
             // 4. Core Cooling Schedule
             var isCoreCoolingExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_CORE_COOLING_LABS, false)) }
             CollapsibleSubSection(
-                title = "Core Cooling Schedule",
-                subtitle = "Configurable weekly maintenance reminder",
+                title = lsString(R.string.sec_core_cooling_schedule),
+                subtitle = lsString(R.string.secd_configurable_weekly_maintenanc),
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.AcUnit,
@@ -440,8 +443,8 @@ fun HudExperimentalLabsSection(
                 var targetHour by rememberSaveable { mutableIntStateOf(prefs.getInt(LightspeedPreferences.KEY_CORE_COOLING_HOUR, 3)) }
 
                 PrefToggleRow(
-                    title = "Scheduled Core Cooling Reminder",
-                    subtitle = "Dispatches a gentle reminder when system core cooling is recommended.",
+                    title = lsString(R.string.lab_cool_rem_title),
+                    subtitle = lsString(R.string.lab_cool_rem_sub),
                     isChecked = coreCoolingEnabled,
                     onCheckedChange = { checked ->
                         coreCoolingEnabled = checked
@@ -470,7 +473,7 @@ fun HudExperimentalLabsSection(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                 ) {
                     Text(
-                        text = "STRICT COLD-START POLICY: Zero automatic reboots. When weekly cooling cycle is reached, dispatches a silent status reminder to the HUD and Orbital Capsule.",
+                        text = lsString(R.string.lab_cool_policy),
                         fontSize = 10.5.sp,
                         color = lsColors.textSecondary.copy(alpha = 0.85f),
                         modifier = Modifier.padding(10.dp),

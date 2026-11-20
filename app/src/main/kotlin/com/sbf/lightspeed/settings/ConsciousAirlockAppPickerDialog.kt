@@ -51,9 +51,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindowProvider
 import com.sbf.lightspeed.LightspeedAppCategorizer
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -75,13 +77,13 @@ fun ConsciousAirlockAppPickerDialog(
     prefs: SharedPreferences,
     onDismissRequest: () -> Unit,
     prefKey: String = LightspeedPreferences.KEY_CONSCIOUS_DELAY_PACKAGES,
-    title: String = "Select Gated Applications",
-    subtitleTemplate: (Int) -> String = { count -> "Selected: $count apps gated with 5s airlock" },
+    title: String = lsString(R.string.picker_gated_title),
+    subtitleTemplate: (Int) -> String = { count -> lsString(R.string.picker_gated_sub, count) },
     prioritizeGames: Boolean = false,
     loaderStyle: AppPickerLoaderStyle = AppPickerLoaderStyle.AIRLOCK_SEAL,
     onSelectionChanged: ((Set<String>) -> Unit)? = null
 ) {
-    DeckDialog(onDismissRequest = onDismissRequest) {
+    DeckDialog(onDismissRequest = onDismissRequest, scrollable = false) {
         ConsciousAirlockAppPickerContent(
             context = context,
             prefs = prefs,
@@ -102,8 +104,8 @@ fun ConsciousAirlockAppPickerContent(
     prefs: SharedPreferences,
     onDismissRequest: () -> Unit,
     prefKey: String = LightspeedPreferences.KEY_CONSCIOUS_DELAY_PACKAGES,
-    title: String = "Select Gated Applications",
-    subtitleTemplate: (Int) -> String = { count -> "Selected: $count apps gated with 5s airlock" },
+    title: String = lsString(R.string.picker_gated_title),
+    subtitleTemplate: (Int) -> String = { count -> lsString(R.string.picker_gated_sub, count) },
     prioritizeGames: Boolean = false,
     loaderStyle: AppPickerLoaderStyle = AppPickerLoaderStyle.AIRLOCK_SEAL,
     onSelectionChanged: ((Set<String>) -> Unit)? = null
@@ -195,7 +197,7 @@ fun ConsciousAirlockAppPickerContent(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search installed apps...", fontSize = 11.sp, color = lsColors.textDisabled) },
+                placeholder = { Text(lsString(R.string.picker_search_apps), fontSize = 11.sp, color = lsColors.textDisabled) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 52.dp)
@@ -228,15 +230,15 @@ fun ConsciousAirlockAppPickerContent(
             if (isLoading) {
                 val (loaderTitle, loaderSubtitle) = when (loaderStyle) {
                     AppPickerLoaderStyle.AIRLOCK_SEAL ->
-                        "ASTROGATION AIRLOCK" to "Preparing gated app vault..."
+                        lsString(R.string.picker_load_airlock_t) to lsString(R.string.picker_load_airlock_s)
                     AppPickerLoaderStyle.SOLAR_BRIGHTNESS_TRIGGER ->
-                        "BRIGHTNESS TRIGGER APPS" to "Loading media auto-release list..."
+                        lsString(R.string.picker_load_bright_t) to lsString(R.string.picker_load_bright_s)
                     AppPickerLoaderStyle.TELEMETRY_WAVEFORM ->
-                        "CALIBRATING TELEMETRY TARGETS" to "Indexing Hz & micro-HUD candidates..."
+                        lsString(R.string.picker_load_tel_t) to lsString(R.string.picker_load_tel_s)
                     AppPickerLoaderStyle.BATTERY_CELL ->
-                        "CHECKING POWER PROFILES" to "Scanning battery exemption candidates..."
+                        lsString(R.string.picker_load_bat_t) to lsString(R.string.picker_load_bat_s)
                     AppPickerLoaderStyle.RADAR_SCAN ->
-                        "SCANNING INSTALLED APPS" to "Indexing shield candidates..."
+                        lsString(R.string.picker_load_radar_t) to lsString(R.string.picker_load_radar_s)
                 }
                 TailoredAppPickerLoader(
                     style = loaderStyle,
@@ -267,9 +269,9 @@ fun ConsciousAirlockAppPickerContent(
                         ) {
                             Text(
                                 text = if (isSelectedAccordionExpanded) {
-                                    "▾ SELECTED APPS (${selectedEntries.size})"
+                                    "▾ " + lsString(R.string.picker_selected_hdr, selectedEntries.size)
                                 } else {
-                                    "▸ SELECTED APPS (${selectedEntries.size})"
+                                    "▸ " + lsString(R.string.picker_selected_hdr, selectedEntries.size)
                                 },
                                 fontSize = 9.5.sp,
                                 fontFamily = FontFamily.Monospace,
@@ -277,7 +279,7 @@ fun ConsciousAirlockAppPickerContent(
                                 color = lsColors.accent
                             )
                             Text(
-                                text = if (isSelectedAccordionExpanded) "COLLAPSE" else "EXPAND",
+                                text = if (isSelectedAccordionExpanded) lsString(R.string.picker_collapse) else lsString(R.string.picker_expand),
                                 fontSize = 8.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.SemiBold,
@@ -289,10 +291,13 @@ fun ConsciousAirlockAppPickerContent(
                             enter = expandVertically(animationSpec = tween(160)) + fadeIn(tween(140)),
                             exit = shrinkVertically(animationSpec = tween(140)) + fadeOut(tween(110))
                         ) {
+                            val selectedListState = androidx.compose.foundation.lazy.rememberLazyListState()
                             LazyColumn(
+                                state = selectedListState,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(max = 135.dp)
+                                    .verticalEdgeFade(selectedListState)
                                     .padding(start = 6.dp, end = 6.dp, bottom = 6.dp),
                                 verticalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
@@ -326,6 +331,7 @@ fun ConsciousAirlockAppPickerContent(
                         state = listState,
                         modifier = Modifier
                             .fillMaxSize()
+                            .verticalEdgeFade(listState)
                             .padding(end = if (showFastScroller) 22.dp else 0.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
@@ -394,7 +400,7 @@ fun ConsciousAirlockAppPickerContent(
 
             Spacer(Modifier.height(4.dp))
             DeckButton(
-                text = "Done",
+                text = lsString(R.string.cc_dlg_done),
                 onClick = onDismissRequest,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -606,7 +612,7 @@ private fun AirlockAppRow(
                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                         ) {
                             Text(
-                                text = "GAME",
+                                text = lsString(R.string.picker_game_badge),
                                 color = lsColors.accent,
                                 fontSize = 7.5.sp,
                                 fontFamily = FontFamily.Monospace,

@@ -68,7 +68,13 @@ object DistributionVerifier {
         "moe.shizuku.privileged.api"
     )
 
+    @Volatile
+    private var cachedVerification: BuildVerificationState? = null
+
+    fun getCachedVerification(): BuildVerificationState? = cachedVerification
+
     fun inspectBuild(context: Context): BuildVerificationState {
+        cachedVerification?.let { return it }
         val signerDigests = readSigningCertSha256List(context)
         val primaryDigest = signerDigests.firstOrNull() ?: "Unavailable"
         val normalizedExpected = normalizeHex(OFFICIAL_RELEASE_SHA256)
@@ -86,7 +92,7 @@ object DistributionVerifier {
             signatureStatus = signatureStatus,
             actualCertSha256 = primaryDigest,
             installOrigin = detectInstallOrigin(context)
-        )
+        ).also { cachedVerification = it }
     }
 
     private fun detectInstallOrigin(context: Context): InstallOrigin {

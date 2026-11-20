@@ -96,7 +96,7 @@ internal fun LightspeedAccessibilityService.setupStatusBarOverlay(prefs: SharedP
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
 
     statusBarWindowParams = WindowManager.LayoutParams(
-        screenWidthPx,
+        WindowManager.LayoutParams.MATCH_PARENT,
         heightPx,
         WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
         flags,
@@ -335,7 +335,7 @@ internal fun LightspeedAccessibilityService.updateStatusBarOverlayFromPrefs(pref
     } else {
         val isHudActive = statusBarOverlayView?.isHudActive() == true
         statusBarWindowParams.flags = statusBarWindowParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-        statusBarWindowParams.width = screenWidthPx
+        statusBarWindowParams.width = WindowManager.LayoutParams.MATCH_PARENT
         if (!isHudActive) {
             statusBarWindowParams.height = heightPx
         } else {
@@ -390,7 +390,8 @@ internal fun LightspeedAccessibilityService.updateWindowLayoutInternal(expand: B
         windowParams.width = WindowManager.LayoutParams.MATCH_PARENT
         windowParams.height = WindowManager.LayoutParams.MATCH_PARENT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val isBlurEnabled = windowManager?.isCrossWindowBlurEnabled == true
+            val blurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.getMode(this)
+            val isBlurEnabled = com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseNativeBlur(windowManager, blurMode)
             if (isBlurEnabled) {
                 windowParams.flags = windowParams.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
                 windowParams.blurBehindRadius = 75
@@ -497,12 +498,16 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     }
 
     // Top HUD Overlays (Status Bar Rail, Notch Orbital Capsule, and Sensor Deck Touch Target)
+    val isCruiseOverlayIdle = overlayView == null ||
+        overlayView?.currentLayer == CruiseLayer.HIDDEN ||
+        overlayView?.currentLayer == CruiseLayer.NEUTRAL
+    val hideSensorWhileOverlayExpanded = !isCruiseOverlayIdle || overlayView?.isHudEditMode == true
     val shouldHideTopHud = hideTopHudOnLock || isRefueling || isInfinixStandby || isDoze || isSuppressedByOrientation()
 
     statusBarOverlayView?.visibility = if (hideRailOnLock || isRefueling || isInfinixStandby || isDoze || isSuppressedByOrientation()) View.GONE else View.VISIBLE
     notchOverlayView?.visibility = if (shouldHideTopHud) View.GONE else View.VISIBLE
-    sensorTouchOverlayView?.visibility = if (shouldHideTopHud || hideSensorOnLock) View.GONE else View.VISIBLE
-    bottomSensorTouchOverlayView?.visibility = if (hideSensorOnLock || isRefueling || isInfinixStandby || isDoze || isSuppressedByOrientation()) View.GONE else View.VISIBLE
+    sensorTouchOverlayView?.visibility = if (shouldHideTopHud || hideSensorOnLock || hideSensorWhileOverlayExpanded) View.GONE else View.VISIBLE
+    bottomSensorTouchOverlayView?.visibility = if (hideSensorOnLock || isRefueling || isInfinixStandby || isDoze || isSuppressedByOrientation() || hideSensorWhileOverlayExpanded) View.GONE else View.VISIBLE
 
     val isPillOnlyLock = effectiveLocked && lockscreenMode == "hide_deflectors"
     val isFullLockdown = effectiveLocked && lockscreenMode == "full_lockdown"
@@ -518,9 +523,6 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     val isOrientationSuppressed = isSuppressedByOrientation()
 
     // Suppress Edge Deflector pills while modal picker activities sit over screen edges and no overlay panel is open
-    val isCruiseOverlayIdle = overlayView == null ||
-        overlayView?.currentLayer == CruiseLayer.HIDDEN ||
-        overlayView?.currentLayer == CruiseLayer.NEUTRAL
     val isInModalPicker = CockpitDialogActivity.isActive ||
         CockpitGearPickerActivity.isActive ||
         LightspeedRefuelingActivity.isActive ||

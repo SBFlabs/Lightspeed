@@ -1,5 +1,7 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.settings.verticalEdgeFade
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -144,6 +146,7 @@ fun RefuelingCustomizationPanel(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
+                    .verticalEdgeFade(scrollState)
                     .verticalScroll(scrollState)
             ) {
                 if (useTwoColumns) {

@@ -1,45 +1,39 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import android.appwidget.AppWidgetManager
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.content.Context
 import android.graphics.Typeface
+import com.sbf.lightspeed.system.DeviceFontScanner
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.NightlyFeatures
 import java.util.Locale
 
-private val inspectorFontCache = java.util.concurrent.ConcurrentHashMap<String, Typeface>()
 private val widgetLabelByIdCache = java.util.concurrent.ConcurrentHashMap<Int, String>()
 private val hackerMonoTypeface by lazy { Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) }
 private val hackerGlyphs = arrayOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "4", "7", "9", "A", "E", "F")
 
-internal fun resolveDeviceFontTypeface(fontKey: String, isBold: Boolean): Typeface? {
-    if (fontKey.isBlank() || fontKey == "system_default") return null
-    val cacheKey = "$fontKey|$isBold"
-    return inspectorFontCache.getOrPut(cacheKey) {
-        try {
-            val base = if (fontKey.startsWith("/")) {
-                Typeface.createFromFile(fontKey)
-            } else {
-                Typeface.create(fontKey, if (isBold) Typeface.BOLD else Typeface.NORMAL)
-            }
-            if (isBold) Typeface.create(base, Typeface.BOLD) else base
-        } catch (_: Exception) {
-            if (isBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+internal fun resolveDeviceFontTypeface(fontKey: String, isBold: Boolean): Typeface? =
+    DeviceFontScanner.resolveAndroidTypeface(fontKey, isBold)
+
+private fun resolveInspectorTypeface(context: Context, fontFamily: Int, fontKey: String, isBold: Boolean): Typeface {
+    DeviceFontScanner.resolveAndroidTypeface(fontKey, isBold)?.let { return it }
+    if (fontFamily != 0) {
+        return when (fontFamily) {
+            1 -> if (isBold) Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) else Typeface.MONOSPACE
+            2 -> if (isBold) Typeface.create(Typeface.SERIF, Typeface.BOLD) else Typeface.SERIF
+            3 -> Typeface.create("sans-serif-condensed", if (isBold) Typeface.BOLD else Typeface.NORMAL)
+            else -> if (isBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         }
     }
-}
-
-private fun resolveInspectorTypeface(fontFamily: Int, fontKey: String, isBold: Boolean): Typeface {
-    resolveDeviceFontTypeface(fontKey, isBold)?.let { return it }
-    return when (fontFamily) {
-        1 -> if (isBold) Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) else Typeface.MONOSPACE
-        2 -> if (isBold) Typeface.create(Typeface.SERIF, Typeface.BOLD) else Typeface.SERIF
-        3 -> Typeface.create("sans-serif-condensed", if (isBold) Typeface.BOLD else Typeface.NORMAL)
-        else -> if (isBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-    }
+    return DeviceFontScanner.resolveGlobalOverlayTypeface(context, isBold)
 }
 
 /** Cruise HUD widget renderers: Unified Focused App Inspector, Android widget placeholder, and chip header. */
@@ -59,8 +53,16 @@ internal fun LightspeedCruiseOverlay.drawFocusedAppInspectorWidget(
 ) {
     val focused = activeItem
     val padX = 12f * density
-    val titleTypeface = resolveInspectorTypeface(fontFamily, fontKey, isBold = true)
-    val subTypeface = if (fontKey.isBlank() && fontFamily == 0) Typeface.MONOSPACE else resolveInspectorTypeface(fontFamily, fontKey, isBold = false)
+    val titleTypeface = resolveInspectorTypeface(context, fontFamily, fontKey, isBold = true)
+    val subTypeface = if (fontKey.isBlank() && fontFamily == 0) {
+        if (LightspeedPreferences.getApplyFontGlobally(context)) {
+            resolveInspectorTypeface(context, 0, "", isBold = false)
+        } else {
+            Typeface.MONOSPACE
+        }
+    } else {
+        resolveInspectorTypeface(context, fontFamily, fontKey, isBold = false)
+    }
     val shadowColor = Color.argb((215 * alpha).toInt().coerceIn(0, 255), 0, 0, 0)
 
     if (focused != null) {
@@ -101,8 +103,8 @@ internal fun LightspeedCruiseOverlay.drawFocusedAppInspectorWidget(
 
         val textLeft = iconRect.right + 10f * density
         val maxTextW = (bounds.right - padX - textLeft).coerceAtLeast(40f * density)
-        val titleSizePx = (if (titleFontSizeSp > 0) titleFontSizeSp.toFloat() else 13.0f) * density
-        val subSizePx = (if (subtitleFontSizeSp > 0) subtitleFontSizeSp.toFloat() else 8.8f) * density
+        val titleSizePx = (if (titleFontSizeSp > 0) titleFontSizeSp.toFloat() else 18.0f) * density
+        val subSizePx = (if (subtitleFontSizeSp > 0) subtitleFontSizeSp.toFloat() else 12.0f) * density
 
         // App Name
         textPaint.setShadowLayer(4f * density, 0f, 1.5f * density, shadowColor)
@@ -137,7 +139,7 @@ internal fun LightspeedCruiseOverlay.drawFocusedAppInspectorWidget(
 
         // Privacy Score badge
         textPaint.textAlign = Paint.Align.LEFT
-        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.typeface = overlayTypeface(isBold = true)
         textPaint.textSize = 8.4f * density
         textPaint.color = scoreColor
         val rawScore = LightspeedPrivacyProfiler.formatScore(score)
@@ -169,7 +171,7 @@ internal fun LightspeedCruiseOverlay.drawFocusedAppInspectorWidget(
         val rawScrnStr = telemetry.screenTimeTodayMs?.let { LightspeedCruiseHudPods.formatDurationCompact(it) } ?: "--"
         val scrnStr = LightspeedCruiseHudPods.flipDigitsIfActive(rawScrnStr, seedOffset = 72)
         val alertLabel = LightspeedCruiseHudPods.flipDigitsIfActive("${telemetry.alertCount} ALERTS", seedOffset = 73)
-        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.typeface = overlayTypeface(isBold = true)
         textPaint.textSize = 7.6f * density
         val estAlertPillW = 19f * density + textPaint.measureText(alertLabel)
         val alertPillLeft = (bounds.right - padX - estAlertPillW).coerceAtLeast(curX + 10f * density)
@@ -265,28 +267,38 @@ internal fun LightspeedCruiseOverlay.drawFocusedAppInspectorWidget(
         } else {
             categoryAppsCache[catId]?.size ?: dataBridge.getAppsForCategory(catId).also { categoryAppsCache[catId] = it }.size
         }
-        val sectorHeader = "SECTOR $currentSector / $totalSectors · $appCount ${if (appCount == 1) "APP" else "APPS"}"
+        val sectorHeader = if (appCount == 1) lsString(R.string.hud_sector_app_one, currentSector, totalSectors) else lsString(R.string.hud_sector_apps, currentSector, totalSectors, appCount)
         val sectorName = catLabel.uppercase()
 
         val isCompact = bounds.height() < 64f * density
-        val defaultTitleSp = if (isCompact) 15.0f else 18.0f
-        val defaultSubSp = if (isCompact) 10.0f else 11.2f
+        val defaultTitleSp = if (isCompact) 18.0f else 22.0f
+        val defaultSubSp = if (isCompact) 12.0f else 14.0f
         val titleSizePx = (if (titleFontSizeSp > 0) titleFontSizeSp.toFloat() else defaultTitleSp) * density
         val subSizePx = (if (subtitleFontSizeSp > 0) subtitleFontSizeSp.toFloat() else defaultSubSp) * density
 
         val line1Y = bounds.centerY() - (titleSizePx * 0.35f)
         val line2Y = line1Y + titleSizePx + 3f * density
 
+        val maxCardTextW = (bounds.width() - padX * 2f).coerceAtLeast(60f * density)
+
         textPaint.setShadowLayer(4.5f * density, 0f, 1.5f * density, shadowColor)
         textPaint.textAlign = Paint.Align.CENTER
         textPaint.typeface = subTypeface
         textPaint.textSize = subSizePx
+        val measuredSubW = textPaint.measureText(sectorHeader)
+        if (measuredSubW > maxCardTextW) {
+            textPaint.textSize = subSizePx * (maxCardTextW / measuredSubW)
+        }
         textPaint.color = accent
         textPaint.alpha = (240 * alpha).toInt().coerceIn(0, 255)
         canvas.drawText(sectorHeader, bounds.centerX(), line1Y, textPaint)
 
         textPaint.typeface = titleTypeface
         textPaint.textSize = titleSizePx
+        val measuredTitleW = textPaint.measureText(sectorName)
+        if (measuredTitleW > maxCardTextW) {
+            textPaint.textSize = titleSizePx * (maxCardTextW / measuredTitleW)
+        }
         textPaint.color = Color.WHITE
         textPaint.alpha = (255 * alpha).toInt().coerceIn(0, 255)
         canvas.drawText(sectorName, bounds.centerX(), line2Y, textPaint)
@@ -320,18 +332,18 @@ internal fun LightspeedCruiseOverlay.drawAndroidWidgetCardPlaceholder(
 
     if (widgetId <= 0) {
         textPaint.textAlign = Paint.Align.CENTER
-        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.typeface = overlayTypeface(isBold = true)
         textPaint.textSize = 12f * density
         textPaint.color = Color.WHITE
         textPaint.alpha = (255 * alpha).toInt().coerceIn(0, 255)
         val slotTag = if (slotIndex == 2) "SLOT 2" else "SLOT 1"
         canvas.drawText("${catLabel.uppercase()} · ANDROID WIDGET [$slotTag]", bounds.centerX(), bounds.centerY() - 7f * density, textPaint)
 
-        textPaint.typeface = Typeface.DEFAULT
+        textPaint.typeface = overlayTypeface(isBold = false)
         textPaint.textSize = 9.5f * density
         textPaint.color = accent
         textPaint.alpha = (230 * alpha).toInt().coerceIn(0, 255)
-        canvas.drawText("TAP TO BIND ANDROID WIDGET (DUOLINGO, CALENDAR, CLOCK)", bounds.centerX(), bounds.centerY() + 11f * density, textPaint)
+        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.hud_bind_widget_hint).ifBlank { "TAP TO BIND ANDROID WIDGET (DUOLINGO, CALENDAR, CLOCK)" }, bounds.centerX(), bounds.centerY() + 11f * density, textPaint)
         return
     }
 
@@ -427,7 +439,7 @@ internal fun LightspeedCruiseOverlay.drawAndroidWidgetCardPlaceholder(
         }
 
         // Frosted floating pill identifying the loading widget cleanly over the digit streams
-        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.typeface = overlayTypeface(isBold = true)
         textPaint.textSize = 10.5f * density
         var pillTitle = displayTitle
         val maxTitleW = (bounds.width() * 0.84f - 22f * density).coerceAtLeast(16f * density)
@@ -475,6 +487,7 @@ internal fun LightspeedCruiseOverlay.drawWidgetChipHeader(
     density: Float,
     alpha: Float,
     showInfoBadge: Boolean = false,
+    infoBadgeWarn: Boolean = false,
     slotIndex: Int = -1
 ) {
     val chipH = 20f * density
@@ -482,7 +495,7 @@ internal fun LightspeedCruiseOverlay.drawWidgetChipHeader(
     val chipPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.DEFAULT_BOLD
+        typeface = overlayTypeface(isBold = true)
         textSize = 9.0f * density
         color = Color.WHITE
     }
@@ -502,18 +515,21 @@ internal fun LightspeedCruiseOverlay.drawWidgetChipHeader(
     if (showInfoBadge) {
         val infoW = 20f * density
         val infoRect = RectF(nextRight - infoW, chipY, nextRight, chipY + chipH)
-        screenTimeInfoBubbleRect.set(infoRect)
+        val screenTimeTitle = com.sbf.lightspeed.system.lsString(R.string.hud_screen_time).ifBlank { "SCREEN TIME" }
+        if (widgetTitle == "SCREEN TIME" || widgetTitle == screenTimeTitle) screenTimeInfoBubbleRect.set(infoRect)
         if (slotIndex > 0) vitalsRectForSlot(hudChipInfoRects, slotIndex).set(infoRect)
+        val badgeColor = if (infoBadgeWarn) Color.rgb(245, 158, 11) else accent
         chipPaint.style = Paint.Style.FILL
-        chipPaint.color = Color.argb((45 * alpha).toInt(), Color.red(accent), Color.green(accent), Color.blue(accent))
+        chipPaint.color = Color.argb(((if (infoBadgeWarn) 75 else 45) * alpha).toInt(), Color.red(badgeColor), Color.green(badgeColor), Color.blue(badgeColor))
         canvas.drawRoundRect(infoRect, 5f * density, 5f * density, chipPaint)
         chipPaint.style = Paint.Style.STROKE
         chipPaint.strokeWidth = 1f * density
-        chipPaint.color = Color.argb((110 * alpha).toInt(), Color.red(accent), Color.green(accent), Color.blue(accent))
+        chipPaint.color = Color.argb(((if (infoBadgeWarn) 190 else 110) * alpha).toInt(), Color.red(badgeColor), Color.green(badgeColor), Color.blue(badgeColor))
         canvas.drawRoundRect(infoRect, 5f * density, 5f * density, chipPaint)
 
-        labelPaint.color = Color.WHITE
+        labelPaint.color = if (infoBadgeWarn) Color.rgb(255, 220, 130) else Color.WHITE
         canvas.drawText("!", infoRect.centerX(), infoRect.centerY() + 3.2f * density, labelPaint)
+        labelPaint.color = Color.WHITE
 
         nextRight -= (infoW + 5f * density)
     } else if (slotIndex > 0) {
@@ -559,7 +575,7 @@ internal fun LightspeedCruiseOverlay.drawWidgetChipHeader(
 
     val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.LEFT
-        typeface = Typeface.DEFAULT_BOLD
+        typeface = overlayTypeface(isBold = true)
         textSize = if (isCompactCard) 10.2f * density else 11.2f * density
         color = Color.WHITE
         this.alpha = (255 * alpha).toInt().coerceIn(0, 255)
@@ -633,13 +649,13 @@ internal fun LightspeedCruiseOverlay.drawPrivacyScoreInfoBubble(canvas: Canvas) 
     val maxLineW = (bubbleW - 28f * dp).coerceAtLeast(120f * dp)
     var cY = top + 20f * dp
     textPaint.textAlign = Paint.Align.LEFT
-    textPaint.typeface = Typeface.DEFAULT_BOLD
+    textPaint.typeface = overlayTypeface(isBold = true)
     textPaint.textSize = 10.5f * dp
     textPaint.color = accent
-    canvas.drawText("SMART PRIVACY SCORE", pX, cY, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.hud_priv_score_title).ifBlank { "SMART PRIVACY SCORE" }, pX, cY, textPaint)
 
     cY += 15f * dp
-    textPaint.typeface = Typeface.DEFAULT
+    textPaint.typeface = overlayTypeface(isBold = false)
     textPaint.textSize = 8.9f * dp
     textPaint.color = Color.WHITE
     canvas.drawText(ellipsizeText(liveSummaryLine, textPaint, maxLineW), pX, cY, textPaint)
@@ -665,15 +681,15 @@ internal fun LightspeedCruiseOverlay.drawPrivacyScoreInfoBubble(canvas: Canvas) 
     canvas.drawText("-10 STRG/APPS  -8 CAL/BODY  -6 AD", pX, cY, textPaint)
 
     cY += 15f * dp
-    textPaint.typeface = Typeface.DEFAULT
+    textPaint.typeface = overlayTypeface(isBold = false)
     textPaint.textSize = 8.4f * dp
     textPaint.color = Color.argb(195, 180, 200, 225)
-    canvas.drawText("80+ High · 55-79 Moderate · <55 Broad Access", pX, cY, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.hud_priv_legend).ifBlank { "80+ High · 55-79 Moderate · <55 Broad Access" }, pX, cY, textPaint)
 
     cY += 15f * dp
     textPaint.textAlign = Paint.Align.CENTER
-    textPaint.typeface = Typeface.DEFAULT_BOLD
+    textPaint.typeface = overlayTypeface(isBold = true)
     textPaint.textSize = 8.4f * dp
     textPaint.color = accent
-    canvas.drawText("Tap anywhere to dismiss", rect.centerX(), cY, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.hud_tap_dismiss).ifBlank { "Tap anywhere to dismiss" }, rect.centerX(), cY, textPaint)
 }

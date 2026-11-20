@@ -1,5 +1,9 @@
 package com.sbf.lightspeed.system.display
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.content.Intent
@@ -42,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedUsageStats
 import com.sbf.lightspeed.system.OverlayLifecycleOwner
+import com.sbf.lightspeed.system.TopAppCloser
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.LightspeedAppCategorizer
 import com.sbf.lightspeed.LightspeedDataBridge
@@ -62,6 +67,12 @@ object LightspeedConsciousAirlockOverlay {
 
     private const val GRACE_PERIOD_MS = 10 * 60 * 1000L
     private const val GRACE_PERSIST_INTERVAL_MS = 15_000L
+    private const val RETRIGGER_COOLDOWN_MS = 1800L
+    private const val SHOW_DEBOUNCE_MS = 85L
+    private const val TRANSIENT_DISMISS_DEBOUNCE_MS = 220L
+    private const val TRANSIENT_DISMISS_RECHECK_MS = 350L
+    private const val MAX_TRANSIENT_DISMISS_RECHECKS = 3
+    private const val LOG_TAG = "LightspeedAirlock"
     private const val PREFS_AIRLOCK_RUNTIME = "lightspeed_airlock_runtime"
     private const val KEY_GRACE_PREFIX = "grace_"
     private val sessionGraceMap = ConcurrentHashMap<String, Long>()
@@ -72,49 +83,188 @@ object LightspeedConsciousAirlockOverlay {
 
     private var abortCooldownPackage: String? = null
     private var abortCooldownTimestamp: Long = 0L
+    private var lastShownTargetPkg: String? = null
+    private var lastShownElapsedMs: Long = 0L
+    private var activeAuthorizedSessionPkg: String? = null
 
     private var composeView: ComposeView? = null
     private var windowManager: WindowManager? = null
     private var lifecycleOwner: OverlayLifecycleOwner? = null
+    private var pendingShowRunnable: Runnable? = null
+    private var pendingDismissRunnable: Runnable? = null
+    private var pendingPackage: String? = null
+    private var showingPackage: String? = null
 
     val isShowing: Boolean
         get() = composeView != null
 
+    /**
+     * Cancels a queued transient dismiss when the gated app remains the active foreground target.
+     */
+    fun cancelTransientDismiss(activePkg: String? = null) {
+        if (activePkg == null || activePkg == showingPackage || activePkg == pendingPackage) {
+            pendingDismissRunnable?.let { mainHandler.removeCallbacks(it) }
+            pendingDismissRunnable = null
+        }
+    }
+
+    /**
+     * Clears anti-flap memory and ends the continuous authorized session when the user
+     * genuinely switches away to a different app, Launcher, or lock screen.
+     */
+    fun noteForegroundApp(packageName: String?) {
+        if (!packageName.isNullOrBlank() && packageName != lastShownTargetPkg && packageName != showingPackage) {
+            lastShownTargetPkg = null
+            lastShownElapsedMs = 0L
+        }
+        if (activeAuthorizedSessionPkg != null && packageName != activeAuthorizedSessionPkg) {
+            activeAuthorizedSessionPkg = null
+        }
+    }
+
+    fun clearAuthorizedSession() {
+        activeAuthorizedSessionPkg = null
+    }
+
+    /**
+     * Debounced auto-dismiss used on Launcher/Recents transitions so brief system overlays or
+     * in-app game update reloads never flicker Airlock off and back on repeatedly.
+     *
+     * Before actually dismissing, the gated app's window is re-checked: if it is still the topmost
+     * app window (quickstep / recents / launcher events fire briefly while the app is opening),
+     * the dismiss is skipped so the Airlock is never removed (and the app left unguarded) just
+     * because a transient system window event arrived. Bounded retries keep a genuine Home /
+     * Recents exit from ever leaving the Airlock stuck on screen.
+     */
+    fun scheduleTransientDismiss(attempt: Int = 0, source: String? = null) {
+        if (composeView == null && pendingShowRunnable == null) return
+        pendingDismissRunnable?.let { mainHandler.removeCallbacks(it) }
+        val r = Runnable {
+            pendingDismissRunnable = null
+            val guardedPkg = showingPackage ?: pendingPackage
+            val svc = com.sbf.lightspeed.LightspeedAccessibilityService.instance
+            val topPkg = if (svc != null && guardedPkg != null) {
+                try {
+                    com.sbf.lightspeed.system.bot.LightspeedBotScreenScanner
+                        .resolveUnderlyingAppWindow(svc)?.root?.packageName?.toString()
+                } catch (_: Exception) { null }
+            } else null
+            if (guardedPkg != null && topPkg == guardedPkg) {
+                // The gated app is still the topmost app window, so a Launcher/Recents/quickstep event
+                // is just system chrome flicker (gesture handle, floating overlays, animations). The
+                // Airlock belongs on screen: re-check a few times to follow animations, then keep it
+                // (never dismiss while the gated app is genuinely in front).
+                if (attempt < MAX_TRANSIENT_DISMISS_RECHECKS) {
+                    trace("transient dismiss deferred: $guardedPkg still top app window (attempt=$attempt)")
+                    scheduleTransientDismiss(attempt + 1, source)
+                } else {
+                    trace("transient dismiss dropped: $guardedPkg stayed top app window; keeping Airlock")
+                }
+            } else {
+                trace("transient dismiss executing: guarded=$guardedPkg top=$topPkg attempt=$attempt source=$source")
+                dismiss()
+            }
+        }
+        pendingDismissRunnable = r
+        mainHandler.postDelayed(r, if (attempt == 0) TRANSIENT_DISMISS_DEBOUNCE_MS else TRANSIENT_DISMISS_RECHECK_MS)
+    }
+
+    internal fun trace(msg: String) {
+        android.util.Log.d(LOG_TAG, msg)
+    }
+
+    private fun isInteractiveAndUnlocked(context: Context): Boolean {
+        val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        if (pm != null && !pm.isInteractive) return false
+        val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+        if (km != null && km.isKeyguardLocked) return false
+        return true
+    }
+
     fun checkAndShowAirlock(service: AccessibilityService, packageName: String): Boolean {
+        if (!isInteractiveAndUnlocked(service)) return false
         val prefs = service.defaultPrefs()
         if (!prefs.getBoolean(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ENABLED, false)) return false
 
         val targetApps = prefs.getStringSet(LightspeedPreferences.KEY_CONSCIOUS_DELAY_PACKAGES, emptySet()) ?: emptySet()
-        if (!targetApps.contains(packageName)) return false
+        if (!targetApps.contains(packageName)) {
+            noteForegroundApp(packageName)
+            return false
+        }
+
+        if (composeView != null && showingPackage == packageName) {
+            cancelTransientDismiss(packageName)
+            return false
+        }
 
         val now = SystemClock.elapsedRealtime()
         if (packageName == abortCooldownPackage && (now - abortCooldownTimestamp) < 5000L) {
+            trace("skip $packageName: abort cooldown")
             return false
+        }
+        if (packageName == lastShownTargetPkg && (now - lastShownElapsedMs) < RETRIGGER_COOLDOWN_MS) {
+            trace("skip $packageName: retrigger cooldown")
+            cancelTransientDismiss(packageName)
+            return false
+        }
+        if (pendingShowRunnable != null && pendingPackage == packageName) {
+            cancelTransientDismiss(packageName)
+            return true
         }
 
         val persisted = runtimePrefs(service).getLong("$KEY_GRACE_PREFIX$packageName", -1L)
         val lastAllowed = sessionGraceMap[packageName] ?: persisted
+        // If user stayed continuously inside this already-authorized app (e.g. exiting YouTube fullscreen after >10m),
+        // refresh their grace silently instead of interrupting them mid-session.
+        if (activeAuthorizedSessionPkg == packageName) {
+            sessionGraceMap[packageName] = now
+            if (persisted < 0L || (now - persisted) >= GRACE_PERSIST_INTERVAL_MS) {
+                runtimePrefs(service).edit().putLong("$KEY_GRACE_PREFIX$packageName", now).apply()
+            }
+            trace("skip $packageName: continuous authorized session active")
+            return false
+        }
         if (lastAllowed > now) {
             // Device rebooted (elapsedRealtime reset): clear stale persisted grace timestamp
             sessionGraceMap.remove(packageName)
             runtimePrefs(service).edit().remove("$KEY_GRACE_PREFIX$packageName").apply()
         } else if (lastAllowed >= 0L && (now - lastAllowed) < GRACE_PERIOD_MS) {
+            activeAuthorizedSessionPkg = packageName
             sessionGraceMap[packageName] = now
             if (persisted < 0L || (now - persisted) >= GRACE_PERSIST_INTERVAL_MS) {
                 runtimePrefs(service).edit().putLong("$KEY_GRACE_PREFIX$packageName", now).apply()
             }
+            trace("skip $packageName: inside 10-min grace (${(now - lastAllowed) / 1000L}s since last allowed)")
             return false
         }
+        trace("scheduling Airlock for $packageName (no active grace; lastAllowed=$lastAllowed)")
 
-        mainHandler.post {
+        pendingShowRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingDismissRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingDismissRunnable = null
+        pendingPackage = packageName
+        val runnable = Runnable {
+            pendingShowRunnable = null
             show(service, packageName)
         }
+        pendingShowRunnable = runnable
+        mainHandler.postDelayed(runnable, SHOW_DEBOUNCE_MS)
         return true
     }
 
     @Suppress("DEPRECATION")
     private fun show(service: AccessibilityService, targetPkg: String) {
         if (composeView != null) return
+        if (pendingPackage != targetPkg) return
+        if (!isInteractiveAndUnlocked(service)) {
+            pendingPackage = null
+            return
+        }
+        val currentFg = com.sbf.lightspeed.LightspeedAccessibilityService.lastAppPackage
+        if (!currentFg.isNullOrBlank() && currentFg != targetPkg) {
+            pendingPackage = null
+            return
+        }
 
         val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
         windowManager = wm
@@ -125,10 +275,6 @@ object LightspeedConsciousAirlockOverlay {
         lifecycleOwner = lifecycle
 
         val view = ComposeView(service).apply {
-            systemUiVisibility = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_FULLSCREEN)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
                 LightspeedTheme {
@@ -137,17 +283,37 @@ object LightspeedConsciousAirlockOverlay {
                         packageName = targetPkg,
                         onProceed = {
                             val now = SystemClock.elapsedRealtime()
+                            activeAuthorizedSessionPkg = targetPkg
                             sessionGraceMap[targetPkg] = now
                             runtimePrefs(service).edit().putLong("$KEY_GRACE_PREFIX$targetPkg", now).apply()
+                            lastShownTargetPkg = null
+                            lastShownElapsedMs = 0L
                             dismiss()
                         },
                         onAbort = {
+                            if (activeAuthorizedSessionPkg == targetPkg) activeAuthorizedSessionPkg = null
                             sessionGraceMap.remove(targetPkg)
                             runtimePrefs(service).edit().remove("$KEY_GRACE_PREFIX$targetPkg").apply()
                             abortCooldownPackage = targetPkg
                             abortCooldownTimestamp = SystemClock.elapsedRealtime()
-                            service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+                            lastShownTargetPkg = targetPkg
+                            lastShownElapsedMs = abortCooldownTimestamp
+                            val abortMode = service.defaultPrefs().getString(
+                                LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ABORT_MODE,
+                                LightspeedPreferences.AIRLOCK_ABORT_MODE_CLOSE_APP
+                            ) ?: LightspeedPreferences.AIRLOCK_ABORT_MODE_CLOSE_APP
                             dismiss()
+                            if (abortMode == LightspeedPreferences.AIRLOCK_ABORT_MODE_GO_HOME) {
+                                service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+                            } else {
+                                TopAppCloser.closePackageWithReturn(
+                                    context = service,
+                                    targetPkg = targetPkg,
+                                    onFallbackHome = {
+                                        service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+                                    }
+                                )
+                            }
                         }
                     )
                 }
@@ -178,11 +344,33 @@ object LightspeedConsciousAirlockOverlay {
         try {
             wm.addView(view, params)
             composeView = view
+            showingPackage = targetPkg
+            pendingPackage = null
+            lastShownTargetPkg = targetPkg
+            lastShownElapsedMs = SystemClock.elapsedRealtime()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                view.post {
+                    try {
+                        view.windowInsetsController?.let { controller ->
+                            controller.hide(android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.navigationBars())
+                            controller.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
         } catch (_: Exception) {}
     }
 
     fun dismiss() {
-        mainHandler.post {
+        if (composeView != null || pendingShowRunnable != null) {
+            trace("dismiss() showing=$showingPackage pending=$pendingPackage")
+        }
+        pendingShowRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingShowRunnable = null
+        pendingDismissRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingDismissRunnable = null
+        pendingPackage = null
+        val removeNow = {
             val v = composeView
             if (v != null) {
                 try {
@@ -190,9 +378,15 @@ object LightspeedConsciousAirlockOverlay {
                 } catch (_: Exception) {}
                 composeView = null
             }
+            showingPackage = null
             lifecycleOwner?.onDestroy()
             lifecycleOwner = null
             windowManager = null
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            removeNow()
+        } else {
+            mainHandler.post(removeNow)
         }
     }
 
@@ -220,7 +414,7 @@ object LightspeedConsciousAirlockOverlay {
         var isFlipPhaseActive by remember(packageName) { mutableStateOf(true) }
 
         val telemetryTriple by produceState(
-            initialValue = Triple("Other", "0m today", "0m today"),
+            initialValue = Triple("Other", lsString(R.string.airlock_time_m_today, 0), lsString(R.string.airlock_time_m_today, 0)),
             key1 = packageName,
             key2 = hasUsageAccess
         ) {
@@ -230,7 +424,7 @@ object LightspeedConsciousAirlockOverlay {
                 val appMins = (appMs / 60000L).toInt()
                 val appHrs = appMins / 60
                 val appRemMins = appMins % 60
-                val appFormatted = if (appHrs > 0) "${appHrs}h ${appRemMins}m today" else "${appMins}m today"
+                val appFormatted = if (appHrs > 0) lsString(R.string.airlock_time_hm_today, appHrs, appRemMins) else lsString(R.string.airlock_time_m_today, appMins)
 
                 val pm = service.packageManager
                 val appInfo = try { pm.getApplicationInfo(packageName, 0) } catch (_: Exception) { null }
@@ -267,7 +461,7 @@ object LightspeedConsciousAirlockOverlay {
                 val secMins = (sectorMs / 60000L).toInt()
                 val secHrs = secMins / 60
                 val secRemMins = secMins % 60
-                val sectorFormatted = if (secHrs > 0) "${secHrs}h ${secRemMins}m today" else "${secMins}m today"
+                val sectorFormatted = if (secHrs > 0) lsString(R.string.airlock_time_hm_today, secHrs, secRemMins) else lsString(R.string.airlock_time_m_today, secMins)
 
                 Triple(catLabel, appFormatted, sectorFormatted)
             }
@@ -372,7 +566,7 @@ object LightspeedConsciousAirlockOverlay {
                     .padding(horizontal = 22.dp, vertical = if (isLandscape) 14.dp else 22.dp)
             ) {
                 Text(
-                    text = "◈ ASTROGATION AIRLOCK ◈",
+                    text = lsString(R.string.airlock_banner),
                     color = lsColors.accentInfo,
                     fontWeight = FontWeight.Bold,
                     fontSize = 11.sp,
@@ -411,7 +605,7 @@ object LightspeedConsciousAirlockOverlay {
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Text(
-                                        text = "Usage access permission needed for sector & app times",
+                                        text = lsString(R.string.airlock_usage_needed),
                                         color = lsColors.accentDanger,
                                         fontSize = 10.5.sp,
                                         fontWeight = FontWeight.Bold,
@@ -419,27 +613,27 @@ object LightspeedConsciousAirlockOverlay {
                                     )
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = "Grant usage permission",
+                                        contentDescription = null,
                                         tint = lsColors.accentDanger,
                                         modifier = Modifier.size(13.dp)
                                     )
                                 }
                             } else {
                                 Text(
-                                    text = "App Time: $appTimeText",
+                                    text = lsString(R.string.airlock_app_time, appTimeText),
                                     color = lsColors.accentWarn,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = "Sector Time ($categoryTitle): $sectorTimeText",
+                                    text = lsString(R.string.airlock_sector_time, categoryTitle, sectorTimeText),
                                     color = lsColors.accentInfo,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
                             Text(
-                                text = if (secondsLeft > 0) "Take a conscious breath... Are you sure you want to open this app?" else "Mindful pause complete. Ready to engage.",
+                                text = if (secondsLeft > 0) lsString(R.string.airlock_prompt_wait) else lsString(R.string.airlock_prompt_ready),
                                 color = lsColors.textSecondary,
                                 fontSize = 10.5.sp
                             )
@@ -454,7 +648,7 @@ object LightspeedConsciousAirlockOverlay {
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (secondsLeft > 0) "0${secondsLeft}s" else "✦ READY",
+                                text = if (secondsLeft > 0) "0${secondsLeft}s" else lsString(R.string.airlock_ready),
                                 color = lsColors.accentInfo,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold
@@ -489,7 +683,7 @@ object LightspeedConsciousAirlockOverlay {
                                 .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
                             Text(
-                                text = "Usage access permission needed for sector & app times",
+                                text = lsString(R.string.airlock_usage_needed),
                                 color = lsColors.accentDanger,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
@@ -497,7 +691,7 @@ object LightspeedConsciousAirlockOverlay {
                             Spacer(modifier = Modifier.width(6.dp))
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = "Grant usage permission",
+                                contentDescription = null,
                                 tint = lsColors.accentDanger,
                                 modifier = Modifier.size(14.dp)
                             )
@@ -508,13 +702,13 @@ object LightspeedConsciousAirlockOverlay {
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Text(
-                                text = "App Time: $appTimeText",
+                                text = lsString(R.string.airlock_app_time, appTimeText),
                                 color = lsColors.accentWarn,
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Sector Time ($categoryTitle): $sectorTimeText",
+                                text = lsString(R.string.airlock_sector_time, categoryTitle, sectorTimeText),
                                 color = lsColors.accentInfo,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -531,7 +725,7 @@ object LightspeedConsciousAirlockOverlay {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (secondsLeft > 0) "✦  0${secondsLeft}s  ✦" else "✦  READY  ✦",
+                            text = if (secondsLeft > 0) "✦  0${secondsLeft}s  ✦" else lsString(R.string.airlock_ready_wide),
                             color = lsColors.accentInfo,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
@@ -540,7 +734,7 @@ object LightspeedConsciousAirlockOverlay {
                     }
 
                     Text(
-                        text = if (secondsLeft > 0) "Take a conscious breath... Are you sure you want to open this app?" else "Mindful pause complete. Ready to engage.",
+                        text = if (secondsLeft > 0) lsString(R.string.airlock_prompt_wait) else lsString(R.string.airlock_prompt_ready),
                         color = lsColors.textSecondary,
                         fontSize = 11.sp,
                         textAlign = TextAlign.Center
@@ -556,7 +750,7 @@ object LightspeedConsciousAirlockOverlay {
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FF5252)),
                         modifier = Modifier.weight(1f).height(40.dp)
                     ) {
-                        Text("✕ Abort", color = Color(0xFFFF5252), fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                        Text(lsString(R.string.airlock_abort), color = Color(0xFFFF5252), fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Button(
@@ -569,7 +763,7 @@ object LightspeedConsciousAirlockOverlay {
                         modifier = Modifier.weight(1f).height(40.dp)
                     ) {
                         Text(
-                            text = if (secondsLeft > 0) "Wait (${secondsLeft}s)" else "✦ Proceed",
+                            text = if (secondsLeft > 0) lsString(R.string.airlock_wait_btn, secondsLeft) else lsString(R.string.airlock_proceed_btn),
                             color = if (secondsLeft > 0) Color.Gray else Color.Black,
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold

@@ -45,6 +45,7 @@ uniform float radius;
 uniform float bevel;
 uniform float strength;
 uniform float scale;
+uniform float gleam;
 
 float sdRoundRect(float2 p, float2 hsz, float r) {
     float2 q = abs(p) - (hsz - float2(r));
@@ -89,23 +90,12 @@ half4 main(float2 fragCoord) {
         return half4(0.0);
     }
 
-    // Rim lighting: pure white specular gleam on top-left, soft rim catch strictly at outer chamfer
+    // Rim lighting: subtle, even perimeter rim catch strictly at outer chamfer (no fake top-left corner spike)
     float rimW = 2.0 * scale;
     float a = (d <= 0.0) ? (1.0 - clamp(-d / (rimW * 1.5), 0.0, 1.0)) : 0.0;
-    if (a > 0.001) {
+    if (a > 0.001 && gleam > 0.001) {
         a = a * a;
-        float e = 1.5;
-        float2 grad = float2(
-            sdRoundRect(p + float2(e, 0.0), c, radius) - sdRoundRect(p - float2(e, 0.0), c, radius),
-            sdRoundRect(p + float2(0.0, e), c, radius) - sdRoundRect(p - float2(0.0, e), c, radius)
-        );
-        float2 g = grad / max(length(grad), 0.0001);
-        float facing = dot(g, normalize(float2(-0.6, -0.8)));
-        float spec = pow(max(facing, 0.0), 2.2) * a;
-        float back = pow(max(-facing, 0.0), 1.8) * a;
-        col += half3(spec * 0.85); // Pure neutral white gleam
-        col += half3(0.18) * back; // Soft neutral rim catch
-        col += half3(0.15) * a;
+        col += half3(0.28 * gleam) * a;
     }
 
     return half4(clamp(col, 0.0, 1.0) * mask, mask);
@@ -125,6 +115,7 @@ internal object LiquidRefractionProbe {
                 shader.setFloatUniform("bevel", 20f)
                 shader.setFloatUniform("strength", 20f)
                 shader.setFloatUniform("scale", 1f)
+                shader.setFloatUniform("gleam", 0.5f)
                 val shaderEffect = RenderEffect.createRuntimeShaderEffect(shader, "content")
                 val blurEffect = RenderEffect.createBlurEffect(10f, 10f, Shader.TileMode.CLAMP)
                 RenderEffect.createChainEffect(shaderEffect, blurEffect)
@@ -162,7 +153,8 @@ internal fun LiquidRefractionLayer(
     val scalePx = density.density
 
     val blurRadiusPx = snapshot.windowBlurRadiusPx
-    val effect = remember(boxSize, cornerPx, bevelPx, strengthPx, scalePx, blurRadiusPx) {
+    val gleamStrength = snapshot.highlightStrength.coerceIn(0f, 1f)
+    val effect = remember(boxSize, cornerPx, bevelPx, strengthPx, scalePx, blurRadiusPx, gleamStrength) {
         if (boxSize.width <= 0 || boxSize.height <= 0) {
             null
         } else {
@@ -173,6 +165,7 @@ internal fun LiquidRefractionLayer(
                 shader.setFloatUniform("bevel", bevelPx)
                 shader.setFloatUniform("strength", strengthPx)
                 shader.setFloatUniform("scale", scalePx)
+                shader.setFloatUniform("gleam", gleamStrength)
                 val shaderEffect = RenderEffect.createRuntimeShaderEffect(shader, "content")
                 val blurPx = (blurRadiusPx * 0.35f).coerceIn(0f, 60f)
                 if (blurPx >= 1f) {

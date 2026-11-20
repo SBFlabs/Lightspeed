@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.layout.*
@@ -91,8 +94,8 @@ fun TrackpadGeometrySubSection(
     }
 
     CollapsibleSubSection(
-        title = "Geometry & Calibration",
-        subtitle = "Style, 3-button layout & automatic live trigger preview",
+        title = lsString(R.string.sec_geometry_calibration),
+        subtitle = lsString(R.string.secd_style_3_button_layout_automati),
         isExpanded = isSubExpanded,
         onToggle = {
             isSubExpanded = !isSubExpanded
@@ -106,9 +109,9 @@ fun TrackpadGeometrySubSection(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("3-BUTTON LAYOUT ORIENTATION", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
+            Text(lsString(R.string.tp_layout_hdr), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                val orientations = listOf("arc" to "Radial Arc", "edge" to "Edge Strip")
+                val orientations = listOf("arc" to lsString(R.string.tp_radial_arc), "edge" to lsString(R.string.tp_edge_strip))
                 for ((id, label) in orientations) {
                     TrackpadPillButton(
                         text = label,
@@ -136,7 +139,7 @@ fun TrackpadGeometrySubSection(
                 } catch (_: Exception) {}
             }
 
-            Text("COLOR ENGINE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
+            Text(lsString(R.string.tp_color_engine), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
             val colorModes = listOf(
                 LightspeedBotContract.COLOR_MODE_THEME_12 to "◈ 12-Theme",
                 LightspeedBotContract.COLOR_MODE_M3_DYNAMIC to "🎨 Material 3",
@@ -158,7 +161,7 @@ fun TrackpadGeometrySubSection(
                 }
             }
 
-            Text("CURSOR SHAPE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
+            Text(lsString(R.string.tp_cursor_shape), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
             val freeCursors = setOf("crosshair", "pointer")
             val cursorRows = listOf(
                 listOf(
@@ -201,18 +204,18 @@ fun TrackpadGeometrySubSection(
                 }
             }
 
-            Text("TRACKPAD STYLE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
+            Text(lsString(R.string.tp_style_hdr), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
             val freeStyles = setOf("classic_arc", "angular", "floating", "gear_tooth")
             val chassisStyles = listOf(
-                "classic_arc" to "Classic Arc",
-                "angular" to "Angular",
-                "floating" to "Floating",
-                "gear_tooth" to "Gear Tooth",
-                "soft_wing" to "Soft Wing",
-                "liquid_glass" to "Glass",
-                "delta" to "Delta",
-                "shield" to "Shield",
-                "minimal_arms" to "Minimal"
+                "classic_arc" to lsString(R.string.tp_st_classic),
+                "angular" to lsString(R.string.tp_st_angular),
+                "floating" to lsString(R.string.tp_st_floating),
+                "gear_tooth" to lsString(R.string.tp_st_gear),
+                "soft_wing" to lsString(R.string.tp_st_wing),
+                "liquid_glass" to lsString(R.string.tp_st_glass),
+                "delta" to lsString(R.string.tp_st_delta),
+                "shield" to lsString(R.string.tp_st_shield),
+                "minimal_arms" to lsString(R.string.tp_st_minimal)
             )
             for (chunk in chassisStyles.chunked(2)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -244,8 +247,8 @@ fun TrackpadGeometrySubSection(
 
             // Card 1: Edge Trigger Strip (Sub-accordion with 4 signature sliders)
             CollapsibleSubSection(
-                title = "Edge Trigger Strip",
-                subtitle = "Vertical offset, height, width & idle opacity",
+                title = lsString(R.string.sec_edge_trigger_strip),
+                subtitle = lsString(R.string.secd_vertical_offset_height_width_i),
                 isExpanded = isTriggerStripExpanded,
                 onToggle = {
                     isTriggerStripExpanded = !isTriggerStripExpanded
@@ -264,7 +267,7 @@ fun TrackpadGeometrySubSection(
                         prefs = prefs,
                         keyResName = posYKey,
                         titleResName = "",
-                        defaultTitle = "Vertical Offset",
+                        defaultTitle = lsString(R.string.tp_vert_off),
                         minVal = 10,
                         maxVal = 90,
                         step = 1,
@@ -275,7 +278,7 @@ fun TrackpadGeometrySubSection(
                         prefs = prefs,
                         keyResName = heightKey,
                         titleResName = "",
-                        defaultTitle = "Height",
+                        defaultTitle = lsString(R.string.tp_height),
                         minVal = 60,
                         maxVal = 320,
                         step = 5,
@@ -286,7 +289,7 @@ fun TrackpadGeometrySubSection(
                         prefs = prefs,
                         keyResName = touchWidthKey,
                         titleResName = "",
-                        defaultTitle = "Width",
+                        defaultTitle = lsString(R.string.tp_width),
                         minVal = 8,
                         maxVal = 32,
                         step = 1,
@@ -297,7 +300,7 @@ fun TrackpadGeometrySubSection(
                         prefs = prefs,
                         keyResName = triggerOpacityKey,
                         titleResName = "",
-                        defaultTitle = "Opacity",
+                        defaultTitle = lsString(R.string.tp_opacity),
                         minVal = 0,
                         maxVal = 100,
                         step = 5,
@@ -308,8 +311,8 @@ fun TrackpadGeometrySubSection(
 
             // Card 2: Three-Button Arm & Dome (Sub-accordion with 4 signature sliders)
             CollapsibleSubSection(
-                title = "Three-Button Arm & Dome",
-                subtitle = "Half-circle trackpad radius, reach & opacities",
+                title = lsString(R.string.sec_three_button_arm_dome),
+                subtitle = lsString(R.string.secd_half_circle_trackpad_radius_re),
                 isExpanded = isThreeArmsExpanded,
                 onToggle = {
                     isThreeArmsExpanded = !isThreeArmsExpanded
@@ -328,7 +331,7 @@ fun TrackpadGeometrySubSection(
                         prefs = prefs,
                         keyResName = radiusKey,
                         titleResName = "",
-                        defaultTitle = "Radius",
+                        defaultTitle = lsString(R.string.tp_radius),
                         minVal = 50,
                         maxVal = 110,
                         step = 2,
@@ -339,7 +342,7 @@ fun TrackpadGeometrySubSection(
                         prefs = prefs,
                         keyResName = dpadOpacityKey,
                         titleResName = "",
-                        defaultTitle = "Dome Opacity",
+                        defaultTitle = lsString(R.string.tp_dome_op),
                         minVal = 10,
                         maxVal = 100,
                         step = 5,
@@ -350,7 +353,7 @@ fun TrackpadGeometrySubSection(
                         prefs = prefs,
                         keyResName = armReachKey,
                         titleResName = "",
-                        defaultTitle = "Extension Reach",
+                        defaultTitle = lsString(R.string.tp_ext_reach),
                         minVal = 36,
                         maxVal = 80,
                         step = 2,
@@ -361,7 +364,7 @@ fun TrackpadGeometrySubSection(
                         prefs = prefs,
                         keyResName = armsOpacityKey,
                         titleResName = "",
-                        defaultTitle = "Arms Opacity",
+                        defaultTitle = lsString(R.string.tp_arms_op),
                         minVal = 10,
                         maxVal = 100,
                         step = 5,
@@ -390,8 +393,8 @@ fun TrackpadPhysicsSubSection(
     var lingerDelay by remember { mutableFloatStateOf(prefs.getInt(lingerKey, 1800).toFloat()) }
 
     CollapsibleSubSection(
-        title = "Cursor Physics & Timing",
-        subtitle = "Tracking sensitivity & finger-lift linger delay",
+        title = lsString(R.string.sec_cursor_physics_timing),
+        subtitle = lsString(R.string.secd_tracking_sensitivity_finger_li),
         isExpanded = isSubExpanded,
         onToggle = {
             isSubExpanded = !isSubExpanded
@@ -407,7 +410,7 @@ fun TrackpadPhysicsSubSection(
         ) {
             val sensFormatted = String.format(Locale.US, "%.1fx", sensitivity)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Cursor Sensitivity / Speed", fontSize = 11.sp, color = lsColors.textPrimary)
+                Text(lsString(R.string.tp_cursor_speed), fontSize = 11.sp, color = lsColors.textPrimary)
                 Text(sensFormatted, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
             }
             Slider(
@@ -422,7 +425,7 @@ fun TrackpadPhysicsSubSection(
 
             val lingerFormatted = String.format(Locale.US, "%.1fs", lingerDelay / 1000f)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Finger-Lift Linger Delay", fontSize = 11.sp, color = lsColors.textPrimary)
+                Text(lsString(R.string.tp_linger), fontSize = 11.sp, color = lsColors.textPrimary)
                 Text("${lingerDelay.toInt()} ms ($lingerFormatted)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
             }
             Slider(

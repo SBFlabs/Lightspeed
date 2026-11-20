@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import android.widget.Toast
@@ -134,8 +137,8 @@ fun DeflectorUnifiedSection(
                     when (subKey) {
                         "geo" -> {
                             CollapsibleSubSection(
-                                title = "Sensor Geometry",
-                                subtitle = "Independent height, touch reach & stealth glow",
+                                title = lsString(R.string.sec_sensor_geometry),
+                                subtitle = lsString(R.string.secd_independent_height_touch_reach),
                                 icon = {
                                     Icon(Icons.Default.Straighten, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                 },
@@ -147,40 +150,40 @@ fun DeflectorUnifiedSection(
                                 val landscapeMode = prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_LANDSCAPE_MODE, LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM) ?: LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM
                                 val isCustomLandscape = landscapeMode == LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM
 
-                                Text("UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                Text(lsString(R.string.def_upper_geo), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
                                 val defaultTopHeight = 220
                                 val defaultBottomHeight = 250
 
                                 if (isLandscape && isCustomLandscape) {
                                     val defaultLandscapeTopH = (prefs.getInt("${sidebarPrefix}top_height", defaultTopHeight) * 0.45f).toInt().coerceAtLeast(30)
                                     val defaultLandscapeBottomH = (prefs.getInt("${sidebarPrefix}bottom_height", defaultBottomHeight) * 0.45f).toInt().coerceAtLeast(30)
-                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}top_height_landscape", "", "Upper Deflector Span (Height) [Landscape]", 30, 600, 10, defaultLandscapeTopH)
-                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}top_touch_width", "", "Upper Touch Vector Reach", 0, 100, 1, 10)
-                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}top_transparency", "", "Upper Stealth Idle Glow", 0, 100, 5, 0)
+                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}top_height_landscape", "", lsString(R.string.def_upper_span_land), 30, 600, 10, defaultLandscapeTopH)
+                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}top_touch_width", "", lsString(R.string.def_upper_reach), 0, 100, 1, 10)
+                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}top_transparency", "", lsString(R.string.def_upper_glow), 0, 100, 5, 0)
 
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Text("LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}bottom_height_landscape", "", "Lower Deflector Span (Height) [Landscape]", 30, 600, 10, defaultLandscapeBottomH)
-                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}bottom_touch_width", "", "Lower Touch Vector Reach", 0, 100, 1, 10)
-                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}bottom_transparency", "", "Lower Stealth Idle Glow", 0, 100, 5, 0)
+                                    Text(lsString(R.string.def_lower_geo), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}bottom_height_landscape", "", lsString(R.string.def_lower_span_land), 30, 600, 10, defaultLandscapeBottomH)
+                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}bottom_touch_width", "", lsString(R.string.def_lower_reach), 0, 100, 1, 10)
+                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}bottom_transparency", "", lsString(R.string.def_lower_glow), 0, 100, 5, 0)
                                 } else {
-                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}top_height", "", "Upper Deflector Span (Height)", 50, 600, 10, defaultTopHeight)
-                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}top_touch_width", "", "Upper Touch Vector Reach", 0, 100, 1, 10)
-                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}top_transparency", "", "Upper Stealth Idle Glow", 0, 100, 5, 0)
+                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}top_height", "", lsString(R.string.def_upper_span), 50, 600, 10, defaultTopHeight)
+                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}top_touch_width", "", lsString(R.string.def_upper_reach), 0, 100, 1, 10)
+                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}top_transparency", "", lsString(R.string.def_upper_glow), 0, 100, 5, 0)
 
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Text("LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}bottom_height", "", "Lower Deflector Span (Height)", 50, 600, 10, defaultBottomHeight)
-                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}bottom_touch_width", "", "Lower Touch Vector Reach", 0, 100, 1, 10)
-                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}bottom_transparency", "", "Lower Stealth Idle Glow", 0, 100, 5, 0)
+                                    Text(lsString(R.string.def_lower_geo), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}bottom_height", "", lsString(R.string.def_lower_span), 50, 600, 10, defaultBottomHeight)
+                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}bottom_touch_width", "", lsString(R.string.def_lower_reach), 0, 100, 1, 10)
+                                    PrefDottedSliderRow(context, prefs, "${sidebarPrefix}bottom_transparency", "", lsString(R.string.def_lower_glow), 0, 100, 5, 0)
                                 }
                             }
                         }
                         "scrub" -> {
                             val sepCount = (if (!isScrubLinked) 1 else 0) + gestureTiedState.values.count { !it }
                             CollapsibleSubSection(
-                                title = "Separate Deflector Controls",
-                                subtitle = if (sepCount == 0) "All gestures tied in Unified Matrix" else "$sepCount unlinked dual control vector(s)",
+                                title = lsString(R.string.sec_separate_deflector_controls),
+                                subtitle = if (sepCount == 0) lsString(R.string.def_all_tied_sub) else lsString(R.string.def_unlinked_sub, sepCount),
                                 icon = {
                                     Icon(Icons.Default.CallSplit, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                 },
@@ -194,7 +197,7 @@ fun DeflectorUnifiedSection(
                                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                                     ) {
                                         Text(
-                                            text = "All deflector gestures are currently linked across the full deflector. Tap the rope on any gesture to split it into independent Upper & Lower controls.",
+                                            text = lsString(R.string.def_all_tied_notice),
                                             fontSize = 12.sp,
                                             color = lsColors.textSecondary.copy(alpha = 0.8f),
                                             modifier = Modifier.padding(12.dp)
@@ -205,9 +208,9 @@ fun DeflectorUnifiedSection(
                                         val onTieScrubber = {
                                             onMooringConfirm(
                                                 MooringConfirmData(
-                                                    title = "Link Inward Sweep?",
-                                                    message = "Unify Inward Sweep across the full flank in lockstep?",
-                                                    confirmLabel = "Link",
+                                                    title = lsString(R.string.def_link_inward_title),
+                                                    message = lsString(R.string.def_link_inward_msg),
+                                                    confirmLabel = lsString(R.string.cc_common_link),
                                                     isSever = false,
                                                     onConfirm = {
                                                         isScrubLinked = true
@@ -242,7 +245,7 @@ fun DeflectorUnifiedSection(
                                                 direction = ArrowDirection.SCRUB,
                                                 isHold = false,
                                                 keyResName = "pref_macro_action_${macroPrefix}TOP_SCRUBBING",
-                                                defaultTitle = "Upper · Inward Sweep",
+                                                defaultTitle = lsString(R.string.gest_upper_inward),
                                                 options = listOf("none", "system:brightness", "system:volume", "system:screen_timeout", "system:scroll_scrub", "system:media_scrubber"),
                                                 labelCache = tokenLabelCache
                                             )
@@ -253,7 +256,7 @@ fun DeflectorUnifiedSection(
                                                 direction = ArrowDirection.SCRUB,
                                                 isHold = false,
                                                 keyResName = "pref_macro_action_${macroPrefix}BOTTOM_SCRUBBING",
-                                                defaultTitle = "Lower · Inward Sweep",
+                                                defaultTitle = lsString(R.string.gest_lower_inward),
                                                 options = listOf("none", "system:volume", "system:brightness", "system:screen_timeout", "system:scroll_scrub", "system:media_scrubber"),
                                                 labelCache = tokenLabelCache
                                             )
@@ -311,7 +314,7 @@ fun DeflectorUnifiedSection(
                                                     direction = arrowEnum,
                                                     isHold = false,
                                                     keyResName = "pref_macro_action_${macroPrefix}TOP_${vectorKey}",
-                                                    defaultTitle = "Upper · $vectorTitle",
+                                                    defaultTitle = lsString(R.string.gest_upper_vec, vectorTitle),
                                                     options = dynamicActionTokens,
                                                     labelCache = tokenLabelCache
                                                 )
@@ -322,7 +325,7 @@ fun DeflectorUnifiedSection(
                                                     direction = arrowEnum,
                                                     isHold = false,
                                                     keyResName = "pref_macro_action_${macroPrefix}BOTTOM_${vectorKey}",
-                                                    defaultTitle = "Lower · $vectorTitle",
+                                                    defaultTitle = lsString(R.string.gest_lower_vec, vectorTitle),
                                                     options = dynamicActionTokens,
                                                     labelCache = tokenLabelCache
                                                 )
@@ -372,7 +375,7 @@ fun DeflectorUnifiedSection(
                                                     direction = arrowEnum,
                                                     isHold = true,
                                                     keyResName = "pref_macro_action_${macroPrefix}TOP_${vectorKey}_HOLD",
-                                                    defaultTitle = "Upper · $vectorTitle + Hold",
+                                                    defaultTitle = lsString(R.string.gest_upper_vec, lsString(R.string.gest_hold_short, vectorTitle)),
                                                     options = dynamicActionTokens,
                                                     labelCache = tokenLabelCache
                                                 )
@@ -383,7 +386,7 @@ fun DeflectorUnifiedSection(
                                                     direction = arrowEnum,
                                                     isHold = true,
                                                     keyResName = "pref_macro_action_${macroPrefix}BOTTOM_${vectorKey}_HOLD",
-                                                    defaultTitle = "Lower · $vectorTitle + Hold",
+                                                    defaultTitle = lsString(R.string.gest_lower_vec, lsString(R.string.gest_hold_short, vectorTitle)),
                                                     options = dynamicActionTokens,
                                                     labelCache = tokenLabelCache
                                                 )
@@ -397,7 +400,7 @@ fun DeflectorUnifiedSection(
                         "gestures" -> {
                             val unifiedCount = (if (isScrubLinked) 1 else 0) + gestureTiedState.values.count { it }
                             CollapsibleSubSection(
-                                title = "Unified Gesture Matrix",
+                                title = lsString(R.string.sec_unified_gesture_matrix),
                                 subtitle = if (unifiedCount == 0) "All gestures unlinked into Separate Controls" else "$unifiedCount unified full-flank vector(s)",
                                 icon = {
                                     Icon(Icons.Default.GridView, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
@@ -423,9 +426,9 @@ fun DeflectorUnifiedSection(
                                         val onSeverScrubber = {
                                             onMooringConfirm(
                                                 MooringConfirmData(
-                                                    title = "Split Inward Sweep?",
-                                                    message = "Split Inward Sweep into independent Upper and Lower sector controls?",
-                                                    confirmLabel = "Split",
+                                                    title = lsString(R.string.def_split_inward_title),
+                                                    message = lsString(R.string.def_split_inward_msg),
+                                                    confirmLabel = lsString(R.string.cc_common_split),
                                                     isSever = true,
                                                     onConfirm = {
                                                         isScrubLinked = false
@@ -453,7 +456,7 @@ fun DeflectorUnifiedSection(
                                             direction = ArrowDirection.SCRUB,
                                             isHold = false,
                                             keyResName = "pref_macro_action_${macroPrefix}TOP_SCRUBBING",
-                                            defaultTitle = "Linked Inward Sweep (Scrubbing)",
+                                            defaultTitle = lsString(R.string.gest_linked_inward),
                                             options = listOf("none", "system:brightness", "system:volume", "system:screen_timeout", "system:scroll_scrub", "system:media_scrubber"),
                                             labelCache = tokenLabelCache,
                                             showMooringRope = true,
@@ -464,9 +467,9 @@ fun DeflectorUnifiedSection(
                                             }
                                         )
                                         Spacer(modifier = Modifier.height(6.dp))
-                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_DEFLECTOR_LONG_SWIPE_THRESHOLD_PORTRAIT, "", "Long Swipe Distance Cutoff [Portrait]", 40, 240, 5, 90)
+                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_DEFLECTOR_LONG_SWIPE_THRESHOLD_PORTRAIT, "", lsString(R.string.def_long_swipe_port), 40, 240, 5, 90)
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_DEFLECTOR_LONG_SWIPE_THRESHOLD_LANDSCAPE, "", "Long Swipe Distance Cutoff [Landscape]", 40, 320, 10, 130)
+                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_DEFLECTOR_LONG_SWIPE_THRESHOLD_LANDSCAPE, "", lsString(R.string.def_long_swipe_land), 40, 320, 10, 130)
                                         Spacer(modifier = Modifier.height(8.dp))
                                     }
 
@@ -479,9 +482,9 @@ fun DeflectorUnifiedSection(
                                             val onSeverVector = {
                                                 onMooringConfirm(
                                                     MooringConfirmData(
-                                                        title = "Split into Upper & Lower?",
-                                                        message = "Split \"$vectorTitle\" into independent Upper and Lower sector controls?",
-                                                        confirmLabel = "Split",
+                                                        title = lsString(R.string.def_split_vec_title),
+                                                        message = lsString(R.string.def_split_vec_msg, vectorTitle),
+                                                        confirmLabel = lsString(R.string.cc_common_split),
                                                         isSever = true,
                                                         onConfirm = {
                                                             gestureTiedState = gestureTiedState + (vectorKey to false)
@@ -532,9 +535,9 @@ fun DeflectorUnifiedSection(
                                             val onSeverHoldVector = {
                                                 onMooringConfirm(
                                                     MooringConfirmData(
-                                                        title = "Split into Upper & Lower?",
-                                                        message = "Split \"$vectorTitle + Hold\" into independent Upper and Lower sector controls?",
-                                                        confirmLabel = "Split",
+                                                        title = lsString(R.string.def_split_vec_title),
+                                                        message = lsString(R.string.def_split_vec_msg, lsString(R.string.gest_hold_short, vectorTitle)),
+                                                        confirmLabel = lsString(R.string.cc_common_split),
                                                         isSever = true,
                                                         onConfirm = {
                                                             gestureTiedState = gestureTiedState + (holdKey to false)
@@ -567,7 +570,7 @@ fun DeflectorUnifiedSection(
                                                 direction = arrowEnum,
                                                 isHold = true,
                                                 keyResName = "pref_macro_action_${macroPrefix}UNIFIED_${vectorKey}_HOLD",
-                                                defaultTitle = "$vectorTitle + Hold Modifier",
+                                                defaultTitle = lsString(R.string.gest_hold_modifier, vectorTitle),
                                                 options = dynamicActionTokens,
                                                 labelCache = tokenLabelCache,
                                                 showMooringRope = true,

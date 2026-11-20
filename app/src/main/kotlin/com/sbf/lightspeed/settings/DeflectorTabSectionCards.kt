@@ -11,37 +11,39 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedVocabulary
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.system.safeReloadPreferences
 import kotlinx.coroutines.CoroutineScope
 
 fun getCustomVectorsForFlank(isLeft: Boolean): List<Pair<String, Pair<String, ArrowDirection>>> {
     return if (isLeft) {
         listOf(
-            "TAP" to ("Tap" to ArrowDirection.TAP),
-            "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
-            "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
-            "SWIPE_RIGHT" to ("Swipe Inward" to ArrowDirection.SWIPE_RIGHT),
-            "SWIPE_UP_DOWN" to ("Rebound Up" to ArrowDirection.SWIPE_UP_DOWN),
-            "SWIPE_DOWN_UP" to ("Rebound Down" to ArrowDirection.SWIPE_DOWN_UP),
-            "SWIPE_RIGHT_BACK" to ("Rebound Inward" to ArrowDirection.RIGHT_BACK),
-            "SWIPE_UP_RIGHT" to ("Two-Step: Up → Inward" to ArrowDirection.SWIPE_UP_RIGHT),
-            "SWIPE_DOWN_RIGHT" to ("Two-Step: Down → Inward" to ArrowDirection.SWIPE_DOWN_RIGHT),
-            "SWIPE_RIGHT_UP" to ("Two-Step: Inward → Up" to ArrowDirection.RIGHT_UP),
+            "TAP" to (lsString(R.string.gest_tap) to ArrowDirection.TAP),
+            "SWIPE_UP" to (lsString(R.string.gest_swipe_up) to ArrowDirection.SWIPE_UP),
+            "SWIPE_DOWN" to (lsString(R.string.gest_swipe_down) to ArrowDirection.SWIPE_DOWN),
+            "SWIPE_RIGHT" to (lsString(R.string.gest_swipe_inward) to ArrowDirection.SWIPE_RIGHT),
+            "SWIPE_UP_DOWN" to (lsString(R.string.gest_rebound_up) to ArrowDirection.SWIPE_UP_DOWN),
+            "SWIPE_DOWN_UP" to (lsString(R.string.gest_rebound_down) to ArrowDirection.SWIPE_DOWN_UP),
+            "SWIPE_RIGHT_BACK" to (lsString(R.string.gest_rebound_inward) to ArrowDirection.RIGHT_BACK),
+            "SWIPE_UP_RIGHT" to (lsString(R.string.gest_two_step_up_in) to ArrowDirection.SWIPE_UP_RIGHT),
+            "SWIPE_DOWN_RIGHT" to (lsString(R.string.gest_two_step_down_in) to ArrowDirection.SWIPE_DOWN_RIGHT),
+            "SWIPE_RIGHT_UP" to (lsString(R.string.gest_two_step_in_up) to ArrowDirection.RIGHT_UP),
         )
     } else {
         listOf(
-            "TAP" to ("Tap" to ArrowDirection.TAP),
-            "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
-            "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
-            "SWIPE_LEFT" to ("Swipe Inward" to ArrowDirection.SWIPE_LEFT),
-            "SWIPE_UP_DOWN" to ("Rebound Up" to ArrowDirection.SWIPE_UP_DOWN),
-            "SWIPE_DOWN_UP" to ("Rebound Down" to ArrowDirection.SWIPE_DOWN_UP),
-            "SWIPE_LEFT_BACK" to ("Rebound Inward" to ArrowDirection.LEFT_BACK),
-            "SWIPE_UP_LEFT" to ("Two-Step: Up → Inward" to ArrowDirection.SWIPE_UP_LEFT),
-            "SWIPE_DOWN_LEFT" to ("Two-Step: Down → Inward" to ArrowDirection.SWIPE_DOWN_LEFT),
-            "SWIPE_LEFT_UP" to ("Two-Step: Inward → Up" to ArrowDirection.LEFT_UP),
+            "TAP" to (lsString(R.string.gest_tap) to ArrowDirection.TAP),
+            "SWIPE_UP" to (lsString(R.string.gest_swipe_up) to ArrowDirection.SWIPE_UP),
+            "SWIPE_DOWN" to (lsString(R.string.gest_swipe_down) to ArrowDirection.SWIPE_DOWN),
+            "SWIPE_LEFT" to (lsString(R.string.gest_swipe_inward) to ArrowDirection.SWIPE_LEFT),
+            "SWIPE_UP_DOWN" to (lsString(R.string.gest_rebound_up) to ArrowDirection.SWIPE_UP_DOWN),
+            "SWIPE_DOWN_UP" to (lsString(R.string.gest_rebound_down) to ArrowDirection.SWIPE_DOWN_UP),
+            "SWIPE_LEFT_BACK" to (lsString(R.string.gest_rebound_inward) to ArrowDirection.LEFT_BACK),
+            "SWIPE_UP_LEFT" to (lsString(R.string.gest_two_step_up_in) to ArrowDirection.SWIPE_UP_LEFT),
+            "SWIPE_DOWN_LEFT" to (lsString(R.string.gest_two_step_down_in) to ArrowDirection.SWIPE_DOWN_LEFT),
+            "SWIPE_LEFT_UP" to (lsString(R.string.gest_two_step_in_up) to ArrowDirection.LEFT_UP),
         )
     }
 }
@@ -228,7 +230,7 @@ fun LazyListScope.renderDeflectorOrderedSections(
         when (secId) {
             trackpadSecId -> {
                 if (com.sbf.lightspeed.system.bot.LightspeedBotContract.isLabsEnabled(prefs)) {
-                    item(key = trackpadSecId) {
+                    item(key = trackpadSecId, contentType = "accordion") {
                         CyberneticTrackpadAccordion(
                             isLeft = isLeft,
                             context = context,
@@ -239,7 +241,7 @@ fun LazyListScope.renderDeflectorOrderedSections(
                 }
             }
             centerSecId -> {
-                item(key = centerSecId) {
+                item(key = centerSecId, contentType = "accordion") {
                     CompactAccordionSection(
                         title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_ZONE),
                         icon = {
@@ -266,7 +268,7 @@ fun LazyListScope.renderDeflectorOrderedSections(
             }
             unifiedSecId -> {
                 if (isFlankUnified) {
-                    item(key = unifiedSecId) {
+                    item(key = unifiedSecId, contentType = "accordion") {
                         DeflectorUnifiedSection(
                             isLeft = isLeft,
                             context = context,
@@ -293,7 +295,7 @@ fun LazyListScope.renderDeflectorOrderedSections(
             }
             topSecId -> {
                 if (!isFlankUnified) {
-                    item(key = topSecId) {
+                    item(key = topSecId, contentType = "accordion") {
                         DeflectorFlankSection(
                             isLeft = isLeft,
                             isUpper = true,
@@ -319,7 +321,7 @@ fun LazyListScope.renderDeflectorOrderedSections(
             }
             bottomSecId -> {
                 if (!isFlankUnified) {
-                    item(key = bottomSecId) {
+                    item(key = bottomSecId, contentType = "accordion") {
                         DeflectorFlankSection(
                             isLeft = isLeft,
                             isUpper = false,

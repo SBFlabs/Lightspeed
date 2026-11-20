@@ -10,9 +10,12 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,19 +32,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 /**
@@ -139,13 +148,20 @@ fun DeckStylePickerGrid(
 ) {
     val lsColors = LightspeedStyle.colors
     val colorScheme = MaterialTheme.colorScheme
+    val fontScale = LocalDensity.current.fontScale
     val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     LaunchedEffect(context) {
         DeckThemeManager.getStyleId(context)
     }
     val activeStyleId by DeckThemeManager.styleIdFlow.collectAsState()
+    val customizations by ThemeCustomizationManager.customizationsFlow.collectAsState()
     val activePreset = remember(activeStyleId) { DeckStylePresets.resolve(activeStyleId) }
+    val customizedPresets = remember(customizations, activeStyleId) {
+        DeckStylePresets.ALL.map { base ->
+            ThemeCustomizationManager.getCustomization(context, base.styleId).toSnapshot(base)
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -154,7 +170,7 @@ fun DeckStylePickerGrid(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "CENTRAL COMMAND THEME",
+                lsString(R.string.fc_cc_theme),
                 fontSize = 10.5.sp,
                 fontWeight = FontWeight.Bold,
                 color = colorScheme.primary,
@@ -167,12 +183,14 @@ fun DeckStylePickerGrid(
             )
         }
 
-        val rows = remember { DeckStylePresets.ALL.chunked(3) }
+        val rows = remember(customizedPresets) { customizedPresets.chunked(3) }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             rows.forEach { rowPresets ->
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Max),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     rowPresets.forEach { preset ->
                         val isSelected = activeStyleId == preset.styleId
@@ -182,6 +200,7 @@ fun DeckStylePickerGrid(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
+                                .fillMaxHeight()
                                 .clip(RoundedCornerShape(miniCorner))
                                 .deckGlassSurface(
                                     snapshot = preset,
@@ -224,7 +243,7 @@ fun DeckStylePickerGrid(
                                         }
                                     }
                                 )
-                                .padding(vertical = 10.dp, horizontal = 6.dp),
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Row(
@@ -234,28 +253,42 @@ fun DeckStylePickerGrid(
                                 if (isSelected) {
                                     Box(
                                         modifier = Modifier
-                                            .size(6.dp)
+                                            .size(5.5.dp)
                                             .clip(CircleShape)
                                             .background(colorScheme.primary)
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(3.dp))
                                 } else if (isLocked) {
                                     Icon(
                                         imageVector = Icons.Filled.Lock,
                                         contentDescription = null,
                                         tint = lsColors.accentGold,
-                                        modifier = Modifier.size(10.dp)
+                                        modifier = Modifier.size(9.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Spacer(modifier = Modifier.width(2.5.dp))
+                                }
+                                val isLightMaterialTile =
+                                    preset.styleId == DeckStylePresets.MATERIAL_3.styleId &&
+                                        colorScheme.surfaceContainerLow.luminance() > 0.5f
+                                val baseTileFg = if (isLightMaterialTile) colorScheme.onSurface else Color.White
+                                var tileFontSizeSp by remember(preset.displayName, isLocked, isSelected, fontScale) {
+                                    mutableFloatStateOf(9.5f)
                                 }
                                 Text(
                                     text = preset.displayName,
-                                    fontSize = 9.8.sp,
+                                    fontSize = tileFontSizeSp.sp,
+                                    lineHeight = 11.5.sp,
                                     fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                    color = if (isLocked) lsColors.accentGold else if (isSelected) Color.White else Color.White.copy(alpha = 0.88f),
+                                    color = if (isLocked) lsColors.accentGold else if (isSelected) baseTileFg else baseTileFg.copy(alpha = 0.88f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                     maxLines = 1,
                                     softWrap = false,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
+                                    onTextLayout = { result ->
+                                        if ((result.hasVisualOverflow || result.didOverflowWidth) && tileFontSizeSp > 7.5f) {
+                                            tileFontSizeSp = (tileFontSizeSp - 0.5f).coerceAtLeast(7.5f)
+                                        }
+                                    }
                                 )
                             }
                         }

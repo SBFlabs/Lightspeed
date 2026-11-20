@@ -135,7 +135,20 @@ object LightspeedPreferencesAccessors : LightspeedPreferencesAccessorsContract {
             val styleForGesture = prefs.getString(baseHudKey, null)
             if (!styleForGesture.isNullOrBlank()) return styleForGesture
         }
-        return prefs.getString(LightspeedPreferences.KEY_HUD_STYLE_DEFAULT, LightspeedPreferences.DEFAULT_HUD_STYLE) ?: LightspeedPreferences.DEFAULT_HUD_STYLE
+        val globalDefault = prefs.getString(LightspeedPreferences.KEY_HUD_STYLE_DEFAULT, LightspeedPreferences.DEFAULT_HUD_STYLE)
+            ?: LightspeedPreferences.DEFAULT_HUD_STYLE
+        if (globalDefault == "signature_auto") {
+            val token = actionToken.orEmpty().lowercase()
+            return when {
+                token.contains("media") -> "prism_timeline"
+                token.contains("brightness") -> "signature_solar_lux"
+                token.contains("timeout") -> "signature_chrono_dial"
+                token.contains("scroll") -> "signature_kinetic_thruster"
+                token.contains("volume") -> "signature_sonic_eq"
+                else -> LightspeedPreferences.DEFAULT_HUD_STYLE
+            }
+        }
+        return globalDefault
     }
 
     override fun saveHudStyle(prefs: SharedPreferences, gestureActionKey: String?, actionToken: String?, style: String) {

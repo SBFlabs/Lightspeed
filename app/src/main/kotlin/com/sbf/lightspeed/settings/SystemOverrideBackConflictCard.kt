@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -100,7 +103,7 @@ fun SystemOverrideBackConflictCard(
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Android's native back gesture sensitivity is currently active along the screen edges. This causes ghost system back triggers when swiping Deflectors. Zero-out native insets for 100% clean Lightspeed edge sovereignty.",
+                    text = lsString(R.string.sys_back_desc),
                     fontSize = 12.sp,
                     color = lsColors.textSecondary.copy(alpha = 0.85f),
                     lineHeight = 16.sp
@@ -116,19 +119,19 @@ fun SystemOverrideBackConflictCard(
                                 ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_left 0")
                                 ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_right 0")
                             }
-                            Toast.makeText(context, "⚡ Native back insets zeroed! Deflectors have full edge sovereignty.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, lsString(R.string.sys_back_toast_ok), Toast.LENGTH_SHORT).show()
                         } else {
                             val adbCmd = "adb shell settings put secure back_gesture_inset_scale_left 0 && adb shell settings put secure back_gesture_inset_scale_right 0"
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("ADB Command", adbCmd))
-                            Toast.makeText(context, "ADB command copied to clipboard! Run in terminal to zero insets.", Toast.LENGTH_LONG).show()
+                            clipboard.setPrimaryClip(ClipData.newPlainText(lsString(R.string.sys_back_adb_lbl), adbCmd))
+                            Toast.makeText(context, lsString(R.string.sys_back_adb_toast), Toast.LENGTH_LONG).show()
                         }
                     },
                     isDestructive = isShizukuActive,
                     modifier = Modifier.fillMaxWidth().height(38.dp)
                 ) {
                     Text(
-                        text = if (isShizukuActive) "⚡ ZERO-OUT NATIVE BACK (RECOMMENDED)" else "📋 COPY ADB ZERO-OUT COMMAND",
+                        text = if (isShizukuActive) lsString(R.string.sys_back_zero_btn) else lsString(R.string.sys_back_copy_btn),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = lsColors.textPrimary
@@ -156,14 +159,14 @@ fun SystemOverrideBackConflictCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = "FULL EDGE SOVEREIGNTY ACTIVE (0.0x INSETS)",
+                        text = lsString(R.string.sys_back_active_hdr),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Black,
                         color = lsColors.accentOk,
                         letterSpacing = 0.5.sp
                     )
                     Text(
-                        text = "Android native edge back gesture is fully neutralized. Zero touch-trapping or accidental back collisions.",
+                        text = lsString(R.string.sys_back_active_desc),
                         fontSize = 11.sp,
                         color = lsColors.textSecondary.copy(alpha = 0.8f)
                     )

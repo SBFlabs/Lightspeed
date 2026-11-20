@@ -1,19 +1,27 @@
 package com.sbf.lightspeed.settings
 
-import android.content.Context
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
-import android.view.WindowManager
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.ScrollableState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,18 +65,32 @@ fun Modifier.deckGlassSurface(
     isCard: Boolean = false,
     withNoise: Boolean = true,
     colorScheme: ColorScheme = MaterialTheme.colorScheme,
-    shapeOverride: Shape? = null
+    shapeOverride: Shape? = null,
+    useLightweightHudBlur: Boolean = false
 ): Modifier {
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val isApi28Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
     val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
-    val colors = remember(snapshot, colorScheme, isApi31Plus) {
+    val colors = remember(snapshot, colorScheme, isApi31Plus, isCard, isFlyout, useLightweightHudBlur) {
+        val isMaterial3 = snapshot.styleId == DeckStylePresets.MATERIAL_3.styleId
         val isAdaptive = snapshot.styleId == DeckStylePresets.ADAPTIVE.styleId
-        val useDynamic = snapshot.usesSystemDynamicColor && isApi31Plus && isAdaptive
+        val useDynamic = snapshot.usesSystemDynamicColor && (isMaterial3 || (isApi31Plus && isAdaptive))
 
-        if (useDynamic) {
+        if (isMaterial3 && !useLightweightHudBlur) {
+            val container = when {
+                isCard -> colorScheme.surfaceContainerHigh
+                isFlyout -> colorScheme.surfaceContainer
+                else -> colorScheme.surfaceContainerLow
+            }
+            ResolvedStyleColors(
+                panelColor = container,
+                tintColor = colorScheme.primary,
+                borderColor = colorScheme.outlineVariant,
+                glowColor = Color.Transparent
+            )
+        } else if (useDynamic) {
             ResolvedStyleColors(
                 panelColor = colorScheme.surfaceContainerHigh,
                 tintColor = colorScheme.primary,
@@ -137,7 +159,8 @@ fun Modifier.deckGlassSurface(
             isCard = isCard,
             isApi28Plus = isApi28Plus,
             density = density,
-            bottomCr = bottomRightCr
+            bottomCr = bottomRightCr,
+            useLightweightHudBlur = useLightweightHudBlur
         )
 
         onDrawBehind {
@@ -221,57 +244,48 @@ fun DeckGlassCardSurface(
     snapshotOverride: DeckThemeSnapshot? = null,
     isFlyout: Boolean = false,
     shapeOverride: Shape? = null,
+    useLightweightHudBlur: Boolean = false,
     content: @Composable BoxScope.() -> Unit
 ) {
     val activeSnapshot by DeckThemeManager.snapshotFlow.collectAsState()
     val snapshot = snapshotOverride ?: activeSnapshot
     val view = LocalView.current
     val blurMode by BackdropBlurModeManager.modeFlow.collectAsState()
-    val isBlurAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-        (CentralCommandActivity.isCrossWindowBlurActive || CentralCommandBackdropBlur.backdropBitmap != null)
+    val isBlurAvailable = (useLightweightHudBlur && CentralCommandBackdropBlur.backdropBitmap != null) ||
+        (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            (CentralCommandActivity.isCrossWindowBlurActive || CentralCommandBackdropBlur.backdropBitmap != null))
     val shape = shapeOverride ?: RoundedCornerShape(snapshot.cornerRadiusDp.dp)
+    val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+
+    DisposableEffect(dialogWindow) {
+        if (dialogWindow != null) {
+            CentralCommandBackdropBlur.registerHostWindow(dialogWindow)
+        }
+        onDispose {
+            if (dialogWindow != null) {
+                CentralCommandBackdropBlur.unregisterHostWindow(dialogWindow)
+            }
+        }
+    }
 
     // Hardware window blur for modal dialog windows & standalone overlay decks
     SideEffect {
-        val wm = view.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
-        val useNative = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            BackdropBlurModeManager.shouldUseNativeBlur(wm, blurMode)
-        val dialogWindow = (view.parent as? DialogWindowProvider)?.window
-        dialogWindow?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (dialogWindow != null) {
-                val lp = dialogWindow.attributes
-                if (useNative) {
-                    dialogWindow.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                    if (lp != null) {
-                        lp.blurBehindRadius = snapshot.windowBlurRadiusPx.coerceIn(20, 150)
-                        dialogWindow.attributes = lp
-                    }
-                } else {
-                    dialogWindow.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                    if (lp != null && lp.blurBehindRadius != 0) {
-                        lp.blurBehindRadius = 0
-                        dialogWindow.attributes = lp
-                    }
-                }
-            } else {
-                val rootView = view.rootView
-                val lp = rootView.layoutParams as? WindowManager.LayoutParams
-                if (lp != null) {
-                    val hasFlag = (lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND) != 0
-                    val targetRadius = if (useNative) snapshot.windowBlurRadiusPx.coerceIn(20, 150) else 0
-                    if (useNative && (!hasFlag || lp.blurBehindRadius != targetRadius)) {
-                        lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                        lp.blurBehindRadius = targetRadius
-                        try { wm?.updateViewLayout(rootView, lp) } catch (_: Exception) {}
-                    } else if (!useNative && (hasFlag || lp.blurBehindRadius != 0)) {
-                        lp.flags = lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
-                        lp.blurBehindRadius = 0
-                        try { wm?.updateViewLayout(rootView, lp) } catch (_: Exception) {}
-                    }
-                }
-            }
+        val currentDialogWindow = (view.parent as? DialogWindowProvider)?.window
+        currentDialogWindow?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        BackdropBlurModeManager.applyWindowDimAmount(currentDialogWindow, snapshot.dimAmount)
+        val effectiveWindowBlurPx = if (useLightweightHudBlur) {
+            maxOf(snapshot.windowBlurRadiusPx, 72)
+        } else {
+            snapshot.windowBlurRadiusPx
         }
+        BackdropBlurModeManager.applyWindowBlurFlags(
+            view = view,
+            blurRadiusPx = effectiveWindowBlurPx,
+            mode = blurMode,
+            window = currentDialogWindow,
+            clampMinRadius = 20,
+            clampMaxRadius = 150
+        )
     }
 
     Box(modifier = modifier) {
@@ -285,7 +299,10 @@ fun DeckGlassCardSurface(
                     this.clip = true
                 }
         ) {
-            ClippedFallbackBlurLayer(snapshot = snapshot)
+            ClippedFallbackBlurLayer(
+                snapshot = snapshot,
+                useLightweightHudBlur = useLightweightHudBlur
+            )
         }
 
         // Layer 2: Unified 12-theme optical surface (draws outer glow/depth sheets + clipped glass finish)
@@ -296,7 +313,8 @@ fun DeckGlassCardSurface(
                     snapshot = snapshot,
                     isBlurAvailable = isBlurAvailable,
                     isFlyout = isFlyout,
-                    shapeOverride = shape
+                    shapeOverride = shape,
+                    useLightweightHudBlur = useLightweightHudBlur
                 )
         )
 
@@ -347,15 +365,32 @@ fun ensureReadableContrast(color: Color, minLuminance: Float = 0.38f): Color {
 fun DeckThemeSnapshot.resolveOpticalColors(): OpticalSurfaceColors {
     val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val colorScheme = MaterialTheme.colorScheme
+    val isMaterial3 = styleId == DeckStylePresets.MATERIAL_3.styleId
     val isAdaptive = styleId == DeckStylePresets.ADAPTIVE.styleId
-    val useDynamic = usesSystemDynamicColor && isApi31Plus && isAdaptive
+    val useDynamic = usesSystemDynamicColor && (isMaterial3 || (isApi31Plus && isAdaptive))
 
     val safeTintArgb = if (tintArgb == 0x00FFFFFFL) 0xFFFFFFFFL else tintArgb
     val rawTint = if (useDynamic) colorScheme.primary else Color(safeTintArgb)
-    val panel = if (useDynamic) colorScheme.surfaceContainerHigh else Color(panelColorArgb)
-    val rawBorder = if (useDynamic) colorScheme.primary.copy(alpha = 0.80f) else Color(borderColorArgb)
+    val panel = if (isMaterial3) {
+        colorScheme.surfaceContainerLow
+    } else if (useDynamic) {
+        colorScheme.surfaceContainerHigh
+    } else {
+        Color(panelColorArgb)
+    }
+    val rawBorder = if (isMaterial3) {
+        colorScheme.outlineVariant
+    } else if (useDynamic) {
+        colorScheme.primary.copy(alpha = 0.80f)
+    } else {
+        Color(borderColorArgb)
+    }
 
-    val readableTint = ensureReadableContrast(rawTint)
+    val readableTint = if (panel.luminance() > 0.5f) {
+        rawTint.copy(alpha = rawTint.alpha.coerceAtLeast(0.88f))
+    } else {
+        ensureReadableContrast(rawTint)
+    }
     val effectiveBorder = if (rawBorder.alpha < 0.15f) readableTint.copy(alpha = 0.40f) else rawBorder
 
     return OpticalSurfaceColors(
@@ -385,6 +420,7 @@ fun DeckThemedDropdownMenu(
 ) {
     val activeSnapshot = LocalDeckTheme.current
     val snapshot = snapshotOverride ?: activeSnapshot
+    val blurMode by BackdropBlurModeManager.modeFlow.collectAsState()
     val cornerRadius = snapshot.cornerRadiusDp.dp
     val shape = RoundedCornerShape(cornerRadius)
 
@@ -410,18 +446,14 @@ fun DeckThemedDropdownMenu(
             SideEffect {
                 val dialogWindow = (view.parent as? DialogWindowProvider)?.window
                 dialogWindow?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    val rootView = view.rootView
-                    val lp = rootView.layoutParams as? WindowManager.LayoutParams
-                    if (lp != null && (lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND) == 0) {
-                        lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                        lp.blurBehindRadius = snapshot.windowBlurRadiusPx.coerceIn(20, 120)
-                        val wm = view.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
-                        try {
-                            wm?.updateViewLayout(rootView, lp)
-                        } catch (_: Exception) {}
-                    }
-                }
+                BackdropBlurModeManager.applyWindowBlurFlags(
+                    view = view,
+                    blurRadiusPx = snapshot.windowBlurRadiusPx,
+                    mode = blurMode,
+                    window = dialogWindow,
+                    clampMinRadius = 20,
+                    clampMaxRadius = 120
+                )
             }
             val isJelly = snapshot.styleId == "jelly"
             val scaleAnim = remember(expanded) { Animatable(if (isJelly) 0.88f else 1.0f) }
@@ -473,3 +505,70 @@ fun DeckThemedDropdownMenu(
         }
     )
 }
+
+/**
+ * Universal vertical edge feathering modifier for Compose scrollable containers (`LazyColumn`,
+ * `LazyVerticalGrid`, `ScrollState`). Uses a single container-level offscreen compositing layer
+ * with cached top/bottom [BlendMode.DstIn] alpha gradient masks that activate dynamically only
+ * when [ScrollableState.canScrollBackward] / [ScrollableState.canScrollForward] are true.
+ */
+fun Modifier.verticalEdgeFade(
+    scrollableState: ScrollableState,
+    topFeatherDp: Dp = 20.dp,
+    bottomFeatherDp: Dp = 22.dp
+): Modifier = this
+    .graphicsLayer {
+        compositingStrategy = CompositingStrategy.Offscreen
+    }
+    .drawWithCache {
+        val topPx = minOf(topFeatherDp.toPx(), size.height * 0.35f)
+        val botPx = minOf(bottomFeatherDp.toPx(), size.height * 0.35f)
+        val topBrush = Brush.verticalGradient(
+            0.0f to Color.Transparent,
+            0.52f to Color.Black.copy(alpha = 0.48f),
+            1.0f to Color.Black,
+            startY = 0f,
+            endY = topPx.coerceAtLeast(1f)
+        )
+        val botStartY = (size.height - botPx).coerceAtLeast(0f)
+        val bottomBrush = Brush.verticalGradient(
+            0.0f to Color.Black,
+            0.48f to Color.Black.copy(alpha = 0.48f),
+            1.0f to Color.Transparent,
+            startY = botStartY,
+            endY = size.height.coerceAtLeast(botStartY + 1f)
+        )
+        onDrawWithContent {
+            drawContent()
+            if (topPx > 2f && scrollableState.canScrollBackward) {
+                drawRect(
+                    brush = topBrush,
+                    topLeft = Offset.Zero,
+                    size = Size(size.width, topPx),
+                    blendMode = BlendMode.DstIn
+                )
+            }
+            if (botPx > 2f && scrollableState.canScrollForward) {
+                drawRect(
+                    brush = bottomBrush,
+                    topLeft = Offset(0f, botStartY),
+                    size = Size(size.width, botPx),
+                    blendMode = BlendMode.DstIn
+                )
+            }
+        }
+    }
+
+@Composable
+fun Modifier.verticalScrollWithEdgeFade(
+    state: ScrollState = rememberScrollState(),
+    enabled: Boolean = true,
+    topFeatherDp: Dp = 20.dp,
+    bottomFeatherDp: Dp = 22.dp
+): Modifier = this
+    .verticalEdgeFade(
+        scrollableState = state,
+        topFeatherDp = topFeatherDp,
+        bottomFeatherDp = bottomFeatherDp
+    )
+    .verticalScroll(state = state, enabled = enabled)

@@ -22,6 +22,7 @@ object ThemeCustomizationManager {
         val styleId: String,
         val blurRadius: Int,
         val opacity: Float,
+        val backdropOpacity: Float,
         val cornerRadius: Float,
         val borderWidth: Float,
         val glowStrength: Float,
@@ -57,6 +58,7 @@ object ThemeCustomizationManager {
             return base.copy(
                 windowBlurRadiusPx = blurRadius,
                 panelAlpha = opacity,
+                dimAmount = backdropOpacity,
                 cornerRadiusDp = cornerRadius,
                 borderWidthDp = borderWidth,
                 glowStrength = glowStrength,
@@ -71,6 +73,7 @@ object ThemeCustomizationManager {
         fun toParamMap(): Map<String, Float> = mapOf(
             "blur" to blurRadius.toFloat(),
             "opacity" to opacity,
+            "backdrop_opacity" to backdropOpacity,
             "corner" to cornerRadius,
             "border" to borderWidth,
             "glow" to glowStrength,
@@ -84,6 +87,7 @@ object ThemeCustomizationManager {
                     styleId = snapshot.styleId,
                     blurRadius = snapshot.windowBlurRadiusPx,
                     opacity = snapshot.panelAlpha,
+                    backdropOpacity = snapshot.dimAmount,
                     cornerRadius = snapshot.cornerRadiusDp,
                     borderWidth = snapshot.borderWidthDp,
                     glowStrength = snapshot.glowStrength,
@@ -98,6 +102,7 @@ object ThemeCustomizationManager {
                     styleId = styleId,
                     blurRadius = map["blur"]?.toInt() ?: base.windowBlurRadiusPx,
                     opacity = map["opacity"] ?: base.panelAlpha,
+                    backdropOpacity = map["backdrop_opacity"] ?: base.dimAmount,
                     cornerRadius = map["corner"] ?: base.cornerRadiusDp,
                     borderWidth = map["border"] ?: base.borderWidthDp,
                     glowStrength = map["glow"] ?: base.glowStrength,
@@ -117,11 +122,12 @@ object ThemeCustomizationManager {
         val base = DeckStylePresets.resolve(styleId)
         val prefs = context.defaultPrefs()
         val p = prefix(styleId)
-        if (!prefs.contains("${p}_blur")) {
+        if (!prefs.contains("${p}_blur") && !prefs.contains("${p}_backdrop_opacity")) {
             return ThemeCustomization.fromSnapshot(base)
         }
         val blur = prefs.getInt("${p}_blur", base.windowBlurRadiusPx)
         val opacity = prefs.getFloat("${p}_opacity", base.panelAlpha)
+        val backdropOpacity = prefs.getFloat("${p}_backdrop_opacity", base.dimAmount)
         val corner = prefs.getFloat("${p}_corner", base.cornerRadiusDp)
         val border = prefs.getFloat("${p}_border", base.borderWidthDp)
         val glow = prefs.getFloat("${p}_glow", base.glowStrength)
@@ -132,6 +138,7 @@ object ThemeCustomizationManager {
             styleId = styleId,
             blurRadius = blur,
             opacity = opacity,
+            backdropOpacity = backdropOpacity,
             cornerRadius = corner,
             borderWidth = border,
             glowStrength = glow,
@@ -145,6 +152,7 @@ object ThemeCustomizationManager {
         val editor = context.defaultPrefs().edit()
             .putInt("${p}_blur", custom.blurRadius)
             .putFloat("${p}_opacity", custom.opacity)
+            .putFloat("${p}_backdrop_opacity", custom.backdropOpacity)
             .putFloat("${p}_corner", custom.cornerRadius)
             .putFloat("${p}_border", custom.borderWidth)
             .putFloat("${p}_glow", custom.glowStrength)
@@ -170,6 +178,7 @@ object ThemeCustomizationManager {
         context.defaultPrefs().edit()
             .remove("${p}_blur")
             .remove("${p}_opacity")
+            .remove("${p}_backdrop_opacity")
             .remove("${p}_corner")
             .remove("${p}_border")
             .remove("${p}_glow")

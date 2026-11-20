@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.background
@@ -34,7 +37,9 @@ fun UnifyFlankActionsCard(
 ) {
     val lsColors = LightspeedStyle.colors
     DeckCard(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     ) {
         Row(
             modifier = Modifier
@@ -103,7 +108,9 @@ fun DeflectorMasterCard(
 ) {
     val lsColors = LightspeedStyle.colors
     DeckCard(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     ) {
         Column(
             modifier = Modifier
@@ -205,7 +212,7 @@ fun DeflectorMasterCard(
                             FilterChip(
                                 selected = isAlwaysArmed,
                                 onClick = { onStartupModeChange("always_armed") },
-                                label = { Text("Armed on Boot", fontSize = 10.5.sp, fontWeight = if (isAlwaysArmed) FontWeight.Bold else FontWeight.Normal, maxLines = 1) },
+                                label = { Text(lsString(R.string.def_armed_boot), fontSize = 10.5.sp, fontWeight = if (isAlwaysArmed) FontWeight.Bold else FontWeight.Normal, maxLines = 1) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
                                     selectedLabelColor = MaterialTheme.colorScheme.primary
@@ -215,7 +222,7 @@ fun DeflectorMasterCard(
                             FilterChip(
                                 selected = !isAlwaysArmed,
                                 onClick = { onStartupModeChange("standby_by_default") },
-                                label = { Text("Off by Default", fontSize = 10.5.sp, fontWeight = if (!isAlwaysArmed) FontWeight.Bold else FontWeight.Normal, maxLines = 1) },
+                                label = { Text(lsString(R.string.def_off_default), fontSize = 10.5.sp, fontWeight = if (!isAlwaysArmed) FontWeight.Bold else FontWeight.Normal, maxLines = 1) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
                                     selectedLabelColor = MaterialTheme.colorScheme.primary
@@ -244,7 +251,7 @@ fun DeflectorMasterCard(
                                 onClick = { onStartupModeChange("always_armed") },
                                 label = {
                                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                        Text("Armed on Boot", fontSize = 10.5.sp, fontWeight = if (isAlwaysArmed) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                                        Text(lsString(R.string.def_armed_boot), fontSize = 10.5.sp, fontWeight = if (isAlwaysArmed) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
                                     }
                                 },
                                 colors = FilterChipDefaults.filterChipColors(
@@ -258,7 +265,7 @@ fun DeflectorMasterCard(
                                 onClick = { onStartupModeChange("standby_by_default") },
                                 label = {
                                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                        Text("Off by Default", fontSize = 10.5.sp, fontWeight = if (!isAlwaysArmed) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                                        Text(lsString(R.string.def_off_default), fontSize = 10.5.sp, fontWeight = if (!isAlwaysArmed) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
                                     }
                                 },
                                 colors = FilterChipDefaults.filterChipColors(
@@ -285,7 +292,7 @@ fun DeflectorMasterCard(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Icon(Icons.Default.ScreenRotation, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
-                            Text("Landscape Geometry", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
+                            Text(lsString(R.string.def_land_geo), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
                         }
                     }
                     Row(
@@ -293,9 +300,9 @@ fun DeflectorMasterCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         val modes = listOf(
-                            Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_AUTO, "Auto (0.45×)"),
-                            Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM, "Custom Scale"),
-                            Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_FIXED, "Fixed 1:1")
+                            Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_AUTO, lsString(R.string.def_auto_scale)),
+                            Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM, lsString(R.string.def_custom_scale)),
+                            Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_FIXED, lsString(R.string.def_fixed_11))
                         )
                         modes.forEach { (modeKey, label) ->
                             val isSelected = landscapeMode == modeKey
@@ -395,9 +402,9 @@ fun DeflectorLandscapeGeometryCard(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 val modes = listOf(
-                    Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_AUTO, "📐 Auto (0.45×)"),
-                    Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM, "⚙ Custom Scale"),
-                    Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_FIXED, "📏 Fixed 1:1")
+                    Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_AUTO, lsString(R.string.def_auto_scale)),
+                    Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM, lsString(R.string.def_custom_scale)),
+                    Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_FIXED, lsString(R.string.def_fixed_11))
                 )
                 modes.forEach { (modeKey, label) ->
                     val isSelected = landscapeMode == modeKey
@@ -439,7 +446,7 @@ fun DeflectorLandscapeGeometryCard(
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = if (isLandscape) "✦ Active Calibration: LANDSCAPE" else "✦ Active Calibration: PORTRAIT",
+                            text = if (isLandscape) lsString(R.string.def_cal_land) else lsString(R.string.def_cal_port),
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.primary
@@ -466,8 +473,8 @@ fun DeflectorLandscapeGeometryCard(
             }
             var isOrientationDropdownOpen by remember { mutableStateOf(false) }
             val orientationOptions = listOf(
-                "adaptive" to "Adaptive (360° Follows All Rotations)",
-                "portrait_only" to "Portrait Only (Auto-Hide in Landscape)"
+                "adaptive" to lsString(R.string.def_rot_adapt),
+                "portrait_only" to lsString(R.string.def_rot_port)
             )
 
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -480,7 +487,7 @@ fun DeflectorLandscapeGeometryCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Controls how Deflector strips, Cybernetic Trackpad, and HUD overlays behave when rotating: 'Adaptive' keeps them active across all angles, while 'Portrait Only' auto-hides them in landscape.",
+                    text = lsString(R.string.def_rot_desc),
                     fontSize = 11.sp,
                     color = lsColors.textSecondary.copy(alpha = 0.8f),
                     lineHeight = 14.sp
@@ -499,7 +506,7 @@ fun DeflectorLandscapeGeometryCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = orientationOptions.firstOrNull { it.first == currentOrientationPolicy }?.second ?: "Adaptive (360°)",
+                                text = orientationOptions.firstOrNull { it.first == currentOrientationPolicy }?.second ?: lsString(R.string.def_rot_adapt_short),
                                 color = lsColors.textPrimary,
                                 fontSize = 12.sp,
                                 maxLines = 1,

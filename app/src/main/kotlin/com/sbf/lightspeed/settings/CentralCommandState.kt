@@ -11,6 +11,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedBackTapEngine
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedVocabulary
 import com.sbf.lightspeed.system.logSwallowed
@@ -63,16 +64,16 @@ fun rememberCentralCommandState(
     var isLeftUnifiedExpanded by isLeftUnifiedExpandedState
 
     // Left Deflector Sub-Section States
-    val isLeftCenterGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_center", false)) }
-    val isLeftUnifiedGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_unified_geo" else prefs.getBoolean("pref_sub_geo_left_unified", false)) }
-    val isLeftUnifiedScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_unified_scrub" else prefs.getBoolean("pref_sub_scrub_left_unified", false)) }
-    val isLeftUnifiedGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_unified_gestures" else prefs.getBoolean("pref_sub_gestures_left_unified", true)) }
-    val isLeftTopGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_top_geo" else prefs.getBoolean("pref_sub_geo_left_top", false)) }
-    val isLeftTopScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_top_scrub" else prefs.getBoolean("pref_sub_scrub_left_top", false)) }
-    val isLeftTopGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_top_gestures" else prefs.getBoolean("pref_sub_gestures_left_top", true)) }
-    val isLeftBottomGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_geo" else prefs.getBoolean("pref_sub_geo_left_bottom", false)) }
-    val isLeftBottomScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_scrub" else prefs.getBoolean("pref_sub_scrub_left_bottom", false)) }
-    val isLeftBottomGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_gestures" else prefs.getBoolean("pref_sub_gestures_left_bottom", true)) }
+    val isLeftCenterGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_GEO_LEFT_CENTER, false)) }
+    val isLeftUnifiedGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_unified_geo" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GEO_LEFT_UNIFIED, false)) }
+    val isLeftUnifiedScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_unified_scrub" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_SCRUB_LEFT_UNIFIED, false)) }
+    val isLeftUnifiedGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_unified_gestures" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GESTURES_LEFT_UNIFIED, true)) }
+    val isLeftTopGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_top_geo" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GEO_LEFT_TOP, false)) }
+    val isLeftTopScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_top_scrub" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_SCRUB_LEFT_TOP, false)) }
+    val isLeftTopGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_top_gestures" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GESTURES_LEFT_TOP, true)) }
+    val isLeftBottomGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_geo" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GEO_LEFT_BOTTOM, false)) }
+    val isLeftBottomScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_scrub" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_SCRUB_LEFT_BOTTOM, false)) }
+    val isLeftBottomGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_gestures" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GESTURES_LEFT_BOTTOM, true)) }
 
     // HUD Strip Accordion States
     val isSensorDeckExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "sensor_deck" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_SENSOR_DECK_EXPANDED, false)) }
@@ -95,9 +96,9 @@ fun rememberCentralCommandState(
     // Power Button & Sub-Sections
     val singlePressTapCountState = rememberSaveable { mutableIntStateOf(0) }
     val isSinglePressUnlockedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_POWER_SINGLE_PRESS_UNLOCKED, false)) }
-    val isSubVolumeExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_volume_expanded", false)) }
+    val isSubVolumeExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_VOLUME_EXPANDED, false)) }
     val isSubPowerExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_POWER_EXPANDED, true)) }
-    val isSubHullTapExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_hulltap_expanded", false)) }
+    val isSubHullTapExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_HULLTAP_EXPANDED, false)) }
     val isSubHullTapExpanded by isSubHullTapExpandedState
 
     val showOemShieldDialogState = rememberSaveable { mutableStateOf(false) }
@@ -106,20 +107,20 @@ fun rememberCentralCommandState(
     val showAmoledWarningDialogState = rememberSaveable { mutableStateOf(false) }
     val pendingBackTapScopeState = rememberSaveable { mutableStateOf("screen_on") }
 
-    val isStatusBarGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_statusbar", false)) }
+    val isStatusBarGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_GEO_STATUSBAR, false)) }
     val isStatusBarGeoExpanded by isStatusBarGeoExpandedState
-    val isStatusBarScrubExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_statusbar", false)) }
-    val isStatusBarGesturesExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_statusbar", false)) }
-    val isHorizonRailGeomExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_horizon_rail_geom", false)) }
+    val isStatusBarScrubExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_SCRUB_STATUSBAR, false)) }
+    val isStatusBarGesturesExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_GESTURES_STATUSBAR, false)) }
+    val isHorizonRailGeomExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_HORIZON_RAIL_GEOM, false)) }
     val isHorizonRailGeomExpanded by isHorizonRailGeomExpandedState
-    val isHorizonRailColorExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_horizon_rail_color", false)) }
+    val isHorizonRailColorExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_HORIZON_RAIL_COLOR, false)) }
     val isHorizonRailColorExpanded by isHorizonRailColorExpandedState
-    val isHorizonRailTextExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_horizon_rail_text", false)) }
+    val isHorizonRailTextExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_HORIZON_RAIL_TEXT, false)) }
     val isHorizonRailTextExpanded by isHorizonRailTextExpandedState
     val isNotchCalibExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_NOTCH_CALIB, false)) }
     val isNotchCalibExpanded by isNotchCalibExpandedState
-    val isMarqueeSubSectionExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_marquee", false)) }
-    val isOemNoticeDemotedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_oem_notch_notice_demoted", false)) }
+    val isMarqueeSubSectionExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_NOTCH_MARQUEE, false)) }
+    val isOemNoticeDemotedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_OEM_NOTCH_NOTICE_DEMOTED, false)) }
 
     // Live Impulse Calibration Meter State (Hull Tap)
     val currentZImpulseState = remember { mutableFloatStateOf(0f) }
@@ -165,20 +166,20 @@ fun rememberCentralCommandState(
     var isRightUnifiedExpanded by isRightUnifiedExpandedState
 
     // Dual Watchdog Sub-Section States
-    val isInnerWatchdogExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_inner_watchdog_labs", true)) }
-    val isOuterWatchdogExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_outer_watchdog_labs", true)) }
+    val isInnerWatchdogExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_INNER_WATCHDOG_LABS, true)) }
+    val isOuterWatchdogExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_OUTER_WATCHDOG_LABS, true)) }
 
     // Right Deflector Sub-Section States
-    val isCenterGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_center", false)) }
-    val isRightUnifiedGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "unified_geo" else prefs.getBoolean("pref_sub_geo_right_unified", false)) }
-    val isRightUnifiedScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "unified_scrub" else prefs.getBoolean("pref_sub_scrub_right_unified", false)) }
-    val isRightUnifiedGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "unified_gestures" else prefs.getBoolean("pref_sub_gestures_right_unified", true)) }
-    val isTopGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "top_geo" else prefs.getBoolean("pref_sub_geo_top", false)) }
-    val isTopScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "top_scrub" else prefs.getBoolean("pref_sub_scrub_top", false)) }
-    val isTopGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "top_gestures" else prefs.getBoolean("pref_sub_gestures_top", true)) }
-    val isBottomGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "bottom_geo" else prefs.getBoolean("pref_sub_geo_bottom", false)) }
-    val isBottomScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "bottom_scrub" else prefs.getBoolean("pref_sub_scrub_bottom", false)) }
-    val isBottomGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "bottom_gestures" else prefs.getBoolean("pref_sub_gestures_bottom", true)) }
+    val isCenterGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_GEO_CENTER, false)) }
+    val isRightUnifiedGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "unified_geo" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GEO_RIGHT_UNIFIED, false)) }
+    val isRightUnifiedScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "unified_scrub" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_SCRUB_RIGHT_UNIFIED, false)) }
+    val isRightUnifiedGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "unified_gestures" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GESTURES_RIGHT_UNIFIED, true)) }
+    val isTopGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "top_geo" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GEO_TOP, false)) }
+    val isTopScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "top_scrub" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_SCRUB_TOP, false)) }
+    val isTopGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "top_gestures" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GESTURES_TOP, true)) }
+    val isBottomGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "bottom_geo" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GEO_BOTTOM, false)) }
+    val isBottomScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "bottom_scrub" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_SCRUB_BOTTOM, false)) }
+    val isBottomGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "bottom_gestures" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GESTURES_BOTTOM, true)) }
 
     val listState0 = rememberLazyListState()
     val listState1 = rememberLazyListState()
@@ -213,7 +214,7 @@ fun rememberCentralCommandState(
         }
     }
 
-    val sectionTitles0 = remember(isLeftFlankUnified, currentLanguageMode) {
+    val sectionTitles0 = remember(isLeftFlankUnified, currentLanguageMode, LightspeedLocaleEngine.state) {
         if (isLeftFlankUnified) {
             mapOf(
                 "left_center" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_ZONE),
@@ -230,7 +231,7 @@ fun rememberCentralCommandState(
         }
     }
 
-    val sectionTitles1 = remember(currentLanguageMode) {
+    val sectionTitles1 = remember(currentLanguageMode, LightspeedLocaleEngine.state) {
         mapOf(
             "sensor_deck" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SENSOR_AREA),
             "telemetry_indicators" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TELEMETRY_AND_INDICATORS),
@@ -243,7 +244,7 @@ fun rememberCentralCommandState(
         )
     }
 
-    val sectionTitles2 = remember(isRightFlankUnified, currentLanguageMode) {
+    val sectionTitles2 = remember(isRightFlankUnified, currentLanguageMode, LightspeedLocaleEngine.state) {
         if (isRightFlankUnified) {
             mapOf(
                 "center" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_ZONE),

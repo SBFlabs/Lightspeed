@@ -26,10 +26,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.LightspeedStatusBarOverlay
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.system.LightspeedMediaManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 private fun triggerHudStyleLivePreview(
@@ -95,43 +98,44 @@ fun GestureHudStyleDropdown(
     }
     var showHudMenu by remember { mutableStateOf(false) }
 
-    val signatureStyles = remember(currentRawValue) {
+    val localeState = LightspeedLocaleEngine.state
+    val signatureStyles = remember(currentRawValue, localeState) {
         when {
             currentRawValue.contains("media") -> listOf(
-                "prism_timeline" to "Interactive Timeline Scrubber Card"
+                "prism_timeline" to lsString(R.string.hud_full_timeline)
             )
             currentRawValue.contains("brightness") -> listOf(
-                "signature_solar_lux" to "Solar Lux Photometer (Nits + Corona)"
+                "signature_solar_lux" to lsString(R.string.hud_full_solar_lux)
             )
             currentRawValue.contains("timeout") -> listOf(
-                "signature_chrono_dial" to "Chrono Countdown Dial (Sleep Ring)"
+                "signature_chrono_dial" to lsString(R.string.hud_full_chrono_dial)
             )
             currentRawValue.contains("scroll") -> listOf(
-                "signature_kinetic_thruster" to "Kinetic Thruster Gauge (Velocity Vector)"
+                "signature_kinetic_thruster" to lsString(R.string.hud_full_thruster)
             )
             else -> listOf(
-                "signature_sonic_eq" to "Sonic Equalizer Deck (dB + Wave Bars)"
+                "signature_sonic_eq" to lsString(R.string.hud_full_sonic_eq)
             )
         }
     }
-    val modernStyles = remember {
+    val modernStyles = remember(localeState) {
         listOf(
-            "modern_symbol_pill" to "Modern Symbol Pill (Icon + Bar)",
-            "modern_floating_orb" to "Modern Symbol Orb (Compact Ring)",
-            "modern_slim_slider" to "Modern Glass Slider (Liquid Fill)"
+            "modern_symbol_pill" to lsString(R.string.hud_full_symbol_pill),
+            "modern_floating_orb" to lsString(R.string.hud_full_symbol_orb),
+            "modern_slim_slider" to lsString(R.string.hud_full_glass_slider)
         )
     }
-    val rectangularStyles = remember {
+    val rectangularStyles = remember(localeState) {
         listOf(
-            "canopy_droppod" to "Tactical Canopy Drop-Pod",
-            "quantum_horizon" to "Quantum Synthetic Horizon",
-            "edge_blade" to "Dynamic Edge Blade"
+            "canopy_droppod" to lsString(R.string.hud_full_droppod),
+            "quantum_horizon" to lsString(R.string.hud_full_horizon),
+            "edge_blade" to lsString(R.string.hud_full_blade)
         )
     }
-    val circularStyles = remember {
+    val circularStyles = remember(localeState) {
         listOf(
-            "cockpit_reticle" to "Holographic Cockpit Reticle",
-            "tachyon_dial" to "Tachyon Orbital Radar"
+            "cockpit_reticle" to lsString(R.string.hud_full_reticle),
+            "tachyon_dial" to lsString(R.string.hud_full_radar)
         )
     }
 
@@ -155,20 +159,20 @@ fun GestureHudStyleDropdown(
 
     Box {
         val hudName = when (hudStyle) {
-            "prism_timeline" -> "Timeline Card"
-            "signature_sonic_eq" -> "Sonic EQ"
-            "signature_solar_lux" -> "Solar Lux"
-            "signature_chrono_dial" -> "Chrono Dial"
-            "signature_kinetic_thruster" -> "Thruster"
-            "modern_symbol_pill" -> "Symbol Pill"
-            "modern_floating_orb" -> "Symbol Orb"
-            "modern_slim_slider" -> "Glass Slider"
-            "canopy_droppod" -> "Drop-Pod"
-            "cockpit_reticle" -> "Reticle"
-            "edge_blade" -> "Blade"
-            "quantum_horizon" -> "Horizon"
-            "tachyon_dial" -> "Radar"
-            else -> "Drop-Pod"
+            "prism_timeline" -> lsString(R.string.hud_name_timeline)
+            "signature_sonic_eq" -> lsString(R.string.hud_name_sonic_eq)
+            "signature_solar_lux" -> lsString(R.string.hud_name_solar_lux)
+            "signature_chrono_dial" -> lsString(R.string.hud_name_chrono_dial)
+            "signature_kinetic_thruster" -> lsString(R.string.hud_name_thruster)
+            "modern_symbol_pill" -> lsString(R.string.hud_name_symbol_pill)
+            "modern_floating_orb" -> lsString(R.string.hud_name_symbol_orb)
+            "modern_slim_slider" -> lsString(R.string.hud_name_glass_slider)
+            "canopy_droppod" -> lsString(R.string.hud_name_droppod)
+            "cockpit_reticle" -> lsString(R.string.hud_name_reticle)
+            "edge_blade" -> lsString(R.string.hud_name_blade)
+            "quantum_horizon" -> lsString(R.string.hud_name_horizon)
+            "tachyon_dial" -> lsString(R.string.hud_name_radar)
+            else -> lsString(R.string.hud_name_droppod)
         }
         DeckSubChip(
             text = "$hudName ▾",
@@ -186,10 +190,10 @@ fun GestureHudStyleDropdown(
             snapshotOverride = activeSnapshot
         ) {
             val sections = listOf(
-                Triple("Action Signature HUD (${signatureStyles.size})", expandSignature, signatureStyles) to { expandSignature = !expandSignature },
-                Triple("Modern Symbol HUDs (${modernStyles.size})", expandModern, modernStyles) to { expandModern = !expandModern },
-                Triple("Rectangular Visor & Blade (${rectangularStyles.size})", expandRectangular, rectangularStyles) to { expandRectangular = !expandRectangular },
-                Triple("Circular Reticle & Radar (${circularStyles.size})", expandCircular, circularStyles) to { expandCircular = !expandCircular }
+                Triple(lsString(R.string.hud_sec_signature, signatureStyles.size), expandSignature, signatureStyles) to { expandSignature = !expandSignature },
+                Triple(lsString(R.string.hud_sec_modern, modernStyles.size), expandModern, modernStyles) to { expandModern = !expandModern },
+                Triple(lsString(R.string.hud_sec_rect, rectangularStyles.size), expandRectangular, rectangularStyles) to { expandRectangular = !expandRectangular },
+                Triple(lsString(R.string.hud_sec_circ, circularStyles.size), expandCircular, circularStyles) to { expandCircular = !expandCircular }
             )
 
             sections.forEachIndexed { secIdx, (secData, onToggle) ->
@@ -223,7 +227,7 @@ fun GestureHudStyleDropdown(
                     )
                     if (hasActiveChild && !isExpanded) {
                         Text(
-                            text = "ACTIVE",
+                            text = lsString(R.string.cc_common_active),
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -283,7 +287,7 @@ fun GestureHudStyleDropdown(
                     .padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = "✦ Tip: Long-press any style to preview on screen",
+                    text = lsString(R.string.hud_tip_preview),
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Medium,
                     color = lsColors.textSecondary.copy(alpha = 0.85f)
@@ -309,7 +313,7 @@ fun GestureMediaScrubControls(
 
     Box {
         DeckSubChip(
-            text = "Step: ${stepSec}s ▾",
+            text = lsString(R.string.chip_step, stepSec),
             icon = Icons.Default.Speed,
             isActive = false,
             snapshot = activeSnapshot,
@@ -321,11 +325,11 @@ fun GestureMediaScrubControls(
             snapshotOverride = activeSnapshot
         ) {
             listOf(
-                2 to "2s Step (Fine Precision)",
-                5 to "5s Step (Default)",
-                10 to "10s Step (Medium)",
-                15 to "15s Step (Audiobook / Podcast)",
-                30 to "30s Step (Chapter Leap)"
+                2 to lsString(R.string.media_step_2),
+                5 to lsString(R.string.media_step_5),
+                10 to lsString(R.string.media_step_10),
+                15 to lsString(R.string.media_step_15),
+                30 to lsString(R.string.media_step_30)
             ).forEach { (sec, label) ->
                 val isSelected = sec == stepSec
                 DropdownMenuItem(
@@ -349,7 +353,7 @@ fun GestureMediaScrubControls(
     }
 
     DeckSubChip(
-        text = if (accelEnabled) "Accel: ON" else "Accel: OFF",
+        text = if (accelEnabled) lsString(R.string.chip_accel_on) else lsString(R.string.chip_accel_off),
         isActive = accelEnabled,
         snapshot = activeSnapshot,
         onClick = {
@@ -376,7 +380,7 @@ fun GestureMediaSkipDropdown(
 
     Box {
         DeckSubChip(
-            text = "Skip: ${currentSkipSec}s ▾",
+            text = lsString(R.string.chip_skip, currentSkipSec),
             isActive = false,
             snapshot = activeSnapshot,
             onClick = { showSkipMenu = true }
@@ -387,11 +391,12 @@ fun GestureMediaSkipDropdown(
             snapshotOverride = activeSnapshot
         ) {
             listOf(5, 10, 15, 30, 60).forEach { sec ->
+                val intervalLabel = lsString(R.string.media_interval, sec)
                 DropdownMenuItem(
                     modifier = Modifier.heightIn(min = 48.dp),
                     text = {
                         Text(
-                            text = if (sec == currentSkipSec) "✓ ${sec}s Interval" else "${sec}s Interval",
+                            text = if (sec == currentSkipSec) "✓ $intervalLabel" else intervalLabel,
                             fontWeight = if (sec == currentSkipSec) FontWeight.Bold else FontWeight.Normal
                         )
                     },
@@ -421,7 +426,7 @@ fun GestureMediaQuickAccessControl(
 
     Box {
         DeckSubChip(
-            text = "Media ▾",
+            text = lsString(R.string.chip_media),
             icon = Icons.Default.PlayArrow,
             isActive = currentRawValue.startsWith("system:media_"),
             snapshot = activeSnapshot,
@@ -436,13 +441,13 @@ fun GestureMediaQuickAccessControl(
             val skipForwardSec = LightspeedPreferences.getMediaSkipSeconds(prefs, forward = true)
             val skipBackwardSec = LightspeedPreferences.getMediaSkipSeconds(prefs, forward = false)
             val mediaItems = listOf(
-                "system:media_play_pause" to "Play / Pause",
-                "system:media_next" to "Next Track",
-                "system:media_prev" to "Previous Track",
-                "system:media_skip_forward" to "Skip Forward (${skipForwardSec}s)",
-                "system:media_skip_backward" to "Skip Backward (${skipBackwardSec}s)",
-                "system:media_scrubber" to "Media Timeline Scrubber (HUD)",
-                "system:media_stop" to "Stop Playback"
+                "system:media_play_pause" to lsString(R.string.media_play_pause),
+                "system:media_next" to lsString(R.string.media_next),
+                "system:media_prev" to lsString(R.string.media_prev),
+                "system:media_skip_forward" to lsString(R.string.media_skip_fwd, skipForwardSec),
+                "system:media_skip_backward" to lsString(R.string.media_skip_back, skipBackwardSec),
+                "system:media_scrubber" to lsString(R.string.act_media_scrubber),
+                "system:media_stop" to lsString(R.string.media_stop)
             )
 
             mediaItems.forEach { (token, title) ->

@@ -1,5 +1,9 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import android.content.ComponentName
 import android.content.Context
 import com.sbf.lightspeed.system.logSwallowed
@@ -9,8 +13,7 @@ import android.content.pm.PackageManager
 import android.provider.Settings
 import android.widget.Toast
 import android.accessibilityservice.AccessibilityServiceInfo
-import android.os.Build
-import android.view.WindowManager
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -141,17 +144,10 @@ fun PerimeterServicesDeckDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        CompositionLocalProvider(LocalDensity provides density) {
         val activeSnapshot = LocalDeckTheme.current
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                dialogWindow?.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                val lp = dialogWindow?.attributes
-                if (lp != null) {
-                    lp.blurBehindRadius = activeSnapshot.windowBlurRadiusPx.coerceIn(0, 150)
-                    dialogWindow.attributes = lp
-                }
-            }
             dialogWindow?.setDimAmount(activeSnapshot.dimAmount)
         }
 
@@ -221,7 +217,8 @@ fun PerimeterServicesDeckDialog(
                     state = listState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .verticalEdgeFade(listState),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(bottom = 20.dp)
                 ) {
@@ -255,7 +252,7 @@ fun PerimeterServicesDeckDialog(
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            placeholder = { Text("Filter accessibility services...", fontSize = 12.sp, color = lsColors.textDisabled) },
+                            placeholder = { Text(lsString(R.string.per_search_hint), fontSize = 12.sp, color = lsColors.textDisabled) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                             leadingIcon = {
                                 Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
@@ -283,7 +280,7 @@ fun PerimeterServicesDeckDialog(
                     if (filteredServices.isEmpty()) {
                         item(key = "empty_state") {
                             Text(
-                                text = if (searchQuery.isBlank()) "No external accessibility services installed." else "No matching services found.",
+                                text = if (searchQuery.isBlank()) lsString(R.string.per_empty_none) else lsString(R.string.per_empty_match),
                                 fontSize = 11.5.sp,
                                 color = lsColors.textSecondary.copy(alpha = 0.6f),
                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -324,7 +321,7 @@ fun PerimeterServicesDeckDialog(
                                     } catch (_: Exception) { sPkg }
                                     Toast.makeText(
                                         context,
-                                        if (nowPinned) "Pinned $sLabel to top" else "Unpinned $sLabel",
+                                        if (nowPinned) lsString(R.string.picker_pinned_toast, sLabel) else lsString(R.string.picker_unpinned_toast, sLabel),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 },
@@ -364,7 +361,7 @@ fun PerimeterServicesDeckDialog(
                                     } catch (_: Exception) { sPkg }
                                     Toast.makeText(
                                         context,
-                                        if (nowProtected) "Shield armed: Sentinel will auto-revive $sLabel" else "Shield disarmed",
+                                        if (nowProtected) lsString(R.string.per_toast_armed, sLabel) else lsString(R.string.per_toast_disarmed),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                     onRefreshNeeded()
@@ -383,11 +380,11 @@ fun PerimeterServicesDeckDialog(
                                         withContext(Dispatchers.Main) {
                                             if (ok) {
                                                 LightspeedHapticEngine.tick(context)
-                                                val msg = if (currentlyWhitelisted) "Battery exemption removed for $sLabel" else "Battery whitelist granted for $sLabel"
+                                                val msg = if (currentlyWhitelisted) lsString(R.string.bat_toast_removed, sLabel) else lsString(R.string.bat_toast_granted, sLabel)
                                                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                                 refreshTrigger++
                                             } else {
-                                                Toast.makeText(context, "Shizuku required for 1-tap battery whitelist", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, lsString(R.string.bat_toast_shizuku), Toast.LENGTH_SHORT).show()
                                             }
                                             onRefreshNeeded()
                                         }
@@ -401,9 +398,9 @@ fun PerimeterServicesDeckDialog(
                                         sInfo.resolveInfo?.loadLabel(pm)?.toString() ?: sPkg
                                     } catch (_: Exception) { sPkg }
                                     val policyName = when (next) {
-                                        PerimeterPolicy.ALWAYS_REVIVE -> "ALWAYS REVIVE"
-                                        PerimeterPolicy.KEEP_OFF -> "KEEP OFF"
-                                        PerimeterPolicy.NORMAL -> "NORMAL (AUTO)"
+                                        PerimeterPolicy.ALWAYS_REVIVE -> lsString(R.string.per_pol_opt_revive)
+                                        PerimeterPolicy.KEEP_OFF -> lsString(R.string.per_pol_opt_off)
+                                        PerimeterPolicy.NORMAL -> lsString(R.string.per_pol_opt_normal)
                                     }
                                     Toast.makeText(context, "$sLabel: $policyName", Toast.LENGTH_SHORT).show()
                                     onRefreshNeeded()
@@ -416,6 +413,7 @@ fun PerimeterServicesDeckDialog(
             }
         }
     }
+}
 }
 }
 

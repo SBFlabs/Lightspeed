@@ -1,5 +1,9 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.lsString
+
+import com.sbf.lightspeed.R
+
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.foundation.BorderStroke
@@ -359,7 +363,7 @@ internal fun TacticalWidgetItemCard(
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "+ SELECT",
+                            text = lsString(R.string.picker_wid_select),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = dynamicPrimary
@@ -576,13 +580,13 @@ internal fun TacticalBlueprintPlaceholder(item: TacticalWidgetItem, dynamicSecon
             }
             Column {
                 Text(
-                    text = "${item.cellWidth} × ${item.cellHeight} CELLS",
+                    text = lsString(R.string.picker_wid_cells, item.cellWidth, item.cellHeight),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = dynamicSecondary
                 )
                 Text(
-                    text = "STANDALONE WIDGET MODULE",
+                    text = lsString(R.string.picker_wid_standalone),
                     fontSize = 9.sp,
                     color = lsColors.textPrimary.copy(alpha = 0.45f)
                 )

@@ -41,7 +41,7 @@ class CentralCommandActivity : ComponentActivity() {
         var activeInstance: CentralCommandActivity? = null
             private set
 
-        var isCrossWindowBlurActive by mutableStateOf(true)
+        var isCrossWindowBlurActive by mutableStateOf(false)
             private set
 
         internal fun updateCrossWindowBlurState(enabled: Boolean) {
@@ -67,12 +67,13 @@ class CentralCommandActivity : ComponentActivity() {
 
     private fun applyWindowBlur(): Int {
         val snapshot = DeckThemeManager.getSnapshot(this)
+        val effectiveDimAmount = (DeckThemeManager.liveBackdropOpacityOverride.value ?: snapshot.dimAmount).coerceIn(0f, 0.95f)
         val hasFallbackBackdrop = CentralCommandBackdropBlur.backdropBitmap != null
         val blurMode = BackdropBlurModeManager.getMode(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val nativeSupported = BackdropBlurModeManager.isNativeBlurSupported(windowManager)
-            val useNative = BackdropBlurModeManager.shouldUseNativeBlur(windowManager, blurMode)
-            val useScreenshot = BackdropBlurModeManager.shouldUseScreenshotBlur(windowManager, blurMode)
+            val useNative = BackdropBlurModeManager.shouldUseNativeBlur(windowManager, blurMode) && snapshot.windowBlurRadiusPx > 0
+            val useScreenshot = BackdropBlurModeManager.shouldUseScreenshotBlur(windowManager, blurMode) && snapshot.windowBlurRadiusPx > 0
 
             isCrossWindowBlurActive = nativeSupported && blurMode != BackdropBlurMode.SCREENSHOT
             val targetRadius = if (useNative) {
@@ -89,12 +90,14 @@ class CentralCommandActivity : ComponentActivity() {
             lp.blurBehindRadius = targetRadius
             window.attributes = lp
             // When fallback screenshot blur is active inside our window, keep window dim at 0
-            // so the OS does not dim behind our own blurred screenshot layer.
-            window.setDimAmount(if (useScreenshot && hasFallbackBackdrop) 0f else snapshot.dimAmount)
+            // so the OS does not dim behind our own blurred screenshot layer (MainSettingsScreen
+            // renders the exact live backdropOpacity scrim directly above the window).
+            val targetWindowDim = if (useScreenshot && hasFallbackBackdrop) 0f else effectiveDimAmount
+            BackdropBlurModeManager.applyWindowDimAmount(window, targetWindowDim)
             return targetRadius
         } else {
             isCrossWindowBlurActive = false
-            window.setDimAmount(snapshot.dimAmount)
+            BackdropBlurModeManager.applyWindowDimAmount(window, effectiveDimAmount)
             return 0
         }
     }
@@ -105,6 +108,7 @@ class CentralCommandActivity : ComponentActivity() {
         activeInstance = this
         enableEdgeToEdge()
         overrideZeroTransition()
+        CentralCommandBackdropBlur.registerHostWindow(window)
         CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
 
         try {
@@ -120,8 +124,7 @@ class CentralCommandActivity : ComponentActivity() {
         window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val listener = Consumer<Boolean> { enabled ->
-                isCrossWindowBlurActive = enabled
+            val listener = Consumer<Boolean> {
                 applyWindowBlur()
             }
             crossWindowBlurListener = listener
@@ -144,8 +147,11 @@ class CentralCommandActivity : ComponentActivity() {
 
         setContent {
             val snapshot by DeckThemeManager.snapshotFlow.collectAsState()
+            val liveBackdropOverride by DeckThemeManager.liveBackdropOpacityOverride.collectAsState()
+            val blurMode by BackdropBlurModeManager.modeFlow.collectAsState()
+            val fallbackBitmap = CentralCommandBackdropBlur.backdropBitmap
             val blurActive = isCrossWindowBlurActive
-            androidx.compose.runtime.LaunchedEffect(snapshot, blurActive) {
+            androidx.compose.runtime.LaunchedEffect(snapshot, liveBackdropOverride, fallbackBitmap, blurActive, blurMode) {
                 applyWindowBlur()
             }
 
@@ -178,7 +184,9 @@ class CentralCommandActivity : ComponentActivity() {
         super.onResume()
         isActive = true
         if (CentralCommandBackdropBlur.backdropBitmap == null) {
-            CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
+            CentralCommandBackdropBlur.prepareForCentralCommand(windowManager) {
+                runOnUiThread { applyWindowBlur() }
+            }
         }
         applyWindowBlur()
     }
@@ -224,6 +232,7 @@ class CentralCommandActivity : ComponentActivity() {
         } catch (e: Exception) { logSwallowed("CentralCommandActivity", "onDestroy:120", e) }
         com.sbf.lightspeed.system.LightspeedIconManager.temporaryPickerCache.clear()
         com.sbf.lightspeed.system.LightspeedShortcutManager.temporaryPickerCache.clear()
+        CentralCommandBackdropBlur.unregisterHostWindow(window)
         CentralCommandBackdropBlur.onWindowHidden(isChangingConfigurations)
         if (activeInstance === this) {
             activeInstance = null

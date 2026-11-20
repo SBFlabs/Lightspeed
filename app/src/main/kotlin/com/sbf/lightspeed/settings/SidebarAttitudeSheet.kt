@@ -1,12 +1,16 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 
 
 import android.content.Context
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -60,7 +64,7 @@ fun AttitudeAppAssignmentSheet(
 ) {
     AppAssignmentSheet(
         context = context,
-        title = "Assign Apps: ${bucket.title}",
+        title = lsString(R.string.picker_assign_apps, bucket.title),
         subtitle = bucket.subtitle,
         icon = when (bucket) {
             LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT -> Icons.Default.StayCurrentPortrait
@@ -144,6 +148,7 @@ fun AppAssignmentSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val sheetShape = RoundedCornerShape(topStart = cornerDp, topEnd = cornerDp, bottomEnd = 0.dp, bottomStart = 0.dp)
 
+    val activeDensity = LocalDensity.current
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -154,6 +159,7 @@ fun AppAssignmentSheet(
         dragHandle = null,
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
     ) {
+        CompositionLocalProvider(LocalDensity provides activeDensity) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -226,7 +232,7 @@ fun AppAssignmentSheet(
                             color = LightspeedStyle.colors.textPrimary
                         )
                         Text(
-                            text = if (subtitle.isNotEmpty()) "$subtitle (${assignedPackages.size} assigned)" else "${assignedPackages.size} assigned",
+                            text = if (subtitle.isNotEmpty()) "$subtitle (${lsString(R.string.picker_assigned_cnt, assignedPackages.size)})" else lsString(R.string.picker_assigned_cnt, assignedPackages.size),
                             fontSize = 11.5.sp,
                             color = dynamicSecondary
                         )
@@ -273,7 +279,7 @@ fun AppAssignmentSheet(
                     },
                     confirmButton = {
                         TextButton(onClick = { activeInfoDialog = null }) {
-                            Text("UNDERSTOOD", color = dynamicPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(lsString(R.string.cc_common_understood), color = dynamicPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
                 )
@@ -283,7 +289,7 @@ fun AppAssignmentSheet(
             TextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search apps, messengers, launchers...", color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.45f), fontSize = 13.sp) },
+                placeholder = { Text(lsString(R.string.picker_search_att), color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.45f), fontSize = 13.sp) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LightspeedStyle.colors.textPrimary.copy(alpha = 0.6f), modifier = Modifier.size(18.dp)) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
@@ -357,7 +363,7 @@ fun AppAssignmentSheet(
                         shape = RoundedCornerShape(12.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, LightspeedStyle.colors.textPrimary.copy(alpha = 0.20f))
                     ) {
-                        Text("CLEAR ALL", color = LightspeedTokens.StatusErrorSoft, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(lsString(R.string.picker_clear_all), color = LightspeedTokens.StatusErrorSoft, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
                 }
 
@@ -367,9 +373,10 @@ fun AppAssignmentSheet(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.weight(if (assignedPackages.isNotEmpty()) 1.2f else 1f).height(46.dp)
                 ) {
-                    Text("DONE (${assignedPackages.size})", color = LightspeedStyle.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(lsString(R.string.picker_done_cnt, assignedPackages.size), color = LightspeedStyle.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
+        }
         }
         }
     }

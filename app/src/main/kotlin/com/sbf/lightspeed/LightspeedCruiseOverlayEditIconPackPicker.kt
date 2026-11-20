@@ -149,7 +149,7 @@ internal fun LightspeedCruiseOverlay.drawCategoryIconPackPicker(canvas: Canvas, 
     paint.color = Color.argb(170, 200, 220, 255)
     paint.textSize = 14f * dp
     paint.textAlign = Paint.Align.CENTER
-    paint.typeface = Typeface.DEFAULT_BOLD
+    paint.typeface = overlayTypeface(isBold = true)
     canvas.drawText("✕", bounds.right - 20f * dp, bounds.top + 26f * dp, paint)
 
     // 4. Header Titles
@@ -158,11 +158,11 @@ internal fun LightspeedCruiseOverlay.drawCategoryIconPackPicker(canvas: Canvas, 
     paint.textAlign = Paint.Align.LEFT
     paint.color = Color.WHITE
     paint.textSize = 13.5f * dp
-    paint.typeface = Typeface.DEFAULT_BOLD
+    paint.typeface = overlayTypeface(isBold = true)
     canvas.drawText(title, bounds.left + 16f * dp, bounds.top + 25f * dp, paint)
 
     paint.textSize = 9.5f * dp
-    paint.typeface = Typeface.DEFAULT
+    paint.typeface = overlayTypeface(isBold = false)
     paint.color = Color.argb(180, 200, 220, 255)
     canvas.drawText("Choose icon pack for this category", bounds.left + 16f * dp, bounds.top + 43f * dp, paint)
 
@@ -232,7 +232,7 @@ internal fun LightspeedCruiseOverlay.drawCategoryIconPackPicker(canvas: Canvas, 
         paint.style = Paint.Style.FILL
         paint.textAlign = Paint.Align.LEFT
         paint.textSize = 11.5f * dp
-        paint.typeface = if (isSelected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        paint.typeface = overlayTypeface(isBold = isSelected)
         paint.color = if (isSelected) Color.WHITE else Color.argb(230, 220, 230, 245)
         canvas.drawText(opt.label, textLeft, radioCy - textYOffset, paint)
 
@@ -255,7 +255,7 @@ internal fun LightspeedCruiseOverlay.drawCategoryIconPackPicker(canvas: Canvas, 
             paint.style = Paint.Style.FILL
             paint.textAlign = Paint.Align.CENTER
             paint.textSize = 8.5f * dp
-            paint.typeface = Typeface.DEFAULT_BOLD
+            paint.typeface = overlayTypeface(isBold = true)
             paint.color = m3Accent
             val bfm = paint.fontMetrics
             val bTextY = badgeRect.centerY() - ((bfm.descent + bfm.ascent) / 2f)
@@ -269,7 +269,7 @@ internal fun LightspeedCruiseOverlay.drawCategoryIconPackPicker(canvas: Canvas, 
         paint.style = Paint.Style.FILL
         paint.textAlign = Paint.Align.LEFT
         paint.textSize = 9.5f * dp
-        paint.typeface = Typeface.DEFAULT
+        paint.typeface = overlayTypeface(isBold = false)
         paint.color = Color.argb(150, 180, 205, 235)
         canvas.drawText("No third-party icon packs installed.", bounds.left + 16f * dp, noteY, paint)
         canvas.drawText("Install icon packs to customize per category.", bounds.left + 16f * dp, noteY + 16f * dp, paint)

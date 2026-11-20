@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import android.provider.Settings
@@ -71,16 +74,16 @@ fun HudTelemetryRoutingSection(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Speed, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("DUAL-CHANNEL TELEMETRY HUD", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary, letterSpacing = 0.8.sp)
+                Text(lsString(R.string.tel_dual_hdr), fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary, letterSpacing = 0.8.sp)
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("📏 Horizon Rail", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = LightspeedStyle.colors.textPrimary)
-                    Text("Ultra-thin progress line on display top edge", fontSize = 10.5.sp, color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.85f))
+                    Text(lsString(R.string.tel_hr_sub), fontSize = 10.5.sp, color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.85f))
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text("💊 Orbital Capsule", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = LightspeedStyle.colors.textPrimary)
-                    Text("Dynamic Prism island on camera cutout", fontSize = 10.5.sp, color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.85f))
+                    Text(lsString(R.string.tel_cap_sub), fontSize = 10.5.sp, color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.85f))
                 }
             }
         }
@@ -105,8 +108,8 @@ fun HudTelemetryRoutingSection(
                 Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(22.dp))
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Notification Access Required", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = LightspeedStyle.colors.textPrimary)
-                    Text("Tap here to grant permission in Android Settings so Lightspeed can read download progress and media metadata.", fontSize = 11.sp, color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.85f))
+                    Text(lsString(R.string.cc_dlg_notif_req), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = LightspeedStyle.colors.textPrimary)
+                    Text(lsString(R.string.tel_notif_grant), fontSize = 11.sp, color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.85f))
                 }
                 Icon(Icons.Default.ChevronRight, contentDescription = null, tint = LightspeedStyle.colors.textPrimary.copy(alpha = 0.6f))
             }
@@ -114,10 +117,10 @@ fun HudTelemetryRoutingSection(
     }
 
     val routingOptions = listOf(
-        "none" to "None (Disabled)",
-        "top_line" to "Horizon Rail (Top-Edge Line)",
-        "notch_pill" to "Orbital Capsule [Experimental Labs]",
-        "both" to "Both (Horizon Rail & Orbital Capsule [Labs])"
+        "none" to lsString(R.string.tel_none),
+        "top_line" to lsString(R.string.tel_hr_opt),
+        "notch_pill" to lsString(R.string.tel_cap_opt),
+        "both" to lsString(R.string.tel_both_opt)
     )
 
     // Downloads Telemetry Selector
@@ -125,7 +128,7 @@ fun HudTelemetryRoutingSection(
         mutableStateOf(prefs.getString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "top_line") ?: "top_line")
     }
     PrefDropdownSelector(
-        title = "DOWNLOADS TELEMETRY ROUTING",
+        title = lsString(R.string.tel_dl_hdr),
         currentKey = selectedDl,
         options = routingOptions,
         onSelected = { key ->
@@ -144,7 +147,7 @@ fun HudTelemetryRoutingSection(
         mutableStateOf(prefs.getString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none") ?: "none")
     }
     PrefDropdownSelector(
-        title = "MEDIA PLAYBACK TELEMETRY ROUTING",
+        title = lsString(R.string.tel_med_hdr),
         currentKey = selectedMedia,
         options = routingOptions,
         onSelected = { key ->

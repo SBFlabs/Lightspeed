@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.BorderStroke
@@ -46,8 +49,8 @@ fun HapticsSubSection(
     var isCruiseExpanded by remember { mutableStateOf(false) }
 
     CollapsibleSubSection(
-        title = "Tactile & Haptics Engine",
-        subtitle = "Hardware-agnostic resonance throttle & per-domain tactile feedback",
+        title = lsString(R.string.sec_tactile_haptics_engine),
+        subtitle = lsString(R.string.secd_hardware_agnostic_resonance_th),
         icon = {
             Icon(Icons.Default.Vibration, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
         },
@@ -59,8 +62,8 @@ fun HapticsSubSection(
             HapticDomainSliderRow(
                 context = context,
                 prefs = prefs,
-                title = "System Haptics",
-                subtitle = "Master baseline tactile pulse for generic taps, dialogs and gestures",
+                title = lsString(R.string.hap_sys_title),
+                subtitle = lsString(R.string.hap_sys_sub),
                 currentKey = LightspeedPreferences.KEY_HAPTIC_PROFILE,
                 options = LightspeedHapticEngine.STANDARD_PROFILES
             ) { key ->
@@ -77,8 +80,8 @@ fun HapticsSubSection(
 
             // 3. Central Command Sub-Accordion
             CollapsibleSubSection(
-                title = "Central Command",
-                subtitle = "Settings UI taps, deflector edge triggers, and continuous scrub",
+                title = lsString(R.string.sec_central_command),
+                subtitle = lsString(R.string.secd_settings_ui_taps_deflector_edg),
                 icon = { Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp)) },
                 isExpanded = isCentralCommandExpanded,
                 onToggle = { isCentralCommandExpanded = !isCentralCommandExpanded }
@@ -87,8 +90,8 @@ fun HapticsSubSection(
                     HapticDomainSliderRow(
                         context = context,
                         prefs = prefs,
-                        title = "Central Command UI Haptics",
-                        subtitle = "Tactile feedback when tapping settings accordions, tabs, and buttons",
+                        title = lsString(R.string.hap_cc_title),
+                        subtitle = lsString(R.string.hap_cc_sub),
                         currentKey = LightspeedPreferences.KEY_CENTRAL_COMMAND_HAPTICS,
                         options = LightspeedHapticEngine.STANDARD_PROFILES
                     ) { key ->
@@ -100,8 +103,8 @@ fun HapticsSubSection(
                     HapticDomainSliderRow(
                         context = context,
                         prefs = prefs,
-                        title = "Deflector Gesture Haptics",
-                        subtitle = "Edge sensor triggers, flick milestones, and flank zone transitions",
+                        title = lsString(R.string.hap_def_title),
+                        subtitle = lsString(R.string.hap_def_sub),
                         currentKey = LightspeedPreferences.KEY_DEFLECTOR_HAPTICS,
                         options = LightspeedHapticEngine.EXTENDED_PROFILES
                     ) { key ->
@@ -112,8 +115,8 @@ fun HapticsSubSection(
 
                     // Collapsible sub-card: Customize Deflector Gesture Haptics
                     CollapsibleSubSection(
-                        title = "Customize Deflector Gesture Haptics",
-                        subtitle = "Individual tactile profiles for Tap, Swipes, Hold and Deep Pull",
+                        title = lsString(R.string.sec_customize_deflector_gesture_ha),
+                        subtitle = lsString(R.string.secd_individual_tactile_profiles_fo),
                         icon = { Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(14.dp)) },
                         isExpanded = isCustomDeflectorHapticsExpanded,
                         onToggle = { isCustomDeflectorHapticsExpanded = !isCustomDeflectorHapticsExpanded }
@@ -122,8 +125,8 @@ fun HapticsSubSection(
                             HapticDomainSliderRow(
                                 context = context,
                                 prefs = prefs,
-                                title = "Tap",
-                                subtitle = "Deflector quick tap and double-tap haptic",
+                                title = lsString(R.string.gest_tap),
+                                subtitle = lsString(R.string.hap_def_tap_sub),
                                 currentKey = LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_TAP,
                                 options = LightspeedHapticEngine.EXTENDED_PROFILES
                             ) { key ->
@@ -135,8 +138,8 @@ fun HapticsSubSection(
                             HapticDomainSliderRow(
                                 context = context,
                                 prefs = prefs,
-                                title = "Single Swipe",
-                                subtitle = "Single lateral or vertical edge flick release",
+                                title = lsString(R.string.hap_def_swipe_title),
+                                subtitle = lsString(R.string.hap_def_swipe_sub),
                                 currentKey = LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_SWIPE,
                                 options = LightspeedHapticEngine.EXTENDED_PROFILES
                             ) { key ->
@@ -148,8 +151,8 @@ fun HapticsSubSection(
                             HapticDomainSliderRow(
                                 context = context,
                                 prefs = prefs,
-                                title = "Two-Step Swipe",
-                                subtitle = "L-shaped two-step corner swipe gestures",
+                                title = lsString(R.string.hap_def_twostep_title),
+                                subtitle = lsString(R.string.hap_def_twostep_sub),
                                 currentKey = LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_TWOSTEP,
                                 options = LightspeedHapticEngine.EXTENDED_PROFILES
                             ) { key ->
@@ -161,8 +164,8 @@ fun HapticsSubSection(
                             HapticDomainSliderRow(
                                 context = context,
                                 prefs = prefs,
-                                title = "Rebound Swipe",
-                                subtitle = "In-and-out return rebound flick gestures",
+                                title = lsString(R.string.hap_def_rebound_title),
+                                subtitle = lsString(R.string.hap_def_rebound_sub),
                                 currentKey = LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_REBOUND,
                                 options = LightspeedHapticEngine.EXTENDED_PROFILES
                             ) { key ->
@@ -174,8 +177,8 @@ fun HapticsSubSection(
                             HapticDomainSliderRow(
                                 context = context,
                                 prefs = prefs,
-                                title = "Hold Modifier",
-                                subtitle = "Long-press hold engagement haptic pulse",
+                                title = lsString(R.string.hap_def_hold_title),
+                                subtitle = lsString(R.string.hap_def_hold_sub),
                                 currentKey = LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_HOLD,
                                 options = LightspeedHapticEngine.EXTENDED_PROFILES
                             ) { key ->
@@ -187,8 +190,8 @@ fun HapticsSubSection(
                             HapticDomainSliderRow(
                                 context = context,
                                 prefs = prefs,
-                                title = "Deep Pull > 50% Screen",
-                                subtitle = "Tactile surge when pulling inward to trigger Vista / Sonic Deck",
+                                title = lsString(R.string.hap_def_deep_title),
+                                subtitle = lsString(R.string.hap_def_deep_sub),
                                 currentKey = LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_DEEP_PULL,
                                 options = LightspeedHapticEngine.EXTENDED_PROFILES
                             ) { key ->
@@ -202,8 +205,8 @@ fun HapticsSubSection(
                     HapticDomainSliderRow(
                         context = context,
                         prefs = prefs,
-                        title = "Continuous Scrub Haptics",
-                        subtitle = "Tactile ticks during continuous volume, brightness, and slider scrub",
+                        title = lsString(R.string.hap_scrub_title),
+                        subtitle = lsString(R.string.hap_scrub_sub),
                         currentKey = LightspeedPreferences.KEY_GESTURE_SCRUB_HAPTICS,
                         options = LightspeedHapticEngine.EXTENDED_PROFILES
                     ) { key ->
@@ -216,8 +219,8 @@ fun HapticsSubSection(
 
             // 4. Cockpit Hangar & Gears Dedicated Accordion
             CollapsibleSubSection(
-                title = "Cockpit Hangar & Gears",
-                subtitle = "Rotary circle spinning and gear set transitions (0, 1, 2)",
+                title = lsString(R.string.sec_cockpit_hangar_gears),
+                subtitle = lsString(R.string.secd_rotary_circle_spinning_and_gea),
                 icon = { Icon(Icons.Default.AvTimer, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(15.dp)) },
                 isExpanded = isCockpitExpanded,
                 onToggle = { isCockpitExpanded = !isCockpitExpanded }
@@ -228,8 +231,8 @@ fun HapticsSubSection(
                     HapticDomainSliderRow(
                         context = context,
                         prefs = prefs,
-                        title = "Rotary Circle Spinning",
-                        subtitle = "Haptic pulses when spinning the circular app/gear hangar",
+                        title = lsString(R.string.hap_rotary_title),
+                        subtitle = lsString(R.string.hap_rotary_sub),
                         currentValue = currentCockpit,
                         options = LightspeedHapticEngine.STANDARD_PROFILES
                     ) { key ->
@@ -242,8 +245,8 @@ fun HapticsSubSection(
                     HapticDomainSliderRow(
                         context = context,
                         prefs = prefs,
-                        title = "Gear Set Jump Haptics",
-                        subtitle = "Tactile pulse when jumping between Gear sets (0, 1, 2)",
+                        title = lsString(R.string.hap_gear_jump_title),
+                        subtitle = lsString(R.string.hap_gear_jump_sub),
                         currentValue = currentGearJump,
                         options = LightspeedHapticEngine.EXTENDED_PROFILES
                     ) { key ->
@@ -256,8 +259,8 @@ fun HapticsSubSection(
 
             // 5. Category Cruise Dedicated Accordion
             CollapsibleSubSection(
-                title = "Category Cruise Tactile Engine",
-                subtitle = "Spatial transitions, category cylinder cruise, and app scrub",
+                title = lsString(R.string.sec_category_cruise_tactile_engine),
+                subtitle = lsString(R.string.secd_spatial_transitions_category_c),
                 icon = { Icon(Icons.Default.Navigation, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(15.dp)) },
                 isExpanded = isCruiseExpanded,
                 onToggle = { isCruiseExpanded = !isCruiseExpanded }
@@ -266,8 +269,8 @@ fun HapticsSubSection(
                     HapticDomainSliderRow(
                         context = context,
                         prefs = prefs,
-                        title = "Category Cruise",
-                        subtitle = "Tactile pulses when scrolling vertically through categories in the cylinder",
+                        title = lsString(R.string.hap_cruise_cat_title),
+                        subtitle = lsString(R.string.hap_cruise_cat_sub),
                         currentKey = LightspeedPreferences.KEY_CRUISE_CATEGORY_HAPTICS,
                         options = LightspeedHapticEngine.EXTENDED_PROFILES
                     ) { key ->
@@ -279,8 +282,8 @@ fun HapticsSubSection(
                     HapticDomainSliderRow(
                         context = context,
                         prefs = prefs,
-                        title = "Spatial Layer Transits",
-                        subtitle = "Tactile clicks when jumping between categories and entering apps, or returning back",
+                        title = lsString(R.string.hap_cruise_layer_title),
+                        subtitle = lsString(R.string.hap_cruise_layer_sub),
                         currentKey = LightspeedPreferences.KEY_CRUISE_LAYER_JUMP_HAPTICS,
                         options = LightspeedHapticEngine.EXTENDED_PROFILES
                     ) { key ->
@@ -292,8 +295,8 @@ fun HapticsSubSection(
                     HapticDomainSliderRow(
                         context = context,
                         prefs = prefs,
-                        title = "Cursor Focus & App Scrub",
-                        subtitle = "Tactile ticks when moving selection cursor and shuffling through apps within the nebula",
+                        title = lsString(R.string.hap_cruise_focus_title),
+                        subtitle = lsString(R.string.hap_cruise_focus_sub),
                         currentKey = LightspeedPreferences.KEY_CRUISE_APP_FOCUS_HAPTICS,
                         options = LightspeedHapticEngine.EXTENDED_PROFILES
                     ) { key ->
@@ -320,9 +323,9 @@ private fun HapticThrottleCooldownCard(context: Context, prefs: SharedPreference
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("HAPTIC PULSE THROTTLE", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, letterSpacing = 0.8.sp)
+                Text(lsString(R.string.hap_throttle_title), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, letterSpacing = 0.8.sp)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text("Min motor rest gap (e.g. 50ms = max 20 pulses/sec; 0ms = unthrottled raw pulses. Prevents phone motor buzzing into a muddy blur).", fontSize = 11.sp, color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.8f), lineHeight = 14.sp)
+                Text(lsString(R.string.hap_throttle_desc), fontSize = 11.sp, color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.8f), lineHeight = 14.sp)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Surface(
@@ -335,7 +338,7 @@ private fun HapticThrottleCooldownCard(context: Context, prefs: SharedPreference
                     LightspeedHapticEngine.tick(context)
                 }
             ) {
-                Text(if (cooldown == 0) "0 ms (Raw)" else "$cooldown ms (~$maxHz Hz)", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                Text(if (cooldown == 0) lsString(R.string.hap_throttle_raw_badge) else "$cooldown ms (~$maxHz Hz)", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
@@ -352,7 +355,7 @@ private fun HapticThrottleCooldownCard(context: Context, prefs: SharedPreference
             modifier = Modifier.fillMaxWidth()
         )
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            listOf(0 to "0ms (Raw)", 45 to "45ms (Balanced)", 100 to "100ms", 200 to "200ms (Max)").forEach { (ms, lbl) ->
+            listOf(0 to lsString(R.string.hap_throttle_raw), 45 to lsString(R.string.hap_throttle_balanced), 100 to "100ms", 200 to lsString(R.string.hap_throttle_max)).forEach { (ms, lbl) ->
                 Text(lbl, fontSize = 9.5.sp, fontWeight = if (cooldown == ms) FontWeight.Bold else FontWeight.Normal, color = if (cooldown == ms) MaterialTheme.colorScheme.primary else LightspeedStyle.colors.textSecondary.copy(alpha = 0.5f), modifier = Modifier.clickable {
                     cooldown = ms
                     prefs.edit().putInt(LightspeedPreferences.KEY_HAPTIC_COOLDOWN_MS, ms).apply()
@@ -384,13 +387,13 @@ private fun KeepHapticsAliveCard(
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                 Text(
-                    text = "Keep Haptics Alive in Battery Saver",
+                    text = lsString(R.string.hap_keep_alive_title),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = LightspeedStyle.colors.textPrimary
                 )
                 Text(
-                    text = "Forces vibration_disabled=false so Android Battery Saver never kills tactical vibrations",
+                    text = lsString(R.string.hap_keep_alive_sub),
                     fontSize = 10.5.sp,
                     color = LightspeedStyle.colors.textSecondary,
                     lineHeight = 13.5.sp

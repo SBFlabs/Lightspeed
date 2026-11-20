@@ -120,6 +120,7 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
     val canvas = state.canvas
     val context = state.context
     val d = state.density
+    val ts = hangarTextScale(state.context)
     val m3Primary = state.m3Primary
     val m3Secondary = state.m3Secondary
     val isOpenedFromLeftFlank = state.isOpenedFromLeftFlank
@@ -142,7 +143,7 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
     val panelIn = palette.panelInnerArgb
     val panelOut = palette.panelOuterArgb
 
-    fun drawPill(rect: RectF, label: String, isSelected: Boolean, accentColor: Int = m3Primary, fontSizeDp: Float = 9.5f, isLocked: Boolean = false) {
+    fun drawPill(rect: RectF, label: String, isSelected: Boolean, accentColor: Int = m3Primary, fontSizeDp: Float = 11.5f, isLocked: Boolean = false) {
         val goldColor = 0xFFFFD700.toInt()
         highlightPaint.style = Paint.Style.FILL
         highlightPaint.color = when {
@@ -159,8 +160,8 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
             else -> Color.argb(75, Color.red(m3Secondary), Color.green(m3Secondary), Color.blue(m3Secondary))
         }
         canvas.drawRoundRect(rect, 8f * d, 8f * d, highlightPaint)
-        textPaint.textSize = fontSizeDp * d
-        textPaint.typeface = if (isSelected || isLocked) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+        textPaint.textSize = fontSizeDp * d * ts
+        textPaint.typeface = hangarTypeface(state.context, isBold = isSelected || isLocked)
         textPaint.color = when {
             isLocked -> goldColor
             isSelected -> Color.WHITE
@@ -174,8 +175,8 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
     val halfBtnW = (deckW - gap) / 2f
     val portRect = RectF(leftX, r0Y - 14f * d, leftX + halfBtnW, r0Y + 14f * d)
     val starboardRect = RectF(rightX - halfBtnW, r0Y - 14f * d, rightX, r0Y + 14f * d)
-    drawPill(portRect, "◀ PORT (LEFT FLANK)", isOpenedFromLeftFlank, m3Primary, 9.5f)
-    drawPill(starboardRect, "STARBOARD (RIGHT) ▶", !isOpenedFromLeftFlank, m3Primary, 9.5f)
+    drawPill(portRect, com.sbf.lightspeed.system.lsString(R.string.ck_port_left).ifBlank { "◀ PORT (LEFT FLANK)" }, isOpenedFromLeftFlank, m3Primary, 9.5f)
+    drawPill(starboardRect, com.sbf.lightspeed.system.lsString(R.string.ck_starboard_right).ifBlank { "STARBOARD (RIGHT) ▶" }, !isOpenedFromLeftFlank, m3Primary, 9.5f)
 
     // ROW 1: DOCKING BAYS (HORIZONTALLY SCROLLABLE RAIL)
     var activeGearSetIndexLocal = activeGearSetIndex
@@ -224,8 +225,8 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
         }
         canvas.drawRoundRect(bayRect, 9f * d, 9f * d, highlightPaint)
 
-        textPaint.textSize = if (isBayLocked) 9f * d else 10f * d
-        textPaint.typeface = if (isCurrentBay || isBayLocked) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+        textPaint.textSize = (if (isBayLocked) 11f * d else 12f * d) * ts
+        textPaint.typeface = hangarTypeface(state.context, isBold = isCurrentBay || isBayLocked)
         textPaint.color = if (isBayLocked) 0xFFFFD700.toInt() else if (isCurrentBay) Color.WHITE else Color.argb(175, 200, 220, 255)
         canvas.drawText(shortLabel, btnX, rBayY + 3.5f * d, textPaint)
     }
@@ -240,7 +241,7 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
     highlightPaint.strokeWidth = if (isPlusLocked) 1.4f * d else 0.8f * d
     highlightPaint.color = if (isPlusLocked) Color.argb(175, 255, 215, 0) else Color.argb(60, 200, 220, 255)
     canvas.drawRoundRect(plusRect, 9f * d, 9f * d, highlightPaint)
-    textPaint.textSize = if (isPlusLocked) 10f * d else 14f * d
+    textPaint.textSize = (if (isPlusLocked) 12f * d else 16f * d) * ts
     textPaint.color = if (isPlusLocked) 0xFFFFD700.toInt() else Color.WHITE
     canvas.drawText(if (isPlusLocked) "[LOCKED] +" else "+", plusBtnX, rBayY + 4f * d, textPaint)
     canvas.restore()
@@ -251,9 +252,12 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
     val acc1Rect = RectF(leftX + accW + gap, rAccY - 14f * d, leftX + accW * 2f + gap, rAccY + 14f * d)
     val acc2Rect = RectF(rightX - accW, rAccY - 14f * d, rightX, rAccY + 14f * d)
 
-    drawPill(acc0Rect, if (layout.openAccordion == 0) "◈ TRIGGER ZONES ▾" else "◈ TRIGGER ZONES ▸", layout.openAccordion == 0, m3Secondary, 8.5f)
-    drawPill(acc1Rect, if (layout.openAccordion == 1) "⌖ RETICLE ▾" else "⌖ RETICLE ▸", layout.openAccordion == 1, m3Secondary, 9.2f)
-    drawPill(acc2Rect, if (layout.openAccordion == 2) "⬡ SHAPE ▾" else "⬡ SHAPE ▸", layout.openAccordion == 2, m3Secondary, 9.2f)
+    val zonesLbl = com.sbf.lightspeed.system.lsString(R.string.ck_acc_zones).ifBlank { "TRIGGER ZONES" }
+    val retLbl = com.sbf.lightspeed.system.lsString(R.string.ck_acc_reticle).ifBlank { "RETICLE" }
+    val shapeLbl = com.sbf.lightspeed.system.lsString(R.string.ck_acc_shape).ifBlank { "SHAPE" }
+    drawPill(acc0Rect, if (layout.openAccordion == 0) "◈ $zonesLbl ▾" else "◈ $zonesLbl ▸", layout.openAccordion == 0, m3Secondary, 8.5f)
+    drawPill(acc1Rect, if (layout.openAccordion == 1) "⌖ $retLbl ▾" else "⌖ $retLbl ▸", layout.openAccordion == 1, m3Secondary, 9.2f)
+    drawPill(acc2Rect, if (layout.openAccordion == 2) "⬡ $shapeLbl ▾" else "⬡ $shapeLbl ▸", layout.openAccordion == 2, m3Secondary, 9.2f)
 
     val prefs = context.defaultPrefs()
 
@@ -281,8 +285,8 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
             val launchBehavior = getFlankLaunchBehavior(isOpenedFromLeftFlank)
             val btn1Rect = RectF(leftX, layout.sub1Y - 13f * d, leftX + halfBtnW, layout.sub1Y + 13f * d)
             val btn2Rect = RectF(rightX - halfBtnW, layout.sub1Y - 13f * d, rightX, layout.sub1Y + 13f * d)
-            drawPill(btn1Rect, "STARTUP: FIRST", launchBehavior == "default", m3Primary, 9f)
-            drawPill(btn2Rect, "STARTUP: LAST", launchBehavior == "last", m3Primary, 9f)
+            drawPill(btn1Rect, com.sbf.lightspeed.system.lsString(R.string.ck_startup_first).ifBlank { "STARTUP: FIRST" }, launchBehavior == "default", m3Primary, 9f)
+            drawPill(btn2Rect, com.sbf.lightspeed.system.lsString(R.string.ck_startup_last).ifBlank { "STARTUP: LAST" }, launchBehavior == "last", m3Primary, 9f)
 
             // Sub-row 2: Reorder & Delete Active Profile
             val shiftW = deckW * 0.35f
@@ -290,10 +294,10 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
             val shiftLeftRect = RectF(leftX, layout.sub2Y - 13f * d, leftX + shiftW, layout.sub2Y + 13f * d)
             val deleteBayRect = RectF(cx - deleteW / 2f, layout.sub2Y - 13f * d, cx + deleteW / 2f, layout.sub2Y + 13f * d)
             val shiftRightRect = RectF(rightX - shiftW, layout.sub2Y - 13f * d, rightX, layout.sub2Y + 13f * d)
-            drawPill(shiftLeftRect, "◀ SHIFT LEFT", activeGearSetIndexLocal > 0, m3Secondary, 9f)
+            drawPill(shiftLeftRect, com.sbf.lightspeed.system.lsString(R.string.ck_shift_left).ifBlank { "◀ SHIFT LEFT" }, activeGearSetIndexLocal > 0, m3Secondary, 9f)
             val canDelete = setsList.size > 1
-            drawPill(deleteBayRect, "✕ DELETE", canDelete, Color.parseColor("#EF5350"), 9f)
-            drawPill(shiftRightRect, "SHIFT RIGHT ▶", activeGearSetIndexLocal < setsList.size - 1, m3Secondary, 9f)
+            drawPill(deleteBayRect, com.sbf.lightspeed.system.lsString(R.string.ck_delete).ifBlank { "✕ DELETE" }, canDelete, Color.parseColor("#EF5350"), 9f)
+            drawPill(shiftRightRect, com.sbf.lightspeed.system.lsString(R.string.ck_shift_right).ifBlank { "SHIFT RIGHT ▶" }, activeGearSetIndexLocal < setsList.size - 1, m3Secondary, 9f)
 
             // Sub-row 3: Icon Pack Theme
             val activePack = LightspeedIconManager.getActiveIconPack(context)
@@ -309,9 +313,9 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
             val phys1Rect = RectF(leftX, layout.sub1Y - 13f * d, leftX + physW, layout.sub1Y + 13f * d)
             val phys2Rect = RectF(leftX + physW + gap, layout.sub1Y - 13f * d, leftX + physW * 2f + gap, layout.sub1Y + 13f * d)
             val phys3Rect = RectF(rightX - physW, layout.sub1Y - 13f * d, rightX, layout.sub1Y + 13f * d)
-            drawPill(phys1Rect, "◈ SNAPPY", physicsProfile == "magnetic")
-            drawPill(phys2Rect, "≈ FLUID", physicsProfile == "fluid")
-            drawPill(phys3Rect, "❖ HEAVY", physicsProfile == "heavy")
+            drawPill(phys1Rect, com.sbf.lightspeed.system.lsString(R.string.ck_phys_snappy).ifBlank { "◈ SNAPPY" }, physicsProfile == "magnetic")
+            drawPill(phys2Rect, com.sbf.lightspeed.system.lsString(R.string.ck_phys_fluid).ifBlank { "≈ FLUID" }, physicsProfile == "fluid")
+            drawPill(phys3Rect, com.sbf.lightspeed.system.lsString(R.string.ck_phys_heavy).ifBlank { "❖ HEAVY" }, physicsProfile == "heavy")
 
             // Sub-row 2: Reticle Crosshair Style
             val retW = (deckW - (gap * 3f)) / 4f
@@ -371,7 +375,7 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
 
             drawPill(diamMinusRect, "−", false)
             val pct = (customDiameterScale * 100f).toInt()
-            drawPill(diamLabelRect, "SIZE: $pct%", customDiameterScale != 1.0f)
+            drawPill(diamLabelRect, com.sbf.lightspeed.system.lsString(R.string.ck_size_pct, pct).ifBlank { "SIZE: $pct%" }, customDiameterScale != 1.0f)
             drawPill(diamPlusRect, "+", false)
             val dpiLabel = if (isDpiIndep) "◈ DPI: INDEP" else "DPI: SYS"
             drawPill(dpiToggleRect, dpiLabel, isDpiIndep)

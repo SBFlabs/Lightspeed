@@ -143,8 +143,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val listener = Consumer<Boolean> { enabled ->
-                CentralCommandActivity.updateCrossWindowBlurState(enabled)
+            val listener = Consumer<Boolean> {
                 applyWindowBlur()
             }
             crossWindowBlurListener = listener

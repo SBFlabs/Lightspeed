@@ -2,11 +2,13 @@ package com.sbf.lightspeed.settings
 
 import android.content.Context
 import android.net.Uri
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedShortcutManager
 import com.sbf.lightspeed.system.LightspeedVocabulary
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.lsString
 
 object ActionTokenResolver {
 
@@ -81,85 +83,85 @@ object ActionTokenResolver {
      */
     fun resolveDynamicTokenLabel(context: Context, token: String): String {
         return when {
-            token == "none" -> "None"
-            token == "action_enter_gearset_nav" || token == "system:gearset_nav" -> "Gear Set HUD Navigation Mode"
-            token == "system:previous_app" -> "Switch to Previous App (Shizuku)"
-            token == "system:close_app" || token == "shizuku:close_app" -> "Close App Gracefully & Remove from Recents (Shizuku)"
-            token == "system:recents" -> "Recents Overview"
-            token == "system:home" -> "Home"
-            token == "system:back" -> "Back"
-            token == "system:split_screen" -> "Split Screen"
-            token == "system:popup_window" || token == "system:freeform" -> "Pop-up Window"
-            token == "system:circle_to_search" || token == "action:circle_to_search" -> "🔍 Circle to Search / Screen Assist"
-            token == "system:assistant" || token == "action:assistant" -> "🤖 Assistant (Voice Command / Screen Assist)"
+            token == "none" -> lsString(R.string.cc_common_none)
+            token == "action_enter_gearset_nav" || token == "system:gearset_nav" -> lsString(R.string.act_gearset_nav)
+            token == "system:previous_app" -> lsString(R.string.act_previous_app)
+            token == "system:close_app" || token == "shizuku:close_app" -> lsString(R.string.act_close_app)
+            token == "system:recents" -> lsString(R.string.act_recents)
+            token == "system:home" -> lsString(R.string.act_home)
+            token == "system:back" -> lsString(R.string.act_back)
+            token == "system:split_screen" -> lsString(R.string.act_split_screen)
+            token == "system:popup_window" || token == "system:freeform" -> lsString(R.string.act_popup_window)
+            token == "system:circle_to_search" || token == "action:circle_to_search" -> lsString(R.string.act_circle_to_search)
+            token == "system:assistant" || token == "action:assistant" -> lsString(R.string.act_assistant)
 
-            token == "system:flashlight" -> "External Torch"
-            token == "system:screenshot" -> "Take Screenshot"
-            token == "system:lock_screen" -> "Lock Ship"
-            token == "system:power_menu" -> "Power Menu"
-            token == "system:notifications" -> "Notification Shade"
-            token == "system:quick_settings" -> "Quick Settings"
-            token == "system:scroll_to_top" -> "Scroll to Top"
-            token == "system:scroll_to_bottom" -> "Scroll to Bottom"
+            token == "system:flashlight" -> lsString(R.string.act_flashlight)
+            token == "system:screenshot" -> lsString(R.string.act_screenshot)
+            token == "system:lock_screen" -> lsString(R.string.act_lock_screen)
+            token == "system:power_menu" -> lsString(R.string.act_power_menu)
+            token == "system:notifications" -> lsString(R.string.act_notifications)
+            token == "system:quick_settings" -> lsString(R.string.act_quick_settings)
+            token == "system:scroll_to_top" -> lsString(R.string.act_scroll_to_top)
+            token == "system:scroll_to_bottom" -> lsString(R.string.act_scroll_to_bottom)
             token == "system:auto_rotate_toggle" || token == "system:toggle_auto_rotate" || token == "system:gravity_toggle_master" || token == "ACTION_GRAVITY_TOGGLE_MASTER" || token == "system:orientation_toggle" || token == "ACTION_TOGGLE_ROTATION" -> {
                 val behavior = LightspeedPreferences.getActionBehavior(context, "system:auto_rotate_toggle")
                 when (behavior) {
-                    "button" -> "Native Auto-Rotate (One-Way ON)"
-                    "button_off" -> "Native Auto-Rotate (One-Way OFF)"
-                    else -> "Toggle Native Auto-Rotate"
+                    "button" -> lsString(R.string.act_autorotate_on)
+                    "button_off" -> lsString(R.string.act_autorotate_off)
+                    else -> lsString(R.string.act_autorotate_toggle)
                 }
             }
-            token == "system:gravity_reset" || token == "ACTION_GRAVITY_RESET" -> "Restore Default Gravity"
+            token == "system:gravity_reset" || token == "ACTION_GRAVITY_RESET" -> lsString(R.string.act_gravity_reset)
             token == "system:gravity_override_360" || token == "ACTION_GRAVITY_OVERRIDE_360" || token == "system:orientation_sensor_360" -> {
-                if (LightspeedPreferences.getActionBehavior(context, "system:gravity_override_360") == "button") "Transient 360° Gyro (One-Way Button)" else "Transient 360° Gyro"
+                if (LightspeedPreferences.getActionBehavior(context, "system:gravity_override_360") == "button") lsString(R.string.act_gyro_360_btn) else lsString(R.string.act_gyro_360)
             }
             token == "system:gravity_override_landscape" || token == "ACTION_GRAVITY_OVERRIDE_LANDSCAPE" -> {
-                if (LightspeedPreferences.getActionBehavior(context, "system:gravity_override_landscape") == "button") "Transient Landscape (One-Way Button)" else "Transient Landscape"
+                if (LightspeedPreferences.getActionBehavior(context, "system:gravity_override_landscape") == "button") lsString(R.string.act_landscape_btn) else lsString(R.string.act_landscape)
             }
             token == "system:gravity_override_portrait" || token == "ACTION_GRAVITY_OVERRIDE_PORTRAIT" || token == "system:orientation_portrait" -> {
-                if (LightspeedPreferences.getActionBehavior(context, "system:gravity_override_portrait") == "button") "Transient Portrait 0° (One-Way Button)" else "Transient Portrait"
+                if (LightspeedPreferences.getActionBehavior(context, "system:gravity_override_portrait") == "button") lsString(R.string.act_portrait_btn) else lsString(R.string.act_portrait)
             }
             token == "system:gravity_override_sensor_portrait" || token == "ACTION_GRAVITY_OVERRIDE_SENSOR_PORTRAIT" || token == "system:orientation_sensor_portrait" -> {
-                if (LightspeedPreferences.getActionBehavior(context, "system:gravity_override_sensor_portrait") == "button") "Transient Sensor Portrait (One-Way Button)" else "Transient Sensor Portrait"
+                if (LightspeedPreferences.getActionBehavior(context, "system:gravity_override_sensor_portrait") == "button") lsString(R.string.act_sensor_portrait_btn) else lsString(R.string.act_sensor_portrait)
             }
 
-            token == "system:screen_timeout" -> "Ship Goes Dark"
-            token == "system:volume" -> "Media Volume"
-            token == "system:brightness" -> "Brightness Scrubber"
-            token == "system:scroll_scrub" -> "Scroll Scrubbing"
+            token == "system:screen_timeout" -> lsString(R.string.act_screen_timeout)
+            token == "system:volume" -> lsString(R.string.act_volume)
+            token == "system:brightness" -> lsString(R.string.act_brightness)
+            token == "system:scroll_scrub" -> lsString(R.string.act_scroll_scrub)
 
-            token == "system:media_play_pause" -> "Media: Play / Pause"
-            token == "system:media_next" -> "Media: Next Track"
-            token == "system:media_prev" -> "Media: Previous Track"
+            token == "system:media_play_pause" -> lsString(R.string.act_media_play_pause)
+            token == "system:media_next" -> lsString(R.string.act_media_next)
+            token == "system:media_prev" -> lsString(R.string.act_media_prev)
             token == "system:media_skip_forward" -> {
                 val skipSec = LightspeedPreferences.getMediaSkipSeconds(context.defaultPrefs(), forward = true)
-                "Media: Skip Forward (${skipSec}s)"
+                lsString(R.string.act_media_skip_fwd, skipSec)
             }
             token == "system:media_skip_backward" -> {
                 val skipSec = LightspeedPreferences.getMediaSkipSeconds(context.defaultPrefs(), forward = false)
-                "Media: Skip Backward (${skipSec}s)"
+                lsString(R.string.act_media_skip_back, skipSec)
             }
-            token == "system:media_scrubber" -> "Media: Timeline Scrubber (HUD)"
-            token == "system:media_stop" -> "Media: Stop Playback"
+            token == "system:media_scrubber" -> lsString(R.string.act_media_scrubber)
+            token == "system:media_stop" -> lsString(R.string.act_media_stop)
             token == "system:refueling_bay" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.REFUELING_BAY)
             token == "system:core_cooling" || token == "ACTION_CORE_COOLING" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_COOLING)
             token == "system:perimeter_watchdog" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.PERIMETER_DEFENSE)
             token == "system:core_watchdog" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_WATCHDOG)
             token == "system:battery_exemption" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.BATTERY_EXEMPTION)
-            token == "system:central_command" -> "Central Command (Cockpit Deck)"
+            token == "system:central_command" -> lsString(R.string.act_central_command)
             token == "system:omniscient_audio" || token == "system:audio_dock" || token == "system:sonic_deck" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SONIC_DECK)
             token == "system:vista_deck" || token == "system:display_dock" || token == "action:vista_deck" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.VISTA_DECK)
-            token == "system:tactical_flyout" || token == "action:tactical_flyout" -> "⚡ Tactical Flyout Menu"
-            token == "system:shields_down" || token == "action:shields_down" || token == "action:cold_shutdown" -> "Master Stealth Cloak (Cold Shutdown)"
-            token == "system:pass_through_touch" || token == "action:pass_through_touch" -> "Pass-Through Touch Mode (5s)"
-            token == "system:smart_pixels_toggle" -> "OLED Smart Pixels (Toggle)"
-            token == "system:eye_care_toggle" -> "Eye Care Blue Light (Toggle)"
-            token == "system:extra_dim_toggle" -> "Extra Dim (Toggle)"
-            token == "system:vocal_isolation_toggle" -> "Neural Vocal Isolation (Toggle)"
-            token == "system:volume_hud_show" -> "Sonic Volume HUD (Show)"
+            token == "system:tactical_flyout" || token == "action:tactical_flyout" -> lsString(R.string.act_tactical_flyout)
+            token == "system:shields_down" || token == "action:shields_down" || token == "action:cold_shutdown" -> lsString(R.string.act_shields_down)
+            token == "system:pass_through_touch" || token == "action:pass_through_touch" -> lsString(R.string.act_pass_through)
+            token == "system:smart_pixels_toggle" -> lsString(R.string.act_smart_pixels)
+            token == "system:eye_care_toggle" -> lsString(R.string.act_eye_care)
+            token == "system:extra_dim_toggle" -> lsString(R.string.act_extra_dim)
+            token == "system:vocal_isolation_toggle" -> lsString(R.string.act_vocal_isolation)
+            token == "system:volume_hud_show" -> lsString(R.string.act_volume_hud_show)
             token.startsWith("bot:macro_") -> {
                 val num = token.removePrefix("bot:macro_")
-                "Bot Macro #$num"
+                lsString(R.string.act_bot_macro, num)
             }
             token.startsWith("app:") -> {
                 val pkg = token.removePrefix("app:")

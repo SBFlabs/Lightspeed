@@ -1,5 +1,7 @@
 <div align="center">
 
+`EN` **English** · [`PT` Português (BR)](README.pt-BR.md) · [`ES` Español](README.es.md)
+
 <img src="fastlane/metadata/android/en-US/images/icon.png" alt="Lightspeed App Icon" width="112" />
 
 # 🚀 Lightspeed
@@ -63,7 +65,8 @@
   - [4. System Overrides](#4-system-overrides)
   - [5. Config Vault](#5-config-vault)
   - [6. Experimental Labs](#6-experimental-labs)
-  - [7. 🆕 Decks, Trackpad, Sensor Areas & Master Cloak (v1.4.0)](#7-v140-highlights)
+  - [7. Decks, Trackpad, Sensor Areas & Master Cloak (v1.4.0)](#7-v140-highlights)
+  - [8. 🆕 Languages, HUD Widgets & Day-1 Polish (v1.4.1)](#8-v141-highlights)
 - [🔐 Permissions & Elevated Capabilities](#permissions-elevated-capabilities)
 - [⚡ External Automation](#external-automation)
 - [🆘 If your phone is left in a bad state](#bad-state-recovery)
@@ -101,7 +104,7 @@ Your position within the **Category Cruise**, or the focused item within the cho
 
 To cancel the gesture at any point, swipe your finger back to the **Astrogation Core** or the edge of the screen.
 
-At the top of Category Cruise sits a customizable **HUD Deck** (up to 3 slots in a row or swipeable stack) featuring the **Focused App Inspector**, **Screen Time & 24h Hourly Timeline**, **System Vitals & Task Hunter** (`BATTERY`, `SYSTEM`, `VITALS`, and `CHART` sub-views with a built-in `[HUNT ▸]` CPU/wakelock task manager and `1H`–`30D` history), **Alerts & Toast Firewall**, and an interactive **Android App Widget Slot**.
+At the top of Category Cruise sits a customizable **HUD Deck** (up to 3 slots in a row or swipeable stack) featuring the **Focused App Inspector**, **Screen Time & 24h Hourly Timeline**, **System Vitals & Task Hunter** (`BATTERY`, `SYSTEM`, `VITALS`, and `CHART` sub-views with a built-in `[HUNT ▸]` CPU/wakelock task manager and `1H`–`30D` history), **Alerts & Toast Firewall**, and an interactive **Android App Widget Slot**. As of v1.4.1 the HUD widgets also include **Screen Time progress gauges** (with an **Ignore Apps** list) and a strictly opt-in, 100% offline **Next Calendar Event** countdown.
 
 <br>
 
@@ -351,7 +354,7 @@ The remaining experimental features are unfinished or currently non-functional a
 Experimental features are best treated as exactly that: experiments. The **HUD STRIP swipe-down gesture** may require making the Sensor Area thicker and keeping the swipe-down distance roughly equal to its thickness, so that Android's native status-bar pull-down gesture is not triggered unintentionally.
 
 <a id="7-v140-highlights"></a>
-### 7. 🆕 Decks, Trackpad, Sensor Areas & Master Cloak (v1.4.0)
+### 7. Decks, Trackpad, Sensor Areas & Master Cloak (v1.4.0)
 
 <sup><a href="#index">[↑ Return to Index]</a></sup>
 
@@ -365,6 +368,18 @@ Experimental features are best treated as exactly that: experiments. The **HUD S
 - **Bottom Sensor Area**: Secondary edge gesture zone mirrored at the bottom edge with configurable span, thickness, offset, sensitivity, stealth idle glow, and full gesture action matrix.
 - **Circle to Search / Screen Assist**: Direct gesture mapping to trigger Google Circle to Search or your default Assistant / Screen context tool.
 - **Astrogation Airlock & Target Apps Pickers**: The 5-second mindful pause shows both App Time and Sector Time (total time today in that app's category), and both target-app pickers include a top collapsible `▸ SELECTED APPS (N)` summary accordion and an interactive `A–Z` alphabet fast-scroll rail.
+
+<a id="8-v141-highlights"></a>
+### 8. 🆕 Languages, HUD Widgets & Day-1 Polish (v1.4.1)
+
+<sup><a href="#index">[↑ Return to Index]</a></sup>
+
+- **Multi-Language (`EN`, `PT-BR`, `ES`)**: Lightspeed ships in English, Brazilian Portuguese, and neutral Latin American Spanish. On first launch the device language is detected automatically; after that your saved choice is restored (including from a Config Vault import). Switching is 100% offline and instant — no restart, no downloads.
+- **Real-World Bilingual Mode**: Pick a Primary and a Secondary language and Lightspeed shows both on main titles, accordion headers, and section headers (never on compact buttons, chips, or sliders). It pairs with the vocabulary modes, including a distinct **Lore + Plain** vocabulary pairing (Space Lore terms with plain-language clarification).
+- **2-Axis Guidebook Switcher**: Long-press the **Guidebook icon**, then scrub **horizontally** for the vocabulary mode or **vertically** for the real-world language (Bilingual, `EN`, `PT`, `ES`). Languages are shown as neutral code badges, without flags. A matching language slider and Primary / Secondary pair editor live at the top of the Guidebook.
+- **Category Cruise HUD Widgets**: **Screen Time** progress gauges with an **Ignore Apps** list, **Battery & System**, **Privacy**, and an interactive App Widget slot. The **Next Calendar Event** countdown is strictly opt-in and 100% offline: it reads your on-device calendar only after you grant `READ_CALENDAR`, and you can choose All, Work, Personal, or individual calendars.
+- **System Vitals / Culprit Hunter Explainers**: Built-in explainers help you read the `BATTERY`, `SYSTEM`, `VITALS`, and `CHART` views and use `[HUNT ▸]` to find the CPU/wakelock culprits draining your battery.
+- **Polished Day-1 Experience**: Material 3 controls, Hybrid blur defaults, **Signature HUDs** as the default style on every scrubber (Volume, Brightness, Screen Timeout, Media, Scroll), and a cleaner two-card **Arm Lightspeed Core** setup with the extra help folded into compact expandable rows. Existing installs are never modified by the new defaults.
 
 ---
 
@@ -401,6 +416,8 @@ Most of Lightspeed's permissions do not require additional interaction from the 
 - **Notification Listener** — Required when enabling **Info Beacons** features that depend on notification access, such as media playback or download-progress information.
 - **Ignore Battery Optimizations** — Used for Lightspeed's battery-management and watchdog functionality where supported.
 - **Post Notifications** — Used for notification-based status and controls, including the ability to toggle the **DEFLECTORS** and Lightspeed as a whole.
+- **Usage Access** — Required for **Screen Time** HUD widgets and the Astrogation Airlock's App Time / Sector Time.
+- **Calendar (`READ_CALENDAR`)** — **Strictly opt-in.** Only requested if you enable the **Next Calendar Event** countdown. Events are read locally on your device and never leave it.
 - **Call Phone** — Requested for direct contact calling via Home Screen launcher shortcuts; if not granted, Lightspeed dials through the Shizuku shell instead.
 
 ### Other Permissions
@@ -621,7 +638,7 @@ Feature suggestions will be cataloged into the development backlog for future mi
 
 The vast majority of Lightspeed is and will remain free forever. Core gesture navigation, app launching, deflectors, system overrides, and backup reliability have zero paywalls.
 
-The **Lightspeed Infinity** tier is a **$1.99** one-time unlock on [Buy Me a Coffee](https://buymeacoffee.com/sbflabs/e/579114) (which also supports **Google Pay**) designed as a voluntary thank-you incentive for supporters. Every dollar goes a long way toward development, maintenance, and **GitHub & XDA Forums** (plus Reddit & YouTube) community support—while unlocking cosmetic perks, signature cockpit themes, custom reticle collimators, and unlimited Cockpit Gear sets (free users get 2). If Lightspeed helps your workflow, starring the repo and sharing/upvoting the original posts on XDA, Reddit, or YouTube helps just as much.
+The **Lightspeed Infinity** tier is a **$1.99** one-time unlock on [Buy Me a Coffee](https://buymeacoffee.com/sbflabs/e/579114) (which also supports **Google Pay**) designed as a voluntary thank-you incentive for supporters. It works through a **Server-free offline key**: no accounts, no servers, and no network checks. Buy Me a Coffee supporters also receive a free Google Play code if/when Lightspeed launches there. Every dollar goes a long way toward development, maintenance, and **GitHub & XDA Forums** (plus Reddit & YouTube) community support—while unlocking cosmetic perks, signature cockpit themes, custom reticle collimators, and unlimited Cockpit Gear sets (free users get 2; 3 of the 13 optical themes are free, the other 10 require Infinity). If Lightspeed helps your workflow, starring the repo and sharing/upvoting the original posts on XDA, Reddit, or YouTube helps just as much.
 
 ---
 

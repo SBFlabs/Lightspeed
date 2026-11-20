@@ -1,0 +1,6 @@
+🌐 v1.4.1 — Multi-Language (PT-BR & ES), Bilingual Mode & Day-1 Polish
+
+• Multi-Language & Real-World Bilingual Mode: Full Brazilian Portuguese (PT-BR) & Spanish (ES) UI with first-launch auto-detect, instant switching with no app restart, Bilingual subtext headers, 2-axis Guidebook switcher & rolling language wheel, Lore + Plain pairing, and translated READMEs.
+• Material 3 Default & Core Setup: New opaque Material 3 Day-1 theme (3 free / 10 Lightspeed ∞ themes), unified Arm Lightspeed Core onboarding, Signature HUD scrubber defaults, Live Lab Backdrop Opacity, and scrollable pop-ups at large display sizes.
+• HUD & Culprit Hunter Upgrades: Screen Time D/W/M/Y gauges, Ignore Apps list, 4-wheel countdown editor, strictly opt-in offline Next Calendar Event countdown, Culprit Hunter quick-jump sort rails & ! explainers, 5 icon-centered launch spark animations, closer category labels, and vertical HUD widget scrolling.
+• Global Overlay Fonts & Reliability Fixes: Global device-font toggle across Cockpit/Cruise/HUDs with independent text sliders, Airlock fullscreen-video & 1-frame flash fixes, sharper high-density HUD blur & Samsung window dimming, full-width landscape Horizon Rail, accurate LAST CHG battery tracking, 120Hz Central Command scroll polish, and Refueling Bay < 0.5W rounding fix.

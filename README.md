@@ -46,6 +46,10 @@
   <a href="#3-central-command"><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/07_Central_Command_HUD_STRIP.jpg" alt="Central Command" width="26%" /></a>
 </p>
 
+<p align="center">
+  📖&nbsp;<a href="CHANGELOG.md"><strong>Changelog</strong></a> · 🙌&nbsp;<a href="CREDITS.md"><strong>Credits</strong></a> · 📄&nbsp;<a href="LICENSE"><strong>License</strong></a>
+</p>
+
 <a id="index"></a>
 <details>
 <summary><strong>🧭 Table of Contents (Tap to Expand)</strong></summary>
@@ -196,7 +200,7 @@ Central Command can be accessed directly by tapping the **Lightspeed app icon**,
 
 <p align="center"><sub>🛰️ <em>Central Command — language settings</em></sub></p>
 
-The **Central Command floating window'header area** is interactive in three ways. You can swipe down on the header area to dismiss the floating window. The **Central Command title** can be single-tapped or long-tapped: a long tap quickly toggles the entire Lightspeed system on or off. The **Guidebook icon** can likewise be single-tapped or long-tapped. There is also the plain old **Expand/Collapse All** button for expanding or collapsing the accordions in the current tab.
+The **Central Command floating window's header area** is interactive in three ways. You can swipe down on the header area to dismiss the floating window. The **Central Command title** can be single-tapped or long-tapped: a long tap quickly toggles the entire Lightspeed system on or off. The **Guidebook icon** can likewise be single-tapped or long-tapped. There is also the plain old **Expand/Collapse All** button for expanding or collapsing the accordions in the current tab.
 
 For customizing the **Central Command theme**, tap the Central Command title. For organizing or changing how the accordions are arranged within a specific tab, tap the **tab title while it is in focus** — whether it is the **HUD STRIP, Left DEFLECTOR, or Right DEFLECTOR**.
 
@@ -583,7 +587,7 @@ Lightspeed has been developed with substantial assistance from modern AI tools. 
 
 Different models are used for different parts of the development process:
 
-- **Gemini Argon 4** and **Claude Sonnet 4.6/5.5** — primarily used for **refactoring plans, feature planning, and architectural planning**, helping analyze the structure of the project and determine how larger changes should be approached.
+- **Gemini 4 Neon**, **Gemini Argon 4**, and **Claude Sonnet 4.6/5.5** — primarily used for **refactoring plans, feature planning, and architectural planning**, helping analyze the structure of the project and determine how larger changes should be approached.
 - **Gemini Flash 3.6 through 3.8** and **Gemini Hydrogen** — primarily used for **execution**, including implementing planned features, modifying code, and carrying out development tasks based on the architectural direction. They are also frequently used on their own for **small bug fixes and straightforward feature implementations** that do not require the larger planning models.
 - **Gemini Pro 3.1** — used occasionally, and generally as a fallback, for **feature planning, refactoring plans, and architectural planning** when the primary planning-model quota is unavailable or exhausted.
 

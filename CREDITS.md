@@ -21,7 +21,7 @@ Additional specialized mechanics and tactile workflows were shaped by exceptiona
 ---
 
 ### Community Ethos & Shipping in Public
-While *Recents* and *LaunchTime* pushed me to create the app, seeing projects like **Shizuku+** and developers openly building, experimenting, and refining Android utilities in public with AI gave me the direct confidence, blueprint, and practical lessons to take the project across the finish line and release it publicly.
+While *Recents* and *LaunchTime* pushed me to create the app, seeing projects like **Shizuku+** and builders like **Hari Prabhu (`@hariprabhu1008`)** openly building, experimenting, and refining Android utilities in public with AI gave me the direct confidence, blueprint, and practical lessons to take the project across the finish line and release it publicly.
 
 Furthermore, independent cornerstones like **InviZible Pro**, **MiXplorer**, **Obtainium** (and community forks like **ObtainX**), alongside the foundational work of **Shizuku** and its dedicated privileged manager forks like **Shevery** and **Stellar**, proved that Android utility software can be extraordinarily powerful, deeply respectful of user sovereignty, and built without compromising on transparency.
 

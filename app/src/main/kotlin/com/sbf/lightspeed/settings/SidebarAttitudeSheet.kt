@@ -11,6 +11,9 @@ import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 import android.content.Context
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -149,6 +152,13 @@ fun AppAssignmentSheet(
     val sheetShape = RoundedCornerShape(topStart = cornerDp, topEnd = cornerDp, bottomEnd = 0.dp, bottomStart = 0.dp)
 
     val activeDensity = LocalDensity.current
+    val activeLayoutDirection = LocalLayoutDirection.current
+    val activeTextStyle = LocalTextStyle.current.merge(MaterialTheme.typography.bodyMedium)
+    val targetAndroidDir = if (activeLayoutDirection == LayoutDirection.Rtl) {
+        android.view.View.LAYOUT_DIRECTION_RTL
+    } else {
+        android.view.View.LAYOUT_DIRECTION_LTR
+    }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -159,7 +169,22 @@ fun AppAssignmentSheet(
         dragHandle = null,
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
     ) {
-        CompositionLocalProvider(LocalDensity provides activeDensity) {
+        CompositionLocalProvider(
+            LocalDensity provides activeDensity,
+            LocalLayoutDirection provides activeLayoutDirection,
+            LocalTextStyle provides activeTextStyle
+        ) {
+            val sheetView = LocalView.current
+            SideEffect {
+                if (sheetView.layoutDirection != targetAndroidDir) {
+                    sheetView.layoutDirection = targetAndroidDir
+                }
+                sheetView.rootView?.let { root ->
+                    if (root.layoutDirection != targetAndroidDir) {
+                        root.layoutDirection = targetAndroidDir
+                    }
+                }
+            }
         Box(
             modifier = Modifier
                 .fillMaxWidth()

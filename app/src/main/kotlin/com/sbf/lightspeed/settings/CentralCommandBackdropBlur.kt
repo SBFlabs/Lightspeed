@@ -538,7 +538,7 @@ object CentralCommandBackdropBlur {
 
     /**
      * Returns an ultra-dense (~1/10th screen resolution, dual-pass blurred) ambient color cloud
-     * [Bitmap] for Deflector Scrubber HUDs (Option A: iOS Control Center style).
+     * [Bitmap] for Deflector Scrubber HUDs (Option A: frosted control center style).
      * Dissolves sharp video details into pure ambient color clouds so blending at ~45% opacity
      * lets live video motion underneath breathe through without looking frozen in time.
      */

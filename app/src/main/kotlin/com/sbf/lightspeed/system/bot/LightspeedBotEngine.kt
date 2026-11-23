@@ -1,21 +1,20 @@
 package com.sbf.lightspeed.system.bot
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.GestureDescription
 import android.content.Context
-import android.graphics.Path
 import android.graphics.Rect
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedVolumeKeyEngine
 import com.sbf.lightspeed.system.ShizukuExecHelper
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.system.lsString
 import kotlinx.coroutines.*
 import org.json.JSONArray
 
@@ -29,6 +28,8 @@ object LightspeedBotEngine {
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    data class ResolvedMacro(val steps: List<BotStep>, val scopeType: String)
+
     @Volatile
     var isRecording = false
         private set
@@ -38,11 +39,15 @@ object LightspeedBotEngine {
     @Volatile
     var isReplaying = false
         private set
+    @Volatile
+    private var activePlayingBotId: Int = -1
     private var playJob: Job? = null
 
     @Volatile
     var isLooping = false
         private set
+    @Volatile
+    private var activeLoopingBotId: Int = -1
     private var loopJob: Job? = null
     var loopIterationCount = 0
         private set
@@ -60,9 +65,37 @@ object LightspeedBotEngine {
     @Volatile
     var recordingScopeWindow: String = "Main"
         internal set
+    @Volatile
+    var recordingScopeType: String = LightspeedBotContract.DEFAULT_MACRO_SCOPE
+        internal set
+
+    private fun winMacroKey(botId: Int, pkg: String, win: String) = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_win_${pkg}_${win}"
+    private fun winScopeKey(botId: Int, pkg: String, win: String) = "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_win_${pkg}_${win}"
+    private fun appMacroKey(botId: Int, pkg: String) = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_app_${pkg}"
+    private fun appScopeKey(botId: Int, pkg: String) = "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_app_${pkg}"
+    private fun globalMacroKey(botId: Int) = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}$botId"
+    private fun globalScopeKey(botId: Int) = "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_global"
 
     private fun sanitizeToken(raw: String?): String {
         return LightspeedBotScreenScanner.sanitizeToken(raw)
+    }
+
+    private fun isOwnOrSystemPackage(context: Context, pkg: String?): Boolean {
+        if (pkg.isNullOrBlank()) return true
+        if (pkg == context.packageName ||
+            pkg == "com.sbf.lightspeed" ||
+            pkg == "com.sbf.lightspeed.nightly" ||
+            pkg == "com.android.systemui" ||
+            pkg.contains("systemui")
+        ) return true
+        return com.sbf.lightspeed.system.LightspeedForegroundTracker.isInputMethodPackage(context, pkg)
+    }
+
+    private fun isStepPackageCompatible(stepPkg: String?, livePkg: String, scopeType: String): Boolean {
+        if (scopeType == LightspeedBotContract.SCOPE_GLOBAL) return true
+        if (stepPkg.isNullOrBlank() || stepPkg == "global") return true
+        if (livePkg.isBlank() || livePkg == "global") return true
+        return stepPkg == livePkg
     }
 
     /**
@@ -71,26 +104,40 @@ object LightspeedBotEngine {
      * stays locked to the user's target application and window.
      */
     fun resolveActiveScope(context: Context): Pair<String, String> {
-        val ownPkg = context.packageName
         val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
         var pkg: String? = null
         if (service != null) {
             try {
                 val appWin = LightspeedBotScreenScanner.resolveUnderlyingAppWindow(service)
-                val activeRoot = appWin?.root ?: service.rootInActiveWindow
-                val rPkg = activeRoot?.packageName?.toString()
-                if (!rPkg.isNullOrBlank() && rPkg != ownPkg && rPkg != "com.android.systemui") {
-                    pkg = rPkg
+                val underlyingPkg = appWin?.root?.packageName?.toString()
+                if (!isOwnOrSystemPackage(service, underlyingPkg)) {
+                    pkg = underlyingPkg
+                }
+                if (pkg == null) {
+                    val activePkg = service.rootInActiveWindow?.packageName?.toString()
+                    if (!isOwnOrSystemPackage(service, activePkg)) {
+                        pkg = activePkg
+                    }
                 }
                 if (pkg == null) {
                     val windows = service.windows
                     if (!windows.isNullOrEmpty()) {
-                        for (win in windows) {
-                            val root = try { win.root } catch (_: Exception) { null } ?: continue
-                            val wPkg = root.packageName?.toString() ?: continue
-                            if (wPkg != ownPkg && wPkg != "com.android.systemui") {
+                        val sorted = try { windows.sortedByDescending { it.layer } } catch (_: Exception) { windows.reversed() }
+                        for (win in sorted) {
+                            if (win.type != android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION) continue
+                            val wPkg = try { win.root?.packageName?.toString() } catch (_: Exception) { null }
+                            if (!isOwnOrSystemPackage(service, wPkg)) {
                                 pkg = wPkg
                                 break
+                            }
+                        }
+                        if (pkg == null) {
+                            for (win in sorted) {
+                                val wPkg = try { win.root?.packageName?.toString() } catch (_: Exception) { null }
+                                if (!isOwnOrSystemPackage(service, wPkg)) {
+                                    pkg = wPkg
+                                    break
+                                }
                             }
                         }
                     }
@@ -98,7 +145,7 @@ object LightspeedBotEngine {
             } catch (_: Exception) {}
         }
         if (pkg == null) {
-            pkg = LightspeedAccessibilityService.lastAppPackage ?: "global"
+            pkg = LightspeedAccessibilityService.lastAppPackage?.takeIf { !isOwnOrSystemPackage(context, it) } ?: "global"
         }
         val windowId = if (pkg != "global" && service != null) {
             LightspeedBotScreenScanner.resolveActiveWindowId(service)
@@ -110,20 +157,34 @@ object LightspeedBotEngine {
         return pkg to windowId
     }
 
-    fun getActiveScopeDisplayLabel(context: Context): String {
-        val (pkg, win) = resolveActiveScope(context)
-        if (pkg == "global") return "Global Workspace"
+    fun getScopeDisplayLabel(
+        context: Context,
+        pkg: String,
+        win: String,
+        scopeType: String = LightspeedBotContract.DEFAULT_MACRO_SCOPE
+    ): String {
+        if (scopeType == LightspeedBotContract.SCOPE_GLOBAL || pkg == "global") return "Global Workspace"
         val appLabel = try {
             val pm = context.packageManager
             pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
         } catch (_: Exception) {
             pkg.substringAfterLast('.')
         }
-        return if (win.isNotBlank() && win != "Main" && !win.equals(appLabel, ignoreCase = true)) {
+        return if (scopeType == LightspeedBotContract.SCOPE_THIS_WINDOW &&
+            win.isNotBlank() && win != "Main" && !win.equals(appLabel, ignoreCase = true)
+        ) {
             "$appLabel • $win"
         } else {
             appLabel
         }
+    }
+
+    fun getActiveScopeDisplayLabel(
+        context: Context,
+        scopeType: String = LightspeedBotContract.DEFAULT_MACRO_SCOPE
+    ): String {
+        val (pkg, win) = resolveActiveScope(context)
+        return getScopeDisplayLabel(context, pkg, win, scopeType)
     }
 
     private fun parseStepsJson(prefs: android.content.SharedPreferences, key: String): MutableList<BotStep> {
@@ -147,91 +208,132 @@ object LightspeedBotEngine {
     }
 
     /**
+     * Resolves the effective scope for [botId], defaulting new/unset/cleared macros to Per-App
+     * while preserving any existing user-saved Per-Window or Global macros.
+     */
+    fun resolveEffectiveScope(
+        context: Context,
+        botId: Int,
+        scopeOverride: Pair<String, String>? = null
+    ): String {
+        val prefs = context.defaultPrefs()
+        val (pkg, win) = scopeOverride ?: resolveActiveScope(context)
+        if (pkg == "global") {
+            return if (parseStepsJson(prefs, globalMacroKey(botId)).isNotEmpty() ||
+                prefs.getString(globalScopeKey(botId), null) == LightspeedBotContract.SCOPE_GLOBAL
+            ) LightspeedBotContract.SCOPE_GLOBAL else LightspeedBotContract.DEFAULT_MACRO_SCOPE
+        }
+        if (parseStepsJson(prefs, winMacroKey(botId, pkg, win)).isNotEmpty()) {
+            return LightspeedBotContract.SCOPE_THIS_WINDOW
+        }
+        if (parseStepsJson(prefs, appMacroKey(botId, pkg)).isNotEmpty()) {
+            return LightspeedBotContract.SCOPE_THIS_APP
+        }
+        if (parseStepsJson(prefs, globalMacroKey(botId)).isNotEmpty() &&
+            prefs.getString(globalScopeKey(botId), null) == LightspeedBotContract.SCOPE_GLOBAL
+        ) {
+            return LightspeedBotContract.SCOPE_GLOBAL
+        }
+        val hasLegacyEmptyWin = prefs.contains(winMacroKey(botId, pkg, win))
+        val savedWinScope = prefs.getString(winScopeKey(botId, pkg, win), null)
+        if (!hasLegacyEmptyWin && savedWinScope == LightspeedBotContract.SCOPE_THIS_WINDOW) {
+            return LightspeedBotContract.SCOPE_THIS_WINDOW
+        }
+        if (savedWinScope == LightspeedBotContract.SCOPE_GLOBAL ||
+            prefs.getString(globalScopeKey(botId), null) == LightspeedBotContract.SCOPE_GLOBAL
+        ) {
+            return LightspeedBotContract.SCOPE_GLOBAL
+        }
+        return LightspeedBotContract.DEFAULT_MACRO_SCOPE
+    }
+
+    private fun macroAndScopeKeys(botId: Int, pkg: String, win: String, scopeType: String): Pair<String, String> =
+        when (scopeType) {
+            LightspeedBotContract.SCOPE_THIS_WINDOW -> winMacroKey(botId, pkg, win) to winScopeKey(botId, pkg, win)
+            LightspeedBotContract.SCOPE_GLOBAL -> globalMacroKey(botId) to globalScopeKey(botId)
+            else -> appMacroKey(botId, pkg) to appScopeKey(botId, pkg)
+        }
+
+    /**
      * Resolves macro steps for [botId] in a designated scope for editor loading.
      */
     fun getMacroSteps(
         context: Context,
         botId: Int,
         scopeOverride: Pair<String, String>? = null,
-        scopeType: String = LightspeedBotContract.SCOPE_THIS_WINDOW
+        scopeType: String = LightspeedBotContract.DEFAULT_MACRO_SCOPE
     ): MutableList<BotStep> {
         val prefs = context.defaultPrefs()
         val (pkg, win) = scopeOverride ?: resolveActiveScope(context)
-        return when (scopeType) {
-            LightspeedBotContract.SCOPE_THIS_APP -> {
-                val appKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_app_${pkg}"
-                parseStepsJson(prefs, appKey)
-            }
-            LightspeedBotContract.SCOPE_GLOBAL -> {
-                val globalKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}$botId"
-                parseStepsJson(prefs, globalKey)
-            }
-            else -> {
-                val winKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_win_${pkg}_${win}"
-                parseStepsJson(prefs, winKey)
-            }
-        }
+        return parseStepsJson(prefs, macroAndScopeKeys(botId, pkg, win, scopeType).first)
     }
 
     /**
-     * Strict Per-Window Playback Resolution (Zero Fallback Leakage Across Windows or Apps).
-     * 1. Looks up (currentPkg, currentWindowId) strictly.
-     * 2. Only checks App-Wide or Global if user explicitly configured that macro's scope chip.
-     * 3. Verifies step windowId / packageName under This Window scope.
-     * 4. Aborts cleanly if no match.
+     * Resolves active playback steps and scope for [botId]:
+     * 1. Explicit Per-Window macro for (currentPkg, currentWin) if present.
+     * 2. Per-App macro for currentPkg (default scope).
+     * 3. Explicit Global macro if configured.
      */
-    fun getPlaybackMacroSteps(context: Context, botId: Int): List<BotStep> {
+    fun getPlaybackMacro(context: Context, botId: Int): ResolvedMacro? {
         val prefs = context.defaultPrefs()
         val (currentPkg, currentWin) = resolveActiveScope(context)
-        if (currentPkg == "global") return emptyList()
-
-        // 1. Strict Window-scoped lookup
-        val winKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_win_${currentPkg}_${currentWin}"
-        val winSteps = parseStepsJson(prefs, winKey)
-        if (winSteps.isNotEmpty()) {
-            val scopeMode = prefs.getString(
-                "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_win_${currentPkg}_${currentWin}",
-                LightspeedBotContract.SCOPE_THIS_WINDOW
-            )
-            if (scopeMode == LightspeedBotContract.SCOPE_THIS_WINDOW) {
-                // Verify initial step package matches currentPkg
+        if (currentPkg != "global") {
+            val winSteps = parseStepsJson(prefs, winMacroKey(botId, currentPkg, currentWin))
+            if (winSteps.isNotEmpty()) {
                 val firstStep = winSteps.firstOrNull()
-                if (firstStep?.packageName != null && firstStep.packageName != currentPkg) {
-                    Log.w(TAG, "Window macro for $botId targets package ${firstStep.packageName} but active app is $currentPkg")
-                    return emptyList()
+                if (isStepPackageCompatible(firstStep?.packageName, currentPkg, LightspeedBotContract.SCOPE_THIS_WINDOW)) {
+                    Log.i(TAG, "Resolved Bot $botId: ${winSteps.size} steps (scope=window, pkg=$currentPkg, win=$currentWin)")
+                    return ResolvedMacro(winSteps, LightspeedBotContract.SCOPE_THIS_WINDOW)
                 }
+                Log.w(TAG, "Window macro for $botId targets package ${firstStep?.packageName} but active app is $currentPkg")
             }
-            return winSteps
-        }
-
-        // 2. Strict App-Wide lookup ONLY if user explicitly configured App scope
-        val appScopeConfigured = prefs.getString(
-            "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_app_${currentPkg}",
-            null
-        )
-        if (appScopeConfigured == LightspeedBotContract.SCOPE_THIS_APP) {
-            val appKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_app_${currentPkg}"
-            val appSteps = parseStepsJson(prefs, appKey)
+            val appSteps = parseStepsJson(prefs, appMacroKey(botId, currentPkg))
             if (appSteps.isNotEmpty()) {
-                val hasMismatch = appSteps.any { step ->
-                    step.packageName != null && step.packageName != currentPkg
+                val hasMismatch = appSteps.any { !isStepPackageCompatible(it.packageName, currentPkg, LightspeedBotContract.SCOPE_THIS_APP) }
+                if (!hasMismatch) {
+                    Log.i(TAG, "Resolved Bot $botId: ${appSteps.size} steps (scope=app, pkg=$currentPkg)")
+                    return ResolvedMacro(appSteps, LightspeedBotContract.SCOPE_THIS_APP)
                 }
-                if (!hasMismatch) return appSteps
+                Log.w(TAG, "App macro for $botId has package mismatch for $currentPkg")
             }
         }
-
-        // 3. Strict Global lookup ONLY if user explicitly configured Global scope
-        val globalScopeConfigured = prefs.getString(
-            "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_global",
-            null
-        )
-        if (globalScopeConfigured == LightspeedBotContract.SCOPE_GLOBAL) {
-            val globalKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}$botId"
-            val globalSteps = parseStepsJson(prefs, globalKey)
-            if (globalSteps.isNotEmpty()) return globalSteps
+        if (prefs.getString(globalScopeKey(botId), null) == LightspeedBotContract.SCOPE_GLOBAL) {
+            val globalSteps = parseStepsJson(prefs, globalMacroKey(botId))
+            if (globalSteps.isNotEmpty()) {
+                Log.i(TAG, "Resolved Bot $botId: ${globalSteps.size} steps (scope=global)")
+                return ResolvedMacro(globalSteps, LightspeedBotContract.SCOPE_GLOBAL)
+            }
         }
+        return null
+    }
 
-        return emptyList()
+    fun getPlaybackMacroSteps(context: Context, botId: Int): List<BotStep> =
+        getPlaybackMacro(context, botId)?.steps ?: emptyList()
+
+    private fun normalizeStepsForScope(steps: List<BotStep>, pkg: String, win: String, scopeType: String): List<BotStep> {
+        val effectivePkg = pkg.takeIf { it.isNotBlank() && it != "global" }
+        return when (scopeType) {
+            LightspeedBotContract.SCOPE_GLOBAL -> steps.map { it.copy(packageName = null) }
+            LightspeedBotContract.SCOPE_THIS_WINDOW -> steps.map { it.copy(packageName = effectivePkg, windowId = win) }
+            else -> steps.map { it.copy(packageName = effectivePkg) }
+        }
+    }
+
+    private fun writeMacroToEditor(
+        editor: android.content.SharedPreferences.Editor,
+        botId: Int,
+        pkg: String,
+        win: String,
+        scopeType: String,
+        json: String
+    ) {
+        val (macroKey, scopeKey) = macroAndScopeKeys(botId, pkg, win, scopeType)
+        val scopeValue = when (scopeType) {
+            LightspeedBotContract.SCOPE_THIS_WINDOW -> LightspeedBotContract.SCOPE_THIS_WINDOW
+            LightspeedBotContract.SCOPE_GLOBAL -> LightspeedBotContract.SCOPE_GLOBAL
+            else -> LightspeedBotContract.SCOPE_THIS_APP
+        }
+        editor.putString(macroKey, json).putString(scopeKey, scopeValue)
     }
 
     fun saveMacroSteps(
@@ -239,70 +341,110 @@ object LightspeedBotEngine {
         botId: Int,
         steps: List<BotStep>,
         scopeOverride: Pair<String, String>? = null,
-        scopeType: String = LightspeedBotContract.SCOPE_THIS_WINDOW
+        scopeType: String = LightspeedBotContract.DEFAULT_MACRO_SCOPE
     ) {
-        val arr = JSONArray()
-        steps.take(40).forEach { arr.put(it.toJson()) }
-        val json = arr.toString()
-        val (pkg, win) = scopeOverride ?: resolveActiveScope(context)
-        val editor = context.defaultPrefs().edit()
-        when (scopeType) {
-            LightspeedBotContract.SCOPE_THIS_APP -> {
-                val appKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_app_${pkg}"
-                val scopeModeKey = "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_app_${pkg}"
-                editor.putString(appKey, json)
-                editor.putString(scopeModeKey, LightspeedBotContract.SCOPE_THIS_APP)
-            }
-            LightspeedBotContract.SCOPE_GLOBAL -> {
-                val globalKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}$botId"
-                val scopeModeKey = "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_global"
-                editor.putString(globalKey, json)
-                editor.putString(scopeModeKey, LightspeedBotContract.SCOPE_GLOBAL)
-            }
-            else -> {
-                // Strict This Window scope: save only to winKey without polluting global or app keys
-                val winKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_win_${pkg}_${win}"
-                val scopeModeKey = "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_win_${pkg}_${win}"
-                editor.putString(winKey, json)
-                editor.putString(scopeModeKey, LightspeedBotContract.SCOPE_THIS_WINDOW)
-            }
+        if (steps.isEmpty()) {
+            clearMacro(context, botId, scopeOverride, scopeType)
+            return
         }
-        editor.apply()
+        val (pkg, win) = scopeOverride ?: resolveActiveScope(context)
+        val normalized = normalizeStepsForScope(steps.take(40), pkg, win, scopeType)
+        val arr = JSONArray()
+        normalized.forEach { arr.put(it.toJson()) }
+        val editor = context.defaultPrefs().edit()
+        writeMacroToEditor(editor, botId, pkg, win, scopeType, arr.toString())
+        if (!editor.commit()) editor.apply()
+        LightspeedBotTrackpadOverlay.onMacroStateChanged(botId)
     }
 
-    fun startRecording(context: Context, botId: Int) {
+    fun moveMacroScope(
+        context: Context,
+        botId: Int,
+        steps: List<BotStep>,
+        scopeOverride: Pair<String, String>?,
+        oldScope: String,
+        newScope: String
+    ) {
+        if (oldScope == newScope) return
+        val (pkg, win) = scopeOverride ?: resolveActiveScope(context)
+        val (oldMacroKey, oldScopeKey) = macroAndScopeKeys(botId, pkg, win, oldScope)
+        val editor = context.defaultPrefs().edit().remove(oldMacroKey).remove(oldScopeKey)
+        if (steps.isNotEmpty()) {
+            val normalized = normalizeStepsForScope(steps.take(40), pkg, win, newScope)
+            val arr = JSONArray()
+            normalized.forEach { arr.put(it.toJson()) }
+            writeMacroToEditor(editor, botId, pkg, win, newScope, arr.toString())
+        }
+        if (!editor.commit()) editor.apply()
+        LightspeedBotTrackpadOverlay.onMacroStateChanged(botId)
+    }
+
+    fun clearMacro(
+        context: Context,
+        botId: Int,
+        scopeOverride: Pair<String, String>? = null,
+        scopeType: String = LightspeedBotContract.DEFAULT_MACRO_SCOPE
+    ) {
+        if (isReplaying && (activePlayingBotId == botId || activePlayingBotId == -1)) stopReplay()
+        if (isLooping && (activeLoopingBotId == botId || activeLoopingBotId == -1)) stopContinuousLoop()
+        if (isRecording && activeRecordingBotId == botId) stopRecording(context, savedSteps = null)
+
+        val prevPkg = lastResolvedPkg
+        val prevWin = lastResolvedWindow
+        val (livePkg, liveWin) = resolveActiveScope(context)
+        val target = scopeOverride ?: (livePkg to liveWin)
+        val editor = context.defaultPrefs().edit()
+        val scopeCandidates = linkedSetOf(target, livePkg to liveWin, prevPkg to prevWin)
+        val hasTargetPkg = target.first.isNotBlank() && target.first != "global"
+        for ((p, w) in scopeCandidates) {
+            if (p.isBlank() || p == "global") continue
+            if (hasTargetPkg && p != target.first) continue
+            if (w.isNotBlank()) {
+                editor.remove(winMacroKey(botId, p, w)).remove(winScopeKey(botId, p, w))
+            }
+            editor.remove(appMacroKey(botId, p)).remove(appScopeKey(botId, p))
+        }
+        editor.remove(globalMacroKey(botId)).remove(globalScopeKey(botId))
+        if (!editor.commit()) editor.apply()
+        LightspeedBotTrackpadOverlay.onMacroCleared(botId)
+        Log.i(TAG, "Cleared macro for Bot $botId (pkg=${target.first}, win=${target.second}, scope=$scopeType)")
+    }
+
+    fun startRecording(context: Context, botId: Int, scopeOverride: Pair<String, String>? = null, scopeTypeOverride: String? = null) {
         stopReplay()
         stopContinuousLoop()
         if (isRecording) stopRecording(context)
-        val (pkg, win) = resolveActiveScope(context)
+        val (livePkg, liveWin) = resolveActiveScope(context)
+        val (pkg, win) = scopeOverride?.takeIf { it.first.isNotBlank() && it.first != "global" } ?: (livePkg to liveWin)
         recordingScopePkg = pkg
         recordingScopeWindow = win
-        isRecording = true
         activeRecordingBotId = botId.coerceIn(1, LightspeedBotContract.MAX_BOT_MACROS)
-        Log.i(TAG, "Starting Bot recording for Bot $activeRecordingBotId in scope $pkg / $win")
+        val resolvedScope = scopeTypeOverride ?: resolveEffectiveScope(context, activeRecordingBotId, pkg to win)
+        recordingScopeType = if (pkg == "global") LightspeedBotContract.SCOPE_GLOBAL else resolvedScope
+        isRecording = true
+        Log.i(TAG, "Starting Bot recording for Bot $activeRecordingBotId in scope $pkg / $win ($recordingScopeType)")
         LightspeedBotRecorderOverlay.show(context, activeRecordingBotId)
+        if (!LightspeedBotRecorderOverlay.isShowing) {
+            LightspeedBotTrackpadOverlay.setPendingRecordingLaunch(false)
+        }
     }
 
     fun stopRecording(context: Context, savedSteps: List<BotStep>? = null) {
         if (!isRecording) return
         isRecording = false
-        if (savedSteps != null) {
-            saveMacroSteps(
-                context = context,
-                botId = activeRecordingBotId,
-                steps = savedSteps,
-                scopeOverride = recordingScopePkg to recordingScopeWindow,
-                scopeType = LightspeedBotContract.SCOPE_THIS_WINDOW
-            )
-            Log.i(TAG, "Saved ${savedSteps.size} steps for Bot $activeRecordingBotId in scope $recordingScopePkg / $recordingScopeWindow")
+        if (!savedSteps.isNullOrEmpty()) {
+            saveMacroSteps(context, activeRecordingBotId, savedSteps, recordingScopePkg to recordingScopeWindow, recordingScopeType)
+            Log.i(TAG, "Saved ${savedSteps.size} steps for Bot $activeRecordingBotId in scope $recordingScopePkg / $recordingScopeWindow ($recordingScopeType)")
         }
         LightspeedBotRecorderOverlay.hide()
     }
 
     fun stopReplay() {
         isReplaying = false
+        activePlayingBotId = -1
         playJob?.cancel()
         playJob = null
+        LightspeedBotTrackpadOverlay.endPlaybackPassThrough()
     }
 
     /**
@@ -313,30 +455,16 @@ object LightspeedBotEngine {
      */
     fun cancelAllAutomationAndRecording(context: Context): Boolean {
         var didCancel = false
-        if (isLooping) {
-            stopContinuousLoop()
-            didCancel = true
-        }
-        if (isReplaying) {
-            stopReplay()
-            didCancel = true
-        }
-        if (isRecording || LightspeedBotRecorderOverlay.isShowing) {
-            stopRecording(context, savedSteps = null)
-            didCancel = true
-        }
-        try {
-            LightspeedVolumeKeyEngine.stopAutoRepeat()
-        } catch (_: Throwable) {}
+        if (isLooping) { stopContinuousLoop(); didCancel = true }
+        if (isReplaying) { stopReplay(); didCancel = true }
+        if (isRecording || LightspeedBotRecorderOverlay.isShowing) { stopRecording(context, savedSteps = null); didCancel = true }
+        try { LightspeedVolumeKeyEngine.stopAutoRepeat() } catch (_: Throwable) {}
         if (didCancel) {
             try {
                 LightspeedHapticEngine.triggerConfirmation(context)
-                val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
                 mainHandler.post {
                     android.widget.Toast.makeText(
-                        context.applicationContext,
-                        "⚡ Macro / Recording cancelled by hardware key",
-                        android.widget.Toast.LENGTH_SHORT
+                        context.applicationContext, "⚡ Macro / Recording cancelled by hardware key", android.widget.Toast.LENGTH_SHORT
                     ).show()
                 }
             } catch (_: Throwable) {}
@@ -344,21 +472,19 @@ object LightspeedBotEngine {
         return didCancel
     }
 
-    fun playBot(context: Context, botId: Int, stepsOverride: List<BotStep>? = null, onComplete: () -> Unit = {}) {
-        if (isReplaying) {
-            stopReplay()
-            onComplete()
-            return
-        }
-        val steps = stepsOverride ?: getPlaybackMacroSteps(context, botId)
-        if (steps.isEmpty()) {
-            Log.w(TAG, "Bot $botId has no macro for current window")
+    fun playBot(
+        context: Context, botId: Int, stepsOverride: List<BotStep>? = null, scopeTypeOverride: String? = null,
+        expectedScopeOverride: Pair<String, String>? = null, onComplete: () -> Unit = {}
+    ) {
+        if (isReplaying) { stopReplay(); onComplete(); return }
+        val resolved = if (stepsOverride != null) {
+            ResolvedMacro(stepsOverride, scopeTypeOverride ?: resolveEffectiveScope(context, botId, expectedScopeOverride))
+        } else getPlaybackMacro(context, botId)
+        if (resolved == null || resolved.steps.isEmpty()) {
+            Log.w(TAG, "Bot $botId has no macro for active app/window")
             mainHandler.post {
-                android.widget.Toast.makeText(
-                    context.applicationContext,
-                    "No macro for this window",
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+                val msg = lsString(R.string.bot_no_macro_for_app).ifBlank { "No macro recorded for this app" }
+                android.widget.Toast.makeText(context.applicationContext, msg, android.widget.Toast.LENGTH_SHORT).show()
             }
             onComplete()
             return
@@ -367,26 +493,34 @@ object LightspeedBotEngine {
         val repeatCount = if (repeatPref <= 0) 1 else repeatPref
         playJob = scope.launch {
             isReplaying = true
+            activePlayingBotId = botId
             try {
                 for (rep in 0 until repeatCount) {
                     if (!isActive || !isReplaying) break
-                    executeStepsSequence(context, steps, botId)
-                    if (rep < repeatCount - 1) {
-                        delay(200L)
-                    }
+                    executeStepsSequence(context, resolved.steps, botId, resolved.scopeType, expectedScopeOverride)
+                    if (rep < repeatCount - 1) delay(200L)
                 }
             } finally {
                 isReplaying = false
+                activePlayingBotId = -1
                 withContext(Dispatchers.Main) { onComplete() }
             }
         }
     }
 
-    fun startContinuousLoop(context: Context, botId: Int, stepsOverride: List<BotStep>? = null, onIteration: (Int) -> Unit = {}) {
+    fun startContinuousLoop(
+        context: Context, botId: Int, stepsOverride: List<BotStep>? = null, scopeTypeOverride: String? = null,
+        expectedScopeOverride: Pair<String, String>? = null, onIteration: (Int) -> Unit = {}
+    ) {
         stopContinuousLoop()
         isLooping = true
+        activeLoopingBotId = botId
         loopIterationCount = 0
-        val steps = stepsOverride ?: getPlaybackMacroSteps(context, botId)
+        val resolved = if (stepsOverride != null) {
+            ResolvedMacro(stepsOverride, scopeTypeOverride ?: resolveEffectiveScope(context, botId, expectedScopeOverride))
+        } else getPlaybackMacro(context, botId)
+        val steps = resolved?.steps ?: emptyList()
+        val scopeType = resolved?.scopeType ?: LightspeedBotContract.DEFAULT_MACRO_SCOPE
         val cadence = context.defaultPrefs().getLong(LightspeedBotContract.KEY_BOT_ACTIVE_LOOP_CADENCE_MS, 400L).coerceAtLeast(100L)
 
         loopJob = scope.launch {
@@ -394,12 +528,11 @@ object LightspeedBotEngine {
                 loopIterationCount++
                 withContext(Dispatchers.Main) { onIteration(loopIterationCount) }
                 if (steps.isNotEmpty()) {
-                    executeStepsSequence(context, steps, botId)
+                    executeStepsSequence(context, steps, botId, scopeType, expectedScopeOverride)
                 } else {
-                    // Rapid auto-click at active trackpad cursor position (or screen center fallback)
-                    val metrics = context.resources.displayMetrics
-                    val cx = LightspeedBotTrackpadOverlay.cursorX.takeIf { it > 0f } ?: (metrics.widthPixels / 2f)
-                    val cy = LightspeedBotTrackpadOverlay.cursorY.takeIf { it > 0f } ?: (metrics.heightPixels / 2f)
+                    val (screenW, screenH) = LightspeedBotGestureDispatcher.resolveDisplayBounds(context)
+                    val cx = LightspeedBotTrackpadOverlay.cursorX.takeIf { it > 0f } ?: (screenW / 2f)
+                    val cy = LightspeedBotTrackpadOverlay.cursorY.takeIf { it > 0f } ?: (screenH / 2f)
                     injectTapOrDispatch(context, cx, cy)
                 }
                 delay(cadence)
@@ -409,53 +542,69 @@ object LightspeedBotEngine {
 
     fun stopContinuousLoop() {
         isLooping = false
+        activeLoopingBotId = -1
         loopJob?.cancel()
         loopJob = null
         loopIterationCount = 0
+        LightspeedBotTrackpadOverlay.endPlaybackPassThrough()
     }
 
-    private suspend fun executeStepsSequence(context: Context, steps: List<BotStep>, botId: Int = 1) {
-        val metrics = context.resources.displayMetrics
-        val screenW = metrics.widthPixels
-        val screenH = metrics.heightPixels
-
+    private suspend fun executeStepsSequence(
+        context: Context, steps: List<BotStep>, botId: Int = 1,
+        scopeType: String = LightspeedBotContract.DEFAULT_MACRO_SCOPE, expectedScopeOverride: Pair<String, String>? = null
+    ) {
+        val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
+        if (service == null) {
+            Log.e(TAG, "Macro playback aborted: LightspeedAccessibilityService is unavailable")
+            return
+        }
+        val (screenW, screenH) = LightspeedBotGestureDispatcher.resolveDisplayBounds(context)
         val prefs = context.defaultPrefs()
         val useRecordedDelay = prefs.getBoolean("${LightspeedBotContract.KEY_BOT_USE_RECORDED_DELAY_PREFIX}$botId", false)
         val customStepDelay = prefs.getInt("${LightspeedBotContract.KEY_BOT_STEP_DELAY_MS_PREFIX}$botId", 60).coerceIn(0, 2000).toLong()
 
-        // Scope gate verification ONCE before Step 1 begins
-        val (initialPkg, initialWin) = resolveActiveScope(context)
+        val (liveInitialPkg, liveInitialWin) = resolveActiveScope(context)
+        val initialPkg = if (liveInitialPkg == "global" && expectedScopeOverride != null) expectedScopeOverride.first else liveInitialPkg
+        val initialWin = if (liveInitialPkg == "global" && expectedScopeOverride != null) expectedScopeOverride.second else liveInitialWin
         val firstStep = steps.firstOrNull()
-        if (firstStep != null) {
-            val pkgMismatch = firstStep.packageName != null && firstStep.packageName != initialPkg && initialPkg != "global"
-            val winMismatch = firstStep.windowId != null && firstStep.windowId != initialWin && initialWin != "Main"
+        if (firstStep != null && scopeType != LightspeedBotContract.SCOPE_GLOBAL) {
+            val pkgMismatch = !isStepPackageCompatible(firstStep.packageName, initialPkg, scopeType)
+            val winMismatch = scopeType == LightspeedBotContract.SCOPE_THIS_WINDOW &&
+                firstStep.windowId != null && firstStep.windowId != initialWin && initialWin != "Main"
             if (pkgMismatch || winMismatch) {
-                Log.w(TAG, "Macro aborted: initial scope mismatch before Step 1 (live: $initialPkg/$initialWin vs step 1: ${firstStep.packageName}/${firstStep.windowId})")
+                Log.w(TAG, "Macro aborted: scope mismatch ($scopeType) before Step 1 (live: $initialPkg/$initialWin vs step 1: ${firstStep.packageName}/${firstStep.windowId})")
                 return
             }
         }
 
-        for ((stepIndex, step) in steps.withIndex()) {
-            // Step 0 always fires immediately — the delay was the user's pre-recording idle time
-            val effectiveDelay = if (stepIndex == 0) {
-                0L
-            } else if (useRecordedDelay) {
-                step.delayMs.coerceIn(0L, 5000L)
-            } else {
-                customStepDelay
-            }
-            if (effectiveDelay > 0L) {
-                delay(effectiveDelay)
-            }
+        withContext(Dispatchers.Main) {
+            LightspeedBotTrackpadOverlay.beginPlaybackPassThrough()
+        }
+        try {
+            // Allow SurfaceFlinger/InputFlinger to commit retracted + FLAG_NOT_TOUCHABLE before Step 1
+            delay(70L)
 
-            if (step.useElementTarget) {
-                // Element-Bound: Match accessibility node on live underlying window and perform action
-                var nodeClicked = false
-                val service = LightspeedAccessibilityService.instance
-                val root = service?.let { LightspeedBotScreenScanner.resolveUnderlyingAppWindow(it)?.root ?: it.rootInActiveWindow }
+            for ((stepIndex, step) in steps.withIndex()) {
+                if (!currentCoroutineContext().isActive || (!isReplaying && !isLooping)) break
 
-                if (root != null) {
-                    val matchedNode = LightspeedBotScreenScanner.findSmartMatchingNode(root, step, screenW, screenH)
+                // Step 0 fires immediately; delay before step 0 was pre-recording idle time
+                val effectiveDelay = when {
+                    stepIndex == 0 -> 0L
+                    useRecordedDelay -> step.delayMs.coerceIn(0L, 5000L)
+                    else -> customStepDelay.coerceAtLeast(15L)
+                }
+                if (effectiveDelay > 0L) delay(effectiveDelay)
+                if (!currentCoroutineContext().isActive || (!isReplaying && !isLooping)) break
+
+                if (step.stepType == BotStep.TYPE_DELAY) {
+                    delay(step.durationMs.coerceIn(0L, 10_000L))
+                    continue
+                }
+
+                if (step.useElementTarget) {
+                    var nodeClicked = false
+                    val root = LightspeedBotScreenScanner.resolveUnderlyingAppWindow(service)?.root ?: service.rootInActiveWindow
+                    val matchedNode = root?.let { LightspeedBotScreenScanner.findSmartMatchingNode(it, step, screenW, screenH) }
                     if (matchedNode != null) {
                         if (matchedNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
                             nodeClicked = true
@@ -463,114 +612,103 @@ object LightspeedBotEngine {
                             val rect = Rect()
                             matchedNode.getBoundsInScreen(rect)
                             if (!rect.isEmpty) {
-                                val clickX = rect.centerX().toFloat()
-                                val clickY = rect.centerY().toFloat()
-                                injectTapOrDispatch(context, clickX, clickY)
-                                nodeClicked = true
+                                nodeClicked = LightspeedBotGestureDispatcher.dispatchTapAwait(
+                                    service, rect.centerX().toFloat(), rect.centerY().toFloat(),
+                                    step.durationMs, screenW, screenH, "Bot$botId#Step${stepIndex + 1}[elem-tap]"
+                                )
                             }
                         }
                     }
-                }
-
-                if (!nodeClicked) {
-                    // NEVER fall back to raw coordinates if the element is not found on screen!
-                    Log.w(TAG, "Step ${stepIndex + 1}: Element-bound target not found (${step.viewIdResourceName ?: step.contentDescription ?: step.text}). Aborting step cleanly.")
-                }
-            } else {
-                // Coordinate-Bound step: verify package still matches app, but do NOT abort Step 2+ on windowId changes
-                val (livePkg, _) = resolveActiveScope(context)
-                val matchesPkg = step.packageName.isNullOrBlank() || step.packageName == livePkg || livePkg == "global"
-                if (!matchesPkg) {
-                    Log.w(TAG, "Step ${stepIndex + 1}: Coordinate-bound step aborted due to app package mismatch (live: $livePkg vs step: ${step.packageName})")
+                    if (!nodeClicked) {
+                        // NEVER fall back to raw coordinates if the element is not found on screen!
+                        Log.w(TAG, "Step ${stepIndex + 1}: Element-bound target not found (${step.viewIdResourceName ?: step.contentDescription ?: step.text}). Aborting step cleanly.")
+                    }
                 } else {
-                    val pxX = step.xRatio * screenW
-                    val pxY = step.yRatio * screenH
-                    if (step.stepType == BotStep.TYPE_SWIPE) {
-                        val endX = step.endXRatio * screenW
-                        val endY = step.endYRatio * screenH
-                        injectSwipeOrDispatch(context, pxX, pxY, endX, endY, step.durationMs)
+                    val (livePkg, _) = resolveActiveScope(context)
+                    if (!isStepPackageCompatible(step.packageName, livePkg, scopeType)) {
+                        Log.w(TAG, "Step ${stepIndex + 1}: Coordinate-bound step aborted due to app package mismatch (live: $livePkg vs step: ${step.packageName})")
                     } else {
-                        injectTapOrDispatch(context, pxX, pxY)
+                        val pxX = step.xRatio * screenW
+                        val pxY = step.yRatio * screenH
+                        if (step.stepType == BotStep.TYPE_SWIPE) {
+                            val endX = step.endXRatio * screenW
+                            val endY = step.endYRatio * screenH
+                            Log.i(TAG, "Bot$botId Step ${stepIndex + 1}/${steps.size}: SWIPE ($pxX,$pxY)->($endX,$endY) dur=${step.durationMs}ms")
+                            LightspeedBotGestureDispatcher.dispatchSwipeAwait(
+                                service, pxX, pxY, endX, endY, step.durationMs, screenW, screenH, "Bot$botId#Step${stepIndex + 1}[swipe]"
+                            )
+                        } else {
+                            Log.i(TAG, "Bot$botId Step ${stepIndex + 1}/${steps.size}: TAP ($pxX,$pxY) dur=${step.durationMs}ms")
+                            LightspeedBotGestureDispatcher.dispatchTapAwait(
+                                service, pxX, pxY, step.durationMs, screenW, screenH, "Bot$botId#Step${stepIndex + 1}[tap]"
+                            )
+                        }
                     }
                 }
             }
+        } finally {
+            withContext(NonCancellable + Dispatchers.Main) { LightspeedBotTrackpadOverlay.endPlaybackPassThrough() }
         }
     }
 
-    /**
-     * Traverses accessibility tree to find node matching screen conditions.
-     */
+    /** Traverses accessibility tree to find node matching screen conditions. */
     fun findMatchingNode(root: AccessibilityNodeInfo, step: BotStep): AccessibilityNodeInfo? {
-        // Match by viewId
-        if (!step.viewIdResourceName.isNullOrBlank()) {
-            val nodes = root.findAccessibilityNodeInfosByViewId(step.viewIdResourceName)
-            if (!nodes.isNullOrEmpty()) return nodes[0]
+        step.viewIdResourceName?.takeIf { it.isNotBlank() }?.let { id ->
+            root.findAccessibilityNodeInfosByViewId(id)?.firstOrNull()?.let { return it }
         }
-        // Match by Text
-        if (!step.text.isNullOrBlank()) {
-            val nodes = root.findAccessibilityNodeInfosByText(step.text)
-            if (!nodes.isNullOrEmpty()) return nodes[0]
+        step.text?.takeIf { it.isNotBlank() }?.let { txt ->
+            root.findAccessibilityNodeInfosByText(txt)?.firstOrNull()?.let { return it }
         }
-        // Match by Content Description
-        if (!step.contentDescription.isNullOrBlank()) {
-            val nodes = root.findAccessibilityNodeInfosByText(step.contentDescription)
-            if (!nodes.isNullOrEmpty()) return nodes[0]
+        step.contentDescription?.takeIf { it.isNotBlank() }?.let { desc ->
+            root.findAccessibilityNodeInfosByText(desc)?.firstOrNull()?.let { return it }
         }
         return null
     }
 
-    /**
-     * Finds the deepest/smallest AccessibilityNodeInfo containing point (x, y) for recording metadata,
-     * prioritizing clickable leaf widgets over layout containers.
-     */
-    fun findSmallestNodeAt(root: AccessibilityNodeInfo?, x: Float, y: Float): AccessibilityNodeInfo? {
-        return LightspeedBotScreenScanner.findDeepestNodeAt(root, x, y)
-    }
+    /** Finds the deepest/smallest AccessibilityNodeInfo containing point (x, y) for recording metadata. */
+    fun findSmallestNodeAt(root: AccessibilityNodeInfo?, x: Float, y: Float): AccessibilityNodeInfo? =
+        LightspeedBotScreenScanner.findDeepestNodeAt(root, x, y)
 
-    fun injectTapOrDispatch(context: Context, x: Float, y: Float) {
-        LightspeedBotTrackpadOverlay.performWithPassThrough(x, y, holdMs = 85L) {
-            if (!ShizukuExecHelper.injectTapEvent(x, y)) {
-                val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
-                if (service != null) dispatchGestureTap(service, x, y)
-            }
+    private fun dispatchTapOnce(context: Context, x: Float, y: Float) {
+        if (!ShizukuExecHelper.injectTapEvent(x, y)) {
+            val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance ?: return
+            val (screenW, screenH) = LightspeedBotGestureDispatcher.resolveDisplayBounds(context)
+            LightspeedBotGestureDispatcher.dispatchTapAsync(service, x, y, 45L, screenW, screenH, "CursorTap")
         }
     }
 
+    fun injectTapOrDispatch(context: Context, x: Float, y: Float) {
+        LightspeedBotTrackpadOverlay.performWithPassThrough(x, y, holdMs = 95L) { dispatchTapOnce(context, x, y) }
+    }
+
     fun injectDoubleTapOrDispatch(context: Context, x: Float, y: Float) {
-        LightspeedBotTrackpadOverlay.performWithPassThrough(x, y, holdMs = 210L) {
-            if (!ShizukuExecHelper.injectTapEvent(x, y)) {
-                val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
-                if (service != null) dispatchGestureTap(service, x, y)
-            }
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                if (!ShizukuExecHelper.injectTapEvent(x, y)) {
-                    val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
-                    if (service != null) dispatchGestureTap(service, x, y)
-                }
-            }, 110L)
+        LightspeedBotTrackpadOverlay.performWithPassThrough(x, y, holdMs = 220L) {
+            dispatchTapOnce(context, x, y)
+            mainHandler.postDelayed({ dispatchTapOnce(context, x, y) }, 110L)
         }
     }
 
     fun injectLongPressOrDispatch(context: Context, x: Float, y: Float, duration: Long = 600L) {
-        LightspeedBotTrackpadOverlay.performWithPassThrough(x, y, holdMs = duration + 80L) {
+        val safeDur = LightspeedBotGestureDispatcher.clampTapDuration(duration)
+        LightspeedBotTrackpadOverlay.performWithPassThrough(x, y, holdMs = safeDur + 90L) {
             val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
             if (service != null) {
-                val path = Path().apply { moveTo(x, y) }
-                val stroke = GestureDescription.StrokeDescription(path, 0, duration)
-                val gesture = GestureDescription.Builder().addStroke(stroke).build()
-                service.dispatchGesture(gesture, null, null)
+                val (screenW, screenH) = LightspeedBotGestureDispatcher.resolveDisplayBounds(context)
+                LightspeedBotGestureDispatcher.dispatchTapAsync(service, x, y, safeDur, screenW, screenH, "CursorLongPress")
             } else {
-                // Fallback tap if accessibility service unreachable
                 ShizukuExecHelper.injectTapEvent(x, y)
             }
         }
     }
 
     fun injectSwipeOrDispatch(context: Context, startX: Float, startY: Float, endX: Float, endY: Float, duration: Long) {
-        val clampedDuration = duration.coerceIn(50L, 1000L)
-        LightspeedBotTrackpadOverlay.performWithPassThrough(startX, startY, endX, endY, holdMs = clampedDuration + 80L) {
-            val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
-            dispatchGestureSwipe(service, startX, startY, endX, endY, clampedDuration)
+        val clampedDuration = LightspeedBotGestureDispatcher.clampSwipeDuration(duration)
+        LightspeedBotTrackpadOverlay.performWithPassThrough(startX, startY, endX, endY, holdMs = clampedDuration + 90L) {
+            val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance ?: return@performWithPassThrough
+            val (screenW, screenH) = LightspeedBotGestureDispatcher.resolveDisplayBounds(context)
+            LightspeedBotGestureDispatcher.dispatchSwipeAsync(
+                service, startX, startY, endX, endY, clampedDuration, screenW, screenH, "CursorSwipe"
+            )
         }
     }
 
@@ -583,70 +721,12 @@ object LightspeedBotEngine {
         dragDuration: Long = 400L,
         holdBeforeDragMs: Long = 450L
     ) {
-        val totalMs = holdBeforeDragMs + dragDuration
-        LightspeedBotTrackpadOverlay.performWithPassThrough(startX, startY, endX, endY, holdMs = totalMs + 80L) {
-            val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
-            if (service != null) {
-                dispatchGestureHoldAndDrag(service, startX, startY, endX, endY, dragDuration, holdBeforeDragMs)
-            } else {
-                dispatchGestureSwipe(service, startX, startY, endX, endY, dragDuration)
-            }
+        LightspeedBotTrackpadOverlay.performWithPassThrough(startX, startY, endX, endY, holdMs = holdBeforeDragMs + dragDuration + 90L) {
+            val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance ?: return@performWithPassThrough
+            val (screenW, screenH) = LightspeedBotGestureDispatcher.resolveDisplayBounds(context)
+            LightspeedBotGestureDispatcher.dispatchHoldAndDragAsync(
+                service, startX, startY, endX, endY, dragDuration, holdBeforeDragMs, screenW, screenH
+            )
         }
-    }
-
-    private fun dispatchGestureHoldAndDrag(
-        service: AccessibilityService,
-        startX: Float,
-        startY: Float,
-        endX: Float,
-        endY: Float,
-        dragDuration: Long,
-        holdBeforeDragMs: Long
-    ) {
-        val pathHold = Path().apply { moveTo(startX, startY) }
-        val pathDrag = Path().apply {
-            moveTo(startX, startY)
-            lineTo(endX, endY)
-        }
-        val clampedDragDuration = dragDuration.coerceIn(150L, 1000L)
-        val clampedHoldDuration = holdBeforeDragMs.coerceIn(300L, 800L)
-
-        val holdStroke = GestureDescription.StrokeDescription(pathHold, 0L, clampedHoldDuration, true)
-        val gestureHold = GestureDescription.Builder().addStroke(holdStroke).build()
-
-        service.dispatchGesture(gestureHold, object : AccessibilityService.GestureResultCallback() {
-            override fun onCompleted(gestureDescription: GestureDescription?) {
-                try {
-                    val dragStroke = holdStroke.continueStroke(pathDrag, 0L, clampedDragDuration, false)
-                    val gestureDrag = GestureDescription.Builder().addStroke(dragStroke).build()
-                    service.dispatchGesture(gestureDrag, null, null)
-                } catch (e: Exception) {
-                    logSwallowed(TAG, "continueStroke holdAndDrag failed", e)
-                    dispatchGestureSwipe(service, startX, startY, endX, endY, clampedDragDuration)
-                }
-            }
-
-            override fun onCancelled(gestureDescription: GestureDescription?) {
-                Log.w(TAG, "HoldAndDrag hold stroke cancelled")
-            }
-        }, null)
-    }
-
-    private fun dispatchGestureTap(service: AccessibilityService, x: Float, y: Float) {
-        val path = Path().apply { moveTo(x, y) }
-        val stroke = GestureDescription.StrokeDescription(path, 0, 40)
-        val gesture = GestureDescription.Builder().addStroke(stroke).build()
-        service.dispatchGesture(gesture, null, null)
-    }
-
-    private fun dispatchGestureSwipe(service: AccessibilityService?, startX: Float, startY: Float, endX: Float, endY: Float, duration: Long) {
-        if (service == null) return
-        val path = Path().apply {
-            moveTo(startX, startY)
-            lineTo(endX, endY)
-        }
-        val stroke = GestureDescription.StrokeDescription(path, 0, duration.coerceIn(50L, 1000L))
-        val gesture = GestureDescription.Builder().addStroke(stroke).build()
-        service.dispatchGesture(gesture, null, null)
     }
 }

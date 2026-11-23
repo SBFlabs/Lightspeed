@@ -77,12 +77,15 @@ fun CyberneticTrackpadAccordion(
                         prefs.edit().putBoolean(enabledKey, it).apply()
                         LightspeedBotTrackpadOverlay.reload(context)
                         onRefreshNeeded()
-                    }
+                    },
+                    colors = deckSwitchColors()
                 )
             }
 
             if (isEnabled) {
                 HorizontalDivider(color = lsColors.borderSubtle.copy(alpha = 0.4f), thickness = 0.8.dp)
+
+                TrackpadRotatingTipBanner()
 
                 // Sub-Accordion 1: Geometry & Calibration (auto-enables Live Trigger Zone Preview when expanded)
                 TrackpadGeometrySubSection(isLeft = isLeft, context = context, prefs = prefs, isParentExpanded = isExpanded)

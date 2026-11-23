@@ -270,14 +270,7 @@ fun HudSyntheticGravitySection(
                         Switch(
                             checked = isEngineEnabled,
                             onCheckedChange = null,
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = lsColors.textPrimary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                                checkedBorderColor = Color.Transparent,
-                                uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
-                                uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f),
-                                uncheckedBorderColor = lsColors.textPrimary.copy(alpha = 0.25f)
-                            )
+                            colors = deckSwitchColors()
                         )
                     }
 
@@ -488,14 +481,7 @@ fun HudSyntheticGravitySection(
                         Switch(
                             checked = isFaceRotateActive,
                             onCheckedChange = null,
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = lsColors.textPrimary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                                checkedBorderColor = Color.Transparent,
-                                uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
-                                uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f),
-                                uncheckedBorderColor = lsColors.textPrimary.copy(alpha = 0.25f)
-                            )
+                            colors = deckSwitchColors()
                         )
                     }
                 }

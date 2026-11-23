@@ -6,7 +6,16 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.LightspeedShortcutManager
+import com.sbf.lightspeed.system.lsString
+
+enum class SubHeaderKind {
+    APP_SHORTCUTS,
+    HOME_SHORTCUTS,
+    DEEP_ACTIVITIES
+}
 
 val ScrewdriverVector: ImageVector = ImageVector.Builder(
     name = "Screwdriver",
@@ -53,7 +62,8 @@ sealed class PickerRowItem {
         val optionKey: String,
         val title: String,
         val subtitle: String,
-        val isSelected: Boolean
+        val isSelected: Boolean,
+        val actionHint: String? = null
     ) : PickerRowItem() {
         override val key = "sys_opt_${parentToken}_$optionKey"
     }
@@ -86,7 +96,8 @@ sealed class PickerRowItem {
         val packageName: String,
         val subKey: String,
         val label: String,
-        val isExpanded: Boolean
+        val isExpanded: Boolean,
+        val kind: SubHeaderKind = SubHeaderKind.APP_SHORTCUTS
     ) : PickerRowItem() {
         override val key = "sub_header_$subKey"
     }
@@ -205,6 +216,16 @@ fun buildFlatItemsList(
                     "sys_scrub",
                     com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.GESTURE_SCRUBBERS),
                     listOf("system:screen_timeout", "system:volume", "system:brightness", "system:media_scrubber")
+                ),
+                Triple(
+                    "sys_android_native",
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.ANDROID_NATIVE),
+                    listOf(
+                        "system:native_wifi_settings",
+                        "system:native_bluetooth_settings",
+                        "system:native_battery_settings",
+                        "system:native_digital_wellbeing"
+                    )
                 )
             )
 
@@ -259,17 +280,15 @@ fun buildFlatItemsList(
                                     options.forEach { opt ->
                                         val isEnabled = com.sbf.lightspeed.system.ActionMethods.isOptionEnabled(opt.id)
                                         val baseSubtitle = if (!isEnabled && opt.id == com.sbf.lightspeed.system.ActionMethods.SHIZUKU) {
-                                            "Off in Accessibility Service only mode"
+                                            lsString(R.string.meth_off_a11y_only)
                                         } else {
                                             opt.subtitle
                                         }
                                         val assignedCount = com.sbf.lightspeed.system.ActionMethods.getMethodApps(context, token, opt.id).size
                                         val subtitle = if (assignedCount > 0) {
-                                            if (baseSubtitle.isNotEmpty()) "$baseSubtitle • $assignedCount app(s) assigned"
-                                            else "$assignedCount app(s) assigned"
-                                        } else if (isEnabled) {
-                                            if (baseSubtitle.isNotEmpty()) "$baseSubtitle • Long press to assign apps"
-                                            else "Long press to assign apps"
+                                            val assignedStr = lsString(R.string.meth_apps_assigned, assignedCount)
+                                            if (baseSubtitle.isNotEmpty()) "$baseSubtitle • $assignedStr"
+                                            else assignedStr
                                         } else {
                                             baseSubtitle
                                         }
@@ -279,7 +298,8 @@ fun buildFlatItemsList(
                                                 optionKey = "action_method:${token}:${opt.id}",
                                                 title = opt.title,
                                                 subtitle = subtitle,
-                                                isSelected = selected.contains(opt.id)
+                                                isSelected = selected.contains(opt.id),
+                                                actionHint = if (isEnabled) lsString(R.string.meth_long_press_assign) else null
                                             )
                                         )
                                     }
@@ -490,15 +510,18 @@ fun buildFlatItemsList(
     val appMap = mutableMapOf<String, MutableList<String>>()
     nonSystem.forEach { token ->
         val pkg = when {
-            token.startsWith("app:") -> token.removePrefix("app:")
-            token.startsWith("shortcut:") -> {
-                when {
-                    token.contains(";pkg=") -> token.substringAfter(";pkg=").substringBefore(";")
-                    token.contains(":pkg=") -> token.substringAfter(":pkg=").substringBefore(";")
-                    token.contains("package=") -> token.substringAfter("package=").substringBefore(";")
-                    token.contains(";act=") -> token.substringAfter(";act=").substringBefore(";").substringBeforeLast(".")
-                    else -> "other"
+            token.startsWith("app:") -> token.removePrefix("app:").trim().ifBlank { "other" }
+            token.startsWith("shortcut:") || token.startsWith("custom:") -> {
+                val parsedPkg = LightspeedShortcutManager.parseToken(token).packageName.trim()
+                val rawPkg = when {
+                    parsedPkg.isNotBlank() -> parsedPkg
+                    token.contains(";pkg=") -> token.substringAfter(";pkg=").substringBefore(";").trim()
+                    token.contains(":pkg=") -> token.substringAfter(":pkg=").substringBefore(";").trim()
+                    token.contains("package=") -> token.substringAfter("package=").substringBefore(";").trim()
+                    token.contains(";act=") -> token.substringAfter(";act=").substringBefore(";").substringBeforeLast(".", "").trim()
+                    else -> ""
                 }
+                rawPkg.ifBlank { "other" }
             }
             else -> "other"
         }
@@ -506,7 +529,11 @@ fun buildFlatItemsList(
     }
 
     val sortedApps = appMap.keys.map { pkg ->
-        val appLabel = if (pkg == "other") "Custom & Pinned Shortcuts" else (labelCache["app:$pkg"] ?: pkg)
+        val appLabel = if (pkg == "other") {
+            lsString(R.string.picker_custom_shortcuts_group)
+        } else {
+            labelCache["app:$pkg"] ?: pkg
+        }
         val isPinned = pinnedApps.contains(pkg)
         Triple(pkg, appLabel, appMap[pkg] ?: emptyList()) to isPinned
     }.sortedWith(compareByDescending<Pair<Triple<String, String, List<String>>, Boolean>> { it.second }.thenBy { it.first.second.lowercase() })
@@ -534,7 +561,7 @@ fun buildFlatItemsList(
             if (appShortcuts.isNotEmpty()) {
                 val subKey = "$pkg|AppShortcuts"
                 val isSubExpanded = expandedSubsections.contains(subKey) || searchQuery.isNotBlank()
-                list.add(PickerRowItem.SubHeader(pkg, subKey, "▸ App Shortcuts (${appShortcuts.size})", isSubExpanded))
+                list.add(PickerRowItem.SubHeader(pkg, subKey, lsString(R.string.picker_sub_app_shortcuts, appShortcuts.size), isSubExpanded, SubHeaderKind.APP_SHORTCUTS))
                 if (isSubExpanded) {
                     appShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach {
                         list.add(PickerRowItem.ShortcutAction(it, labelCache[it] ?: it, pkg, isPlugin = true))
@@ -545,7 +572,7 @@ fun buildFlatItemsList(
             if (homeShortcuts.isNotEmpty()) {
                 val subKey = "$pkg|HomeShortcuts"
                 val isSubExpanded = expandedSubsections.contains(subKey) || searchQuery.isNotBlank()
-                list.add(PickerRowItem.SubHeader(pkg, subKey, "◈ Home Shortcuts (${homeShortcuts.size})", isSubExpanded))
+                list.add(PickerRowItem.SubHeader(pkg, subKey, lsString(R.string.picker_sub_home_shortcuts, homeShortcuts.size), isSubExpanded, SubHeaderKind.HOME_SHORTCUTS))
                 if (isSubExpanded) {
                     homeShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach {
                         list.add(PickerRowItem.ShortcutAction(it, labelCache[it] ?: it, pkg, isPlugin = false))
@@ -556,7 +583,7 @@ fun buildFlatItemsList(
             if (deepActivities.isNotEmpty()) {
                 val subKey = "$pkg|DeepActivities"
                 val isSubExpanded = expandedSubsections.contains(subKey) || searchQuery.isNotBlank()
-                list.add(PickerRowItem.SubHeader(pkg, subKey, ":: Deep Activities (${deepActivities.size})", isSubExpanded))
+                list.add(PickerRowItem.SubHeader(pkg, subKey, lsString(R.string.picker_sub_deep_activities, deepActivities.size), isSubExpanded, SubHeaderKind.DEEP_ACTIVITIES))
                 if (isSubExpanded) {
                     deepActivities.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach {
                         list.add(PickerRowItem.ShortcutAction(it, labelCache[it] ?: it, pkg, isPlugin = false))

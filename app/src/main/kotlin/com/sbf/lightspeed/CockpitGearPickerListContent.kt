@@ -272,21 +272,25 @@ internal fun CockpitGearPickerItemList(
                         )
                     }
                 }
-                is PickerRowItem.AppHeader -> PickerAppHeaderRow(
-                    item = item,
-                    isAppSelected = selectedTokens.contains(item.appToken),
-                    context = context,
-                    dynamicPrimary = dynamicPrimary,
-                    dynamicSecondary = dynamicSecondary,
-                    onSelect = { onTokenSelected(item.appToken) },
-                    onLongClick = { onPendingPinApp(Pair(item.packageName, item.appName)) },
-                    onExpandToggle = {
+                is PickerRowItem.AppHeader -> {
+                    val isVirtualGroup = item.packageName == "other"
+                    val toggleExpand: () -> Unit = {
                         val appKey = "app:${item.packageName}"
                         onExpandedSubsectionsChanged(
                             if (item.isExpanded) expandedSubsections - appKey else expandedSubsections + appKey
                         )
                     }
-                )
+                    PickerAppHeaderRow(
+                        item = item,
+                        isAppSelected = !isVirtualGroup && selectedTokens.contains(item.appToken),
+                        context = context,
+                        dynamicPrimary = dynamicPrimary,
+                        dynamicSecondary = dynamicSecondary,
+                        onSelect = if (isVirtualGroup) toggleExpand else { -> onTokenSelected(item.appToken) },
+                        onLongClick = if (isVirtualGroup) toggleExpand else { -> onPendingPinApp(Pair(item.packageName, item.appName)) },
+                        onExpandToggle = toggleExpand
+                    )
+                }
                 is PickerRowItem.SubHeader -> PickerSubHeaderRow(
                     item = item,
                     dynamicSecondary = dynamicSecondary,

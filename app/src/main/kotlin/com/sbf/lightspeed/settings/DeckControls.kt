@@ -21,6 +21,8 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwitchColors
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,9 +37,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -82,16 +86,36 @@ fun DeckDialog(
     properties: DialogProperties = DialogProperties(usePlatformDefaultWidth = false),
     content: (@Composable ColumnScope.() -> Unit)? = null
 ) {
-    // Compose Dialog creates a separate window whose LocalDensity resets to Android OS system
-    // fontScale/density. Re-provide the active Lightspeed density + fontScale inside the dialog.
+    // Compose Dialog creates a separate window whose LocalDensity/LocalLayoutDirection/LocalTextStyle
+    // reset to Android OS system values. Re-provide active Lightspeed locals inside the dialog.
     val activeDensity = LocalDensity.current
+    val activeLayoutDirection = LocalLayoutDirection.current
+    val activeTextStyle = LocalTextStyle.current.merge(MaterialTheme.typography.bodyMedium)
+    val targetAndroidDir = if (activeLayoutDirection == LayoutDirection.Rtl) {
+        android.view.View.LAYOUT_DIRECTION_RTL
+    } else {
+        android.view.View.LAYOUT_DIRECTION_LTR
+    }
     val maxDialogH = (LocalConfiguration.current.screenHeightDp.dp * 0.86f).coerceAtLeast(240.dp)
     Dialog(onDismissRequest = onDismissRequest, properties = properties) {
-        CompositionLocalProvider(LocalDensity provides activeDensity) {
+        CompositionLocalProvider(
+            LocalDensity provides activeDensity,
+            LocalLayoutDirection provides activeLayoutDirection,
+            LocalTextStyle provides activeTextStyle
+        ) {
             val snapshot = LocalDeckTheme.current
             val view = LocalView.current
             SideEffect {
+                if (view.layoutDirection != targetAndroidDir) {
+                    view.layoutDirection = targetAndroidDir
+                }
+                view.rootView?.let { root ->
+                    if (root.layoutDirection != targetAndroidDir) {
+                        root.layoutDirection = targetAndroidDir
+                    }
+                }
                 val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+                dialogWindow?.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
                 dialogWindow?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
                 dialogWindow?.setDimAmount(snapshot.dimAmount)
                 dialogWindow?.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
@@ -100,18 +124,37 @@ fun DeckDialog(
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .widthIn(max = 480.dp)
-                    .padding(vertical = 16.dp),
+                    .fillMaxSize()
+                    .imePadding(),
                 contentAlignment = Alignment.Center
             ) {
-                DeckGlassCardSurface(
-                    modifier = modifier
-                        .fillMaxWidth()
-                        .heightIn(max = maxDialogH)
-                        .wrapContentHeight(),
-                    isFlyout = true
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .overlayScrimDismiss(
+                            context = view.context,
+                            onTapOutside = {
+                                if (properties.dismissOnClickOutside) {
+                                    onDismissRequest()
+                                }
+                            }
+                        )
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.92f)
+                        .widthIn(max = 480.dp)
+                        .padding(vertical = 16.dp)
+                        .blockScrimPassthrough(),
+                    contentAlignment = Alignment.Center
                 ) {
+                    DeckGlassCardSurface(
+                        modifier = modifier
+                            .fillMaxWidth()
+                            .heightIn(max = maxDialogH)
+                            .wrapContentHeight(),
+                        isFlyout = true
+                    ) {
                     Box(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                             if (icon != null) {
@@ -181,6 +224,7 @@ fun DeckDialog(
                             )
                         }
                     }
+                }
                 }
             }
         }
@@ -385,6 +429,32 @@ fun DeckSlider(
 }
 
 /**
+ * High-contrast Switch colors that adapt cleanly to bright 12-theme accents (e.g. Glass Lava /
+ * Glassmorphism pure white tint) so checked toggles never become white-on-white.
+ */
+@Composable
+fun deckSwitchColors(
+    checkedTrackColor: Color = MaterialTheme.colorScheme.primary
+): SwitchColors {
+    val lsColors = LightspeedStyle.colors
+    val isBrightTrack = checkedTrackColor.luminance() > 0.45f
+    val checkedThumb = if (isBrightTrack) Color.Black else Color.White
+    val checkedBorder = if (isBrightTrack) {
+        Color.Black.copy(alpha = 0.30f)
+    } else {
+        checkedTrackColor
+    }
+    return SwitchDefaults.colors(
+        checkedThumbColor = checkedThumb,
+        checkedTrackColor = checkedTrackColor,
+        checkedBorderColor = checkedBorder,
+        uncheckedThumbColor = lsColors.textSecondary,
+        uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.14f),
+        uncheckedBorderColor = lsColors.textSecondary.copy(alpha = 0.35f)
+    )
+}
+
+/**
  * Tactical Deck Switch matching the active Lightspeed theme colors.
  */
 @Composable
@@ -400,13 +470,7 @@ fun DeckSwitch(
         onCheckedChange = onCheckedChange,
         modifier = modifier,
         enabled = enabled,
-        colors = androidx.compose.material3.SwitchDefaults.colors(
-            checkedThumbColor = lsColors.textPrimary,
-            checkedTrackColor = lsColors.accent,
-            uncheckedThumbColor = lsColors.textSecondary,
-            uncheckedTrackColor = lsColors.surface,
-            uncheckedBorderColor = lsColors.accent.copy(alpha = 0.35f)
-        )
+        colors = deckSwitchColors(checkedTrackColor = lsColors.accent)
     )
 }
 

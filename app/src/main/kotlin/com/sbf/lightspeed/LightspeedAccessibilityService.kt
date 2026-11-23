@@ -261,10 +261,10 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
-    fun startCruiseFromLeft(rawX: Float, rawY: Float) {
+    fun startCruiseFromLeft(rawX: Float, rawY: Float, pointerId: Int = MotionEvent.INVALID_POINTER_ID) {
         overlayView?.isDispatchingFromLeftFlankView = true
         try {
-            overlayView?.startCruiseFromFlank(isLeft = true, startRawX = rawX, startRawY = rawY)
+            overlayView?.startCruiseFromFlank(isLeft = true, startRawX = rawX, startRawY = rawY, pointerId = pointerId)
         } finally {
             overlayView?.isDispatchingFromLeftFlankView = false
         }
@@ -290,14 +290,17 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     var isPassThroughActive = false
 
+    private val passThroughRestoreRunnable = Runnable {
+        isPassThroughActive = false
+        updateOverlaysVisibility()
+    }
+
     fun temporarilyPassThrough(durationMs: Long = 5000L) {
         isPassThroughActive = true
         updateOverlaysVisibility()
         android.widget.Toast.makeText(this, "Pass-Through Touch Active (5s)", android.widget.Toast.LENGTH_SHORT).show()
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            isPassThroughActive = false
-            updateOverlaysVisibility()
-        }, durationMs)
+        handler.removeCallbacks(passThroughRestoreRunnable)
+        handler.postDelayed(passThroughRestoreRunnable, durationMs)
     }
 
     fun triggerDeflectorsGlow(durationMs: Long = -1L) = triggerDeflectorsGlowInternal(durationMs)

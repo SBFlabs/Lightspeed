@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LockClock
 import androidx.compose.material.icons.filled.PriorityHigh
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.settings.DeckSlider
 import com.sbf.lightspeed.settings.DeckSwitch
 import com.sbf.lightspeed.settings.DeckSubChip
@@ -31,6 +33,7 @@ import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine
 import com.sbf.lightspeed.system.display.LightspeedEyeCareEngine
 import com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -660,6 +663,14 @@ fun VistaAirlockSection(
     var airlockApps by remember {
         mutableStateOf(prefs.getStringSet(LightspeedPreferences.KEY_CONSCIOUS_DELAY_PACKAGES, emptySet()) ?: emptySet())
     }
+    var airlockColorMode by remember {
+        mutableStateOf(
+            prefs.getString(
+                LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_COLOR_MODE,
+                LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12
+            ) ?: LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12
+        )
+    }
 
     var eyeRestEnabled by remember {
         mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_EYE_REST_REMINDER_ENABLED, false))
@@ -714,6 +725,49 @@ fun VistaAirlockSection(
                     isActive = airlockApps.isNotEmpty(),
                     onClick = onOpenAirlockPicker
                 )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                DeckSubChip(
+                    text = lsString(R.string.act_native_wellbeing),
+                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    isActive = false,
+                    onClick = {
+                        com.sbf.lightspeed.system.VistaDeckManager.dismiss()
+                        com.sbf.lightspeed.system.NativeSettingsLauncher.openDigitalWellbeing(service)
+                    }
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = lsString(R.string.airlock_color_engine),
+                    fontSize = 8.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = lsColors.textSecondary
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    listOf(
+                        LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 to lsString(R.string.ce_theme_12),
+                        LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC to lsString(R.string.ce_material_3),
+                        LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION to lsString(R.string.ce_hybrid)
+                    ).forEach { (mode, label) ->
+                        DeckSubChip(
+                            text = label,
+                            isActive = airlockColorMode == mode,
+                            onClick = {
+                                airlockColorMode = mode
+                                prefs.edit().putString(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_COLOR_MODE, mode).apply()
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
             }
         }
 

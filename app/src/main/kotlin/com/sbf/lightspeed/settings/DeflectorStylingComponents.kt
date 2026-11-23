@@ -94,14 +94,7 @@ fun DeflectorPillStylingContent(
                     if (checked) LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
                     onRefreshNeeded()
                 },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = lsColors.textPrimary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primary,
-                    checkedBorderColor = Color.Transparent,
-                    uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
-                    uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f),
-                    uncheckedBorderColor = lsColors.textPrimary.copy(alpha = 0.25f)
-                )
+                colors = deckSwitchColors()
             )
         }
 
@@ -256,14 +249,7 @@ fun DeflectorPillStylingContent(
                         LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
                         onRefreshNeeded()
                     },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = lsColors.textPrimary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primary,
-                        checkedBorderColor = Color.Transparent,
-                        uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
-                        uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f),
-                        uncheckedBorderColor = lsColors.textPrimary.copy(alpha = 0.25f)
-                    )
+                    colors = deckSwitchColors()
                 )
             }
 
@@ -376,14 +362,7 @@ fun DeflectorPillStylingContent(
                         safeReloadPreferences()
                         onRefreshNeeded()
                     },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = lsColors.textPrimary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primary,
-                        checkedBorderColor = Color.Transparent,
-                        uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
-                        uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f),
-                        uncheckedBorderColor = lsColors.textPrimary.copy(alpha = 0.25f)
-                    )
+                    colors = deckSwitchColors()
                 )
             }
 

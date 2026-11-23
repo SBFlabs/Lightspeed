@@ -92,23 +92,37 @@ fun CentralCommandDeckDialog(
             label = "jelly_fluid_drag_dialog"
         )
 
+        val scrimContext = androidx.compose.ui.platform.LocalContext.current
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
+            dialogWindow?.setLayout(
+                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                android.view.WindowManager.LayoutParams.MATCH_PARENT
+            )
             dialogWindow?.setDimAmount(activeSnapshot.dimAmount)
         }
 
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 18.dp),
+                .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .overlayScrimDismiss(
+                        context = scrimContext,
+                        onTapOutside = onDismiss
+                    )
+            )
             CompositionLocalProvider(
                 LocalDensity provides density,
                 LocalDeckCardDragOffsetY provides { if (isJelly) fluidDragOffsetY else dragOffsetY.value }
             ) {
                 DeckGlassCardSurface(
                     modifier = Modifier
+                        .padding(horizontal = 8.dp, vertical = 18.dp)
+                        .blockScrimPassthrough()
                         .fillMaxWidth(0.98f)
                         .fillMaxHeight(0.88f)
                         .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
@@ -424,16 +438,45 @@ fun ProfileNamingDialog(
 ) {
     val lsColors = LightspeedStyle.colors
     var name by remember { mutableStateOf(initialName) }
+    val scrimContext = androidx.compose.ui.platform.LocalContext.current
     val activeDensity = LocalDensity.current
 
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         CompositionLocalProvider(LocalDensity provides activeDensity) {
         val activeSnapshot = LocalDeckTheme.current
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            dialogWindow?.setLayout(
+                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                android.view.WindowManager.LayoutParams.MATCH_PARENT
+            )
+            dialogWindow?.setDimAmount(activeSnapshot.dimAmount)
+            @Suppress("DEPRECATION")
+            dialogWindow?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding(),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .overlayScrimDismiss(
+                        context = scrimContext,
+                        onTapOutside = onDismiss
+                    )
+            )
         DeckGlassCardSurface(
             modifier = Modifier
                 .fillMaxWidth(0.78f)
                 .widthIn(max = 330.dp)
-                .wrapContentHeight(),
+                .wrapContentHeight()
+                .blockScrimPassthrough(),
             snapshotOverride = activeSnapshot,
             isFlyout = true
         ) {
@@ -498,6 +541,7 @@ fun ProfileNamingDialog(
                     }
                 }
             }
+        }
         }
         }
     }

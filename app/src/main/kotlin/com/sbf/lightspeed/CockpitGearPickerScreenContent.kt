@@ -41,6 +41,8 @@ import com.sbf.lightspeed.settings.CentralCommandBackdropBlur
 import com.sbf.lightspeed.settings.DeckGlassCardSurface
 import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
+import com.sbf.lightspeed.settings.blockScrimPassthrough
+import com.sbf.lightspeed.settings.overlayScrimDismiss
 import com.sbf.lightspeed.system.LightspeedOrientationEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.safeReloadPreferences
@@ -81,7 +83,8 @@ internal fun CockpitGearPickerScreenContent(
         "collapsed:sys_media",
         "collapsed:sys_tactical",
         "collapsed:sys_orient",
-        "collapsed:sys_scrub"
+        "collapsed:sys_scrub",
+        "collapsed:sys_android_native"
     )
     var systemAccordionMode by remember {
         mutableStateOf(prefs.getString(LightspeedPreferences.KEY_SYSTEM_ACCORDION_MODE, "expanded") ?: "expanded")
@@ -170,12 +173,22 @@ internal fun CockpitGearPickerScreenContent(
     }
 
     val letterIndices = remember(flatItemsList) {
-        val map = mutableMapOf<Char, Int>()
+        val map = LinkedHashMap<Char, Int>()
         flatItemsList.forEachIndexed { index, item ->
             if (item is PickerRowItem.AppHeader && !item.isPinned) {
-                val firstChar = item.appName.firstOrNull()?.uppercaseChar() ?: '#'
-                val targetKey = if (firstChar in 'A'..'Z') firstChar else '#'
-                if (!map.containsKey(targetKey)) map[targetKey] = index
+                val firstChar = item.appName.firstOrNull {
+                    Character.getType(it) != Character.FORMAT.toInt()
+                }
+                val upper = firstChar?.uppercaseChar()
+                val targetKey: Char? = when {
+                    upper != null && upper in 'A'..'Z' -> upper
+                    firstChar != null && firstChar.isLetter() -> upper
+                    firstChar == null || firstChar.isWhitespace() || firstChar.lowercaseChar() < 'a' -> '#'
+                    else -> null
+                }
+                if (targetKey != null && !map.containsKey(targetKey)) {
+                    map[targetKey] = index
+                }
             }
         }
         map
@@ -185,17 +198,23 @@ internal fun CockpitGearPickerScreenContent(
     val scrimAlpha = 0.88f
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = scrimAlpha))
-            .clickable { onFinish() },
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = scrimAlpha))
+                .overlayScrimDismiss(
+                    context = activity,
+                    onTapOutside = onFinish
+                )
+        )
         DeckGlassCardSurface(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
                 .fillMaxHeight(0.90f)
-                .clickable(enabled = false) {}
+                .blockScrimPassthrough()
         ) {
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                 val rawName = prefs.getString("gear_set_${setId}_name", "") ?: ""

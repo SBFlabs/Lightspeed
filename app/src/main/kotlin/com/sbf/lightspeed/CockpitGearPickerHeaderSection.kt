@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
@@ -63,27 +64,33 @@ internal fun CockpitGearPickerHeaderRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = if (isSingleSelect) singleSelectTitle else "Assign to Gear ${ringIndex + 1} (${if (ringIndex == 0) "Outer" else "Inner"})",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = lsColors.textPrimary
+                color = lsColors.textPrimary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = if (isSingleSelect) {
                     if (isSplitMode) lsString(R.string.picker_gear_tap_short) else lsString(R.string.picker_gear_tap_full)
                 } else lsString(R.string.picker_gear_profile, profileName, selectedCount),
                 fontSize = 12.sp,
+                lineHeight = 15.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
                 color = dynamicSecondary
             )
         }
         IconButton(
             onClick = onCloseClick,
             modifier = Modifier
+                .padding(top = 2.dp)
                 .size(32.dp)
                 .background(lsColors.textPrimary.copy(alpha = 0.08f), CircleShape)
         ) {

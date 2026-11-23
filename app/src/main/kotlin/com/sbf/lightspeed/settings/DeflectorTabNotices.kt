@@ -189,16 +189,39 @@ fun DeflectorOverridesDialog(
     onDismiss: () -> Unit
 ) {
     if (!visible) return
+    val scrimContext = androidx.compose.ui.platform.LocalContext.current
     val activeDensity = LocalDensity.current
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         CompositionLocalProvider(LocalDensity provides activeDensity) {
+        val activeSnapshot = com.sbf.lightspeed.ui.theme.LocalDeckTheme.current
+        val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        androidx.compose.runtime.SideEffect {
+            dialogWindow?.setLayout(
+                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                android.view.WindowManager.LayoutParams.MATCH_PARENT
+            )
+            dialogWindow?.setDimAmount(activeSnapshot.dimAmount)
+        }
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .overlayScrimDismiss(
+                        context = scrimContext,
+                        onTapOutside = onDismiss
+                    )
+            )
         DeckGlassCardSurface(
             modifier = Modifier
                 .fillMaxWidth(0.96f)
                 .fillMaxHeight(0.85f)
+                .blockScrimPassthrough()
         ) {
             Column(
                 modifier = Modifier
@@ -230,6 +253,7 @@ fun DeflectorOverridesDialog(
                     SystemOverrideDeckContents(context, prefs)
                 }
             }
+        }
         }
         }
     }

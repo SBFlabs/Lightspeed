@@ -22,6 +22,7 @@ data class HangarRenderState(
     val screenW: Float,
     val screenH: Float,
     val density: Float,
+    val bottomInsetPx: Float = 0f,
     val m3Primary: Int,
     val m3Secondary: Int,
     val isOpenedFromLeftFlank: Boolean,
@@ -34,7 +35,8 @@ data class HangarRenderState(
     val resolveCleanAppLabel: (String) -> String,
     val getAppsForActiveGear: (setIndex: Int, ringIndex: Int) -> List<String>,
     val getFlankLaunchBehavior: (Boolean) -> String,
-    val onIconResolved: (() -> Unit)? = null
+    val onIconResolved: (() -> Unit)? = null,
+    val hangarTipIndex: Int = 0
 )
 
 /**
@@ -72,6 +74,7 @@ internal class DeepSpaceRenderer(
     internal val tempEjectRect = RectF()
     internal val tempShiftR0Rect = RectF()
     internal val tempShiftR1Rect = RectF()
+    internal val hangarTipRect = RectF()
 
     // Modular sub-renderers
     val cosmicRenderer = LightspeedCosmicBackdropRenderer()
@@ -139,7 +142,17 @@ internal class DeepSpaceRenderer(
 
         val prefs = context.defaultPrefs()
         val openAccordion = prefs.getInt(KEY_HANGAR_OPEN_ACCORDION, -1)
-        val layout = computeHangarLayoutMetrics(screenW, screenH, d, openAccordion)
+        val unitScale = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getUnitScale(context)
+        val customDiameterScale = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getCustomDiameterScale(context)
+        val baseOuterRadiusPx = 135f * unitScale * customDiameterScale
+        val layout = computeHangarLayoutMetrics(
+            screenW = screenW,
+            screenH = screenH,
+            d = d,
+            openAccordion = openAccordion,
+            bottomInsetPx = state.bottomInsetPx,
+            baseOuterRadiusPx = baseOuterRadiusPx
+        )
 
         // 1. Deep Space Astrogation Hangar Void with Starfield
         canvas.drawColor(Color.argb(245, 6, 8, 14))
@@ -192,11 +205,25 @@ internal class DeepSpaceRenderer(
     ) {
         drawDeepSpace(
             HangarRenderState(
-                canvas, context, screenW, screenH, d, m3Primary, m3Secondary,
-                isOpenedFromLeftFlank, activeGearSetIndex, activeHangarRing,
-                isHangarEjectArmed, gearRingRotations, hangarBayScrollOffset,
-                setsList, resolveCleanAppLabel, getAppsForActiveGear,
-                getFlankLaunchBehavior, onIconResolved
+                canvas = canvas,
+                context = context,
+                screenW = screenW,
+                screenH = screenH,
+                density = d,
+                bottomInsetPx = 0f,
+                m3Primary = m3Primary,
+                m3Secondary = m3Secondary,
+                isOpenedFromLeftFlank = isOpenedFromLeftFlank,
+                activeGearSetIndex = activeGearSetIndex,
+                activeHangarRing = activeHangarRing,
+                isHangarEjectArmed = isHangarEjectArmed,
+                gearRingRotations = gearRingRotations,
+                hangarBayScrollOffset = hangarBayScrollOffset,
+                setsList = setsList,
+                resolveCleanAppLabel = resolveCleanAppLabel,
+                getAppsForActiveGear = getAppsForActiveGear,
+                getFlankLaunchBehavior = getFlankLaunchBehavior,
+                onIconResolved = onIconResolved
             )
         )
     }

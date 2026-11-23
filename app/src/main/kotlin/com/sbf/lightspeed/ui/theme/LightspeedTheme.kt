@@ -2,6 +2,7 @@ package com.sbf.lightspeed.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
@@ -11,6 +12,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -20,14 +22,15 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
 import com.sbf.lightspeed.MainActivity
 import com.sbf.lightspeed.settings.CentralCommandActivity
 import com.sbf.lightspeed.settings.DeckStylePresets
 import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.system.DeviceFontScanner
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 
 private val DarkDefaultColorScheme = darkColorScheme(
@@ -251,15 +254,30 @@ fun LightspeedTheme(
         }
     }
 
+    val activeLayoutDirection = LightspeedLocaleEngine.activeLayoutDirection
+    val activeAndroidDir = LightspeedLocaleEngine.activeAndroidLayoutDirection
+    val hostView = LocalView.current
+
     MaterialTheme(
         colorScheme = colorScheme,
         typography = typography
     ) {
+        SideEffect {
+            if (hostView.layoutDirection != activeAndroidDir) {
+                hostView.layoutDirection = activeAndroidDir
+            }
+            hostView.rootView?.let { root ->
+                if (root.layoutDirection != activeAndroidDir) {
+                    root.layoutDirection = activeAndroidDir
+                }
+            }
+        }
         CompositionLocalProvider(
             LocalLightspeedColors provides lsColors,
             LocalDeckTheme provides snapshot,
             LocalDensity provides independentDensity,
-            LocalLayoutDirection provides LayoutDirection.Ltr
+            LocalLayoutDirection provides activeLayoutDirection,
+            LocalTextStyle provides typography.bodyMedium
         ) {
             content()
         }

@@ -49,6 +49,15 @@ import com.sbf.lightspeed.system.SignatureStatus
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 /**
+ * Resolves a calm, localized label for the verified APK install origin.
+ */
+internal fun resolveInstallOriginLabel(origin: com.sbf.lightspeed.system.InstallOrigin): String = when (origin) {
+    com.sbf.lightspeed.system.InstallOrigin.DIRECT_SIDELOAD -> lsString(R.string.bver_origin_sideload)
+    com.sbf.lightspeed.system.InstallOrigin.THIRD_PARTY_STORE -> lsString(R.string.bver_origin_third_party)
+    else -> origin.displayName
+}
+
+/**
  * 12-Theme DeckDialog showing offline APK signing status, install origin, and
  * links to Lightspeed's approved distribution channels (GitHub, Obtainium, ShizuStore, Orion Store).
  */
@@ -106,11 +115,7 @@ fun BuildVerificationDialog(
                         color = lsColors.textSecondary
                     )
                     Text(
-                        text = if (verification.installOrigin == com.sbf.lightspeed.system.InstallOrigin.DIRECT_SIDELOAD) {
-                            lsString(R.string.bver_origin_sideload)
-                        } else {
-                            verification.installOrigin.displayName
-                        },
+                        text = resolveInstallOriginLabel(verification.installOrigin),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (verification.installOrigin.isOfficialClient) {

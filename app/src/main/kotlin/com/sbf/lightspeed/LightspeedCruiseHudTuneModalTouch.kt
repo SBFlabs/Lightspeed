@@ -282,6 +282,16 @@ internal fun LightspeedCruiseOverlay.handleHudTuneModalTouch(event: MotionEvent)
                 return true
             }
 
+            // WK Progress Cycle Pills (for Screen Time Telemetry)
+            for ((modeKey, rect) in tuneWeekCyclePillRects) {
+                if (rect.contains(x, y)) {
+                    triggerHardwareHaptic(20, 90)
+                    LightspeedCruiseHudPods.setWeekCycleMode(context, modeKey)
+                    invalidate()
+                    return true
+                }
+            }
+
             // 3-Way Visibility Scope Pills
             for ((scopeVal, rect) in tuneScopePillRects) {
                 if (rect.contains(x, y)) {

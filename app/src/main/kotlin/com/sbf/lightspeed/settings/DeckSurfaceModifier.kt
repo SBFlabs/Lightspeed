@@ -6,6 +6,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.ScrollableState
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.LaunchedEffect
@@ -19,8 +21,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -46,6 +50,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.window.PopupProperties
@@ -423,6 +428,14 @@ fun DeckThemedDropdownMenu(
     val blurMode by BackdropBlurModeManager.modeFlow.collectAsState()
     val cornerRadius = snapshot.cornerRadiusDp.dp
     val shape = RoundedCornerShape(cornerRadius)
+    val activeLayoutDirection = LocalLayoutDirection.current
+    val activeDensity = LocalDensity.current
+    val activeTextStyle = LocalTextStyle.current.merge(MaterialTheme.typography.bodyMedium)
+    val targetAndroidDir = if (activeLayoutDirection == LayoutDirection.Rtl) {
+        android.view.View.LAYOUT_DIRECTION_RTL
+    } else {
+        android.view.View.LAYOUT_DIRECTION_LTR
+    }
 
     val menuModifier = if (anchorWidth != null && anchorWidth > 0.dp) {
         Modifier.width(anchorWidth).then(modifier).clip(shape)
@@ -442,75 +455,150 @@ fun DeckThemedDropdownMenu(
         shadowElevation = 0.dp,
         border = null,
         content = {
-            val view = LocalView.current
-            SideEffect {
-                val dialogWindow = (view.parent as? DialogWindowProvider)?.window
-                dialogWindow?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
-                BackdropBlurModeManager.applyWindowBlurFlags(
-                    view = view,
-                    blurRadiusPx = snapshot.windowBlurRadiusPx,
-                    mode = blurMode,
-                    window = dialogWindow,
-                    clampMinRadius = 20,
-                    clampMaxRadius = 120
-                )
-            }
-            val isJelly = snapshot.styleId == "jelly"
-            val scaleAnim = remember(expanded) { Animatable(if (isJelly) 0.88f else 1.0f) }
-            if (isJelly) {
-                LaunchedEffect(expanded) {
-                    if (expanded) {
-                        scaleAnim.animateTo(1.0f, spring(dampingRatio = 0.65f, stiffness = 450f))
+            CompositionLocalProvider(
+                LocalLayoutDirection provides activeLayoutDirection,
+                LocalDensity provides activeDensity,
+                LocalTextStyle provides activeTextStyle
+            ) {
+                val view = LocalView.current
+                SideEffect {
+                    if (view.layoutDirection != targetAndroidDir) {
+                        view.layoutDirection = targetAndroidDir
                     }
-                }
-            }
-            Box(
-                modifier = Modifier
-                    .clip(shape)
-                    .graphicsLayer {
-                        if (isJelly) {
-                            scaleX = scaleAnim.value
-                            scaleY = scaleAnim.value
+                    view.rootView?.let { root ->
+                        if (root.layoutDirection != targetAndroidDir) {
+                            root.layoutDirection = targetAndroidDir
                         }
                     }
-            ) {
-                // Layer 1: Clipped fallback physical hardware blur directly inside dropdown
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clip(shape)
-                ) {
-                    ClippedFallbackBlurLayer(snapshot = snapshot)
+                    val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+                    dialogWindow?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+                    BackdropBlurModeManager.applyWindowBlurFlags(
+                        view = view,
+                        blurRadiusPx = snapshot.windowBlurRadiusPx,
+                        mode = blurMode,
+                        window = dialogWindow,
+                        clampMinRadius = 20,
+                        clampMaxRadius = 120
+                    )
                 }
-
-                // Layer 2: Unified 12-theme optical surface
+                val isJelly = snapshot.styleId == "jelly"
+                val scaleAnim = remember(expanded) { Animatable(if (isJelly) 0.88f else 1.0f) }
+                if (isJelly) {
+                    LaunchedEffect(expanded) {
+                        if (expanded) {
+                            scaleAnim.animateTo(1.0f, spring(dampingRatio = 0.65f, stiffness = 450f))
+                        }
+                    }
+                }
                 Box(
                     modifier = Modifier
-                        .matchParentSize()
-                        .deckGlassSurface(
-                            snapshot = snapshot,
-                            isBlurAvailable = true,
-                            isMiniTile = false,
-                            isFlyout = true
-                        )
-                )
-                Column(
-                    modifier = Modifier
                         .clip(shape)
-                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                        .graphicsLayer {
+                            if (isJelly) {
+                                scaleX = scaleAnim.value
+                                scaleY = scaleAnim.value
+                            }
+                        }
                 ) {
-                    content()
+                    // Layer 1: Clipped fallback physical hardware blur directly inside dropdown
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(shape)
+                    ) {
+                        ClippedFallbackBlurLayer(snapshot = snapshot)
+                    }
+
+                    // Layer 2: Unified 12-theme optical surface
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .deckGlassSurface(
+                                snapshot = snapshot,
+                                isBlurAvailable = true,
+                                isMiniTile = false,
+                                isFlyout = true
+                            )
+                    )
+                    Column(
+                        modifier = Modifier
+                            .clip(shape)
+                            .padding(horizontal = 4.dp, vertical = 4.dp)
+                    ) {
+                        content()
+                    }
                 }
             }
         }
     )
 }
 
+private fun computeTopEdgeFeatherAlpha(
+    scrollableState: ScrollableState,
+    rampPx: Float
+): Float {
+    if (!scrollableState.canScrollBackward) return 0f
+    val distPx = when (scrollableState) {
+        is ScrollState -> scrollableState.value.toFloat()
+        is LazyListState -> if (scrollableState.firstVisibleItemIndex == 0) {
+            scrollableState.firstVisibleItemScrollOffset.toFloat()
+        } else {
+            rampPx
+        }
+        is LazyGridState -> if (scrollableState.firstVisibleItemIndex == 0) {
+            scrollableState.firstVisibleItemScrollOffset.toFloat()
+        } else {
+            rampPx
+        }
+        else -> rampPx
+    }
+    return (distPx / rampPx).coerceIn(0f, 1f)
+}
+
+private fun computeBottomEdgeFeatherAlpha(
+    scrollableState: ScrollableState,
+    rampPx: Float
+): Float {
+    if (!scrollableState.canScrollForward) return 0f
+    val distPx = when (scrollableState) {
+        is ScrollState -> {
+            val max = scrollableState.maxValue
+            if (max == Int.MAX_VALUE) rampPx else (max - scrollableState.value).toFloat()
+        }
+        is LazyListState -> {
+            val info = scrollableState.layoutInfo
+            val lastVis = info.visibleItemsInfo.lastOrNull()
+            if (lastVis != null && info.totalItemsCount > 0 && lastVis.index == info.totalItemsCount - 1) {
+                ((lastVis.offset + lastVis.size + info.afterContentPadding) - info.viewportEndOffset).toFloat()
+            } else {
+                rampPx
+            }
+        }
+        is LazyGridState -> {
+            val info = scrollableState.layoutInfo
+            val vis = info.visibleItemsInfo
+            val lastIdx = info.totalItemsCount - 1
+            if (lastIdx >= 0 && vis.any { it.index == lastIdx }) {
+                var maxEnd = Int.MIN_VALUE
+                for (i in vis.indices) {
+                    val end = vis[i].offset.y + vis[i].size.height
+                    if (end > maxEnd) maxEnd = end
+                }
+                ((maxEnd + info.afterContentPadding) - info.viewportEndOffset).toFloat()
+            } else {
+                rampPx
+            }
+        }
+        else -> rampPx
+    }
+    return (distPx / rampPx).coerceIn(0f, 1f)
+}
+
 /**
  * Universal vertical edge feathering modifier for Compose scrollable containers (`LazyColumn`,
  * `LazyVerticalGrid`, `ScrollState`). Uses a single container-level offscreen compositing layer
- * with cached top/bottom [BlendMode.DstIn] alpha gradient masks that activate dynamically only
- * when [ScrollableState.canScrollBackward] / [ScrollableState.canScrollForward] are true.
+ * with cached top/bottom [BlendMode.DstOut] alpha gradient masks that ramp smoothly over the first
+ * and last ~20dp of scroll travel.
  */
 fun Modifier.verticalEdgeFade(
     scrollableState: ScrollableState,
@@ -523,37 +611,42 @@ fun Modifier.verticalEdgeFade(
     .drawWithCache {
         val topPx = minOf(topFeatherDp.toPx(), size.height * 0.35f)
         val botPx = minOf(bottomFeatherDp.toPx(), size.height * 0.35f)
+        val rampPx = 20.dp.toPx().coerceAtLeast(1f)
         val topBrush = Brush.verticalGradient(
-            0.0f to Color.Transparent,
-            0.52f to Color.Black.copy(alpha = 0.48f),
-            1.0f to Color.Black,
+            0.0f to Color.Black,
+            0.52f to Color.Black.copy(alpha = 0.52f),
+            1.0f to Color.Transparent,
             startY = 0f,
             endY = topPx.coerceAtLeast(1f)
         )
         val botStartY = (size.height - botPx).coerceAtLeast(0f)
         val bottomBrush = Brush.verticalGradient(
-            0.0f to Color.Black,
-            0.48f to Color.Black.copy(alpha = 0.48f),
-            1.0f to Color.Transparent,
+            0.0f to Color.Transparent,
+            0.48f to Color.Black.copy(alpha = 0.52f),
+            1.0f to Color.Black,
             startY = botStartY,
             endY = size.height.coerceAtLeast(botStartY + 1f)
         )
         onDrawWithContent {
             drawContent()
-            if (topPx > 2f && scrollableState.canScrollBackward) {
+            val topAlpha = computeTopEdgeFeatherAlpha(scrollableState, rampPx)
+            if (topPx > 2f && topAlpha > 0.004f) {
                 drawRect(
                     brush = topBrush,
                     topLeft = Offset.Zero,
                     size = Size(size.width, topPx),
-                    blendMode = BlendMode.DstIn
+                    alpha = topAlpha,
+                    blendMode = BlendMode.DstOut
                 )
             }
-            if (botPx > 2f && scrollableState.canScrollForward) {
+            val botAlpha = computeBottomEdgeFeatherAlpha(scrollableState, rampPx)
+            if (botPx > 2f && botAlpha > 0.004f) {
                 drawRect(
                     brush = bottomBrush,
                     topLeft = Offset(0f, botStartY),
                     size = Size(size.width, botPx),
-                    blendMode = BlendMode.DstIn
+                    alpha = botAlpha,
+                    blendMode = BlendMode.DstOut
                 )
             }
         }

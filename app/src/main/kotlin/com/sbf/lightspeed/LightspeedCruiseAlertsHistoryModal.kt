@@ -377,14 +377,16 @@ internal fun LightspeedCruiseOverlay.drawAlertsHistoryModal(
     drawColumnEntries(notifs, col1Left, notifColor)
     drawColumnEntries(toasts, col2Left, toastColor)
     canvas.restore()
-    LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+    LightspeedHudVectorIcons.applyScrollEdgeFeathering(
         canvas = canvas,
         left = listLeft,
         top = listTop,
         right = listRight,
         bottom = listBottom,
-        featherTopPx = if (alertsHistoryScrollOffset > 0.5f) 16f * dp else 0f,
-        featherBottomPx = if (alertsHistoryScrollOffset < alertsHistoryMaxScroll - 0.5f) 18f * dp else 0f,
+        scrollOffset = alertsHistoryScrollOffset,
+        maxScroll = alertsHistoryMaxScroll,
+        featherTopPx = 16f * dp,
+        featherBottomPx = 18f * dp,
         density = dp,
         seed = 8404
     )

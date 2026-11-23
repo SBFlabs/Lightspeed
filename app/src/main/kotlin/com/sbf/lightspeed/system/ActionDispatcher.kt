@@ -119,6 +119,18 @@ object ActionDispatcher {
                 }
                 try { context.startActivity(intent, LightspeedShortcutManager.createLaunchBundle(context)) } catch (e: Exception) { logSwallowed(TAG, "execute:91", e) }
             }
+            token == "system:native_wifi_settings" -> {
+                NativeSettingsLauncher.openWifiSettings(context)
+            }
+            token == "system:native_bluetooth_settings" -> {
+                NativeSettingsLauncher.openBluetoothSettings(context)
+            }
+            token == "system:native_battery_settings" -> {
+                NativeSettingsLauncher.openBatteryUsage(context)
+            }
+            token == "system:native_digital_wellbeing" -> {
+                NativeSettingsLauncher.openDigitalWellbeing(context)
+            }
             token == "system:close_app" -> {
                 closeExecutor.execute {
                     try {

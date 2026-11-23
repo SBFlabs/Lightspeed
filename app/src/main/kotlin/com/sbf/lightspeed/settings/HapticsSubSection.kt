@@ -407,6 +407,7 @@ private fun KeepHapticsAliveCard(
                     LightspeedBatterySentinel.setKeepHapticsAlive(context, checked)
                     onRefreshNeeded()
                 },
+                colors = deckSwitchColors(),
                 modifier = Modifier.height(24.dp)
             )
         }

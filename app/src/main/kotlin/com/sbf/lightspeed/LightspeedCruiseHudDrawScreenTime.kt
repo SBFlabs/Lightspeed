@@ -13,6 +13,10 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedUsageStats
 import java.util.Calendar
 
+private val stScratchRect = RectF()
+private val stCountdownPillRect = RectF()
+private val stCountdownClipPath = android.graphics.Path()
+
 /** Cruise HUD Screen Time & 24h Countdown Timeline widget renderer (split from LightspeedCruiseHudWidgetsDrawVitals.kt). */
 internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
     canvas: Canvas,
@@ -42,7 +46,9 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
         slotIndex = slotIndex
     )
 
+    val wellbeingBtnRect = vitalsRectForSlot(screenTimeWellbeingBtnRects, slotIndex)
     if (!LightspeedUsageStats.hasUsageAccess(context)) {
+        wellbeingBtnRect.setEmpty()
         textPaint.textAlign = Paint.Align.CENTER
         textPaint.typeface = overlayTypeface(isBold = true)
         textPaint.textSize = 12.5f * density
@@ -96,10 +102,8 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
     // Calendar progression gauges (DAY / WK / MO / YR) + Ignore Apps button in left 1/3 column
     val calNow = Calendar.getInstance()
     val dayRatio = ((calNow.get(Calendar.HOUR_OF_DAY) * 60f + calNow.get(Calendar.MINUTE)) / (24f * 60f)).coerceIn(0.02f, 1f)
-    val dowNow = calNow.get(Calendar.DAY_OF_WEEK)
-    val firstDowNow = calNow.firstDayOfWeek
-    val dayInWeekNow = (dowNow - firstDowNow + 7) % 7
-    val wkRatio = ((dayInWeekNow * 24f + calNow.get(Calendar.HOUR_OF_DAY)) / (7f * 24f)).coerceIn(0.02f, 1f)
+    val wkMode = LightspeedCruiseHudPods.getWeekCycleMode(context)
+    val wkRatio = LightspeedCruiseHudPods.computeWeekProgressRatio(calNow, wkMode)
     val daysInMoNow = calNow.getActualMaximum(Calendar.DAY_OF_MONTH).coerceAtLeast(28)
     val moRatio = (((calNow.get(Calendar.DAY_OF_MONTH) - 1) * 24f + calNow.get(Calendar.HOUR_OF_DAY)) / (daysInMoNow * 24f)).coerceIn(0.02f, 1f)
     val daysInYrNow = calNow.getActualMaximum(Calendar.DAY_OF_YEAR).coerceAtLeast(365)
@@ -108,6 +112,8 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
     val leftBotLimit = bounds.bottom - 33f * density
     val ignoreBtnH = 16.5f * density
     val ignoreBtnRect = vitalsRectForSlot(screenTimeIgnoreBtnRects, slotIndex)
+    val wkBarRect = vitalsRectForSlot(screenTimeWkBarRects, slotIndex)
+    wkBarRect.setEmpty()
     val progressStartTop = bounds.top + 80f * density
     val availLeftH = leftBotLimit - progressStartTop
     if (availLeftH >= 20f * density) {
@@ -154,6 +160,9 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
             for ((idx, pair) in gauges.withIndex()) {
                 val (gLabel, ratio) = pair
                 val cy = progressStartTop + idx * rowStep + rowStep * 0.5f
+                if (gLabel == "WK") {
+                    wkBarRect.set(leftColX, cy - rowStep * 0.5f, leftColX + leftColMaxW, cy + rowStep * 0.5f)
+                }
                 textPaint.textAlign = Paint.Align.LEFT
                 textPaint.typeface = Typeface.MONOSPACE
                 textPaint.textSize = 7.2f * density
@@ -165,10 +174,12 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
                 val bTop = cy - gBarH * 0.5f
                 highlightPaint.style = Paint.Style.FILL
                 highlightPaint.color = Color.argb(42, 255, 255, 255)
-                canvas.drawRoundRect(RectF(gBarLeft, bTop, gBarRight, bTop + gBarH), 1.8f * density, 1.8f * density, highlightPaint)
+                stScratchRect.set(gBarLeft, bTop, gBarRight, bTop + gBarH)
+                canvas.drawRoundRect(stScratchRect, 1.8f * density, 1.8f * density, highlightPaint)
                 highlightPaint.color = accent
                 val fillW = ((gBarRight - gBarLeft) * ratio).coerceAtLeast(2.5f * density)
-                canvas.drawRoundRect(RectF(gBarLeft, bTop, gBarLeft + fillW, bTop + gBarH), 1.8f * density, 1.8f * density, highlightPaint)
+                stScratchRect.set(gBarLeft, bTop, gBarLeft + fillW, bTop + gBarH)
+                canvas.drawRoundRect(stScratchRect, 1.8f * density, 1.8f * density, highlightPaint)
 
                 textPaint.textAlign = Paint.Align.RIGHT
                 textPaint.textSize = 7.0f * density
@@ -199,12 +210,32 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
     screenTimeAppsMaxScroll = kotlin.math.max(0f, totalAppsH - listH)
     screenTimeAppsScrollOffset = screenTimeAppsScrollOffset.coerceIn(0f, screenTimeAppsMaxScroll)
 
+    val wbPillW = 60f * density
+    val wbPillH = 12.5f * density
+    val wbPillTop = bounds.top + 30.5f * density
+    val wbPillLeft = rightColRight - wbPillW
+    wellbeingBtnRect.set(wbPillLeft, wbPillTop, rightColRight, wbPillTop + wbPillH)
+    highlightPaint.style = Paint.Style.FILL
+    highlightPaint.color = Color.argb((34 * alpha).toInt(), Color.red(accent), Color.green(accent), Color.blue(accent))
+    canvas.drawRoundRect(wellbeingBtnRect, 4f * density, 4f * density, highlightPaint)
+    highlightPaint.style = Paint.Style.STROKE
+    highlightPaint.strokeWidth = 0.7f * density
+    highlightPaint.color = Color.argb((95 * alpha).toInt(), Color.red(accent), Color.green(accent), Color.blue(accent))
+    canvas.drawRoundRect(wellbeingBtnRect, 4f * density, 4f * density, highlightPaint)
+    textPaint.textAlign = Paint.Align.CENTER
+    textPaint.typeface = Typeface.MONOSPACE
+    textPaint.textSize = 7.0f * density
+    textPaint.color = accent
+    val wbFm = textPaint.fontMetrics
+    canvas.drawText("WELLBEING ↗", wellbeingBtnRect.centerX(), wellbeingBtnRect.centerY() - ((wbFm.descent + wbFm.ascent) / 2f), textPaint)
+
     val listHeader = if (allScopedApps.size > 2) "APPS (${allScopedApps.size}) · SCROLL" else "TOP APPS"
     textPaint.textAlign = Paint.Align.LEFT
     textPaint.typeface = overlayTypeface(isBold = true)
     textPaint.textSize = 9.6f * density
     textPaint.color = accent
-    canvas.drawText(listHeader, rightColLeft, bounds.top + 40f * density, textPaint)
+    val maxListHdrW = (wbPillLeft - rightColLeft - 6f * density).coerceAtLeast(36f * density)
+    canvas.drawText(clipTextToWidth(listHeader, maxListHdrW), rightColLeft, bounds.top + 40f * density, textPaint)
 
     if (allScopedApps.isEmpty()) {
         textPaint.textAlign = Paint.Align.LEFT
@@ -243,25 +274,27 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
             // Progress bar
             val barRatio = if (totalMs > 0L) (ms.toFloat() / totalMs).coerceIn(0.04f, 1f) else 0.04f
             val barTop = rowY + 3.5f * density
-            val barRectBg = RectF(rightColLeft, barTop, rightColRight, barTop + 4.2f * density)
-            val barRectFill = RectF(rightColLeft, barTop, rightColLeft + (barW * barRatio), barTop + 4.2f * density)
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(40, 255, 255, 255)
-            canvas.drawRoundRect(barRectBg, 2f * density, 2f * density, highlightPaint)
+            stScratchRect.set(rightColLeft, barTop, rightColRight, barTop + 4.2f * density)
+            canvas.drawRoundRect(stScratchRect, 2f * density, 2f * density, highlightPaint)
             highlightPaint.color = accent
-            canvas.drawRoundRect(barRectFill, 2f * density, 2f * density, highlightPaint)
+            stScratchRect.set(rightColLeft, barTop, rightColLeft + (barW * barRatio), barTop + 4.2f * density)
+            canvas.drawRoundRect(stScratchRect, 2f * density, 2f * density, highlightPaint)
 
             rowY += itemH
         }
         canvas.restore()
-        LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+        LightspeedHudVectorIcons.applyScrollEdgeFeathering(
             canvas = canvas,
             left = rightColLeft - 4f * density,
             top = listTop - 1f * density,
             right = rightColRight + 4f * density,
             bottom = listBottom,
-            featherTopPx = if (screenTimeAppsScrollOffset > 0.5f) 14f * density else 0f,
-            featherBottomPx = if (screenTimeAppsScrollOffset < screenTimeAppsMaxScroll - 0.5f) 16f * density else 0f,
+            scrollOffset = screenTimeAppsScrollOffset,
+            maxScroll = screenTimeAppsMaxScroll,
+            featherTopPx = 14f * density,
+            featherBottomPx = 16f * density,
             density = density,
             seed = 7171
         )
@@ -276,9 +309,11 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
             val thumbY = listTop + ((screenTimeAppsScrollOffset / screenTimeAppsMaxScroll) * (listH - thumbH))
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(60, 255, 255, 255)
-            canvas.drawRoundRect(RectF(sbX, listTop, sbX + sbW, listBottom), 1.5f * density, 1.5f * density, highlightPaint)
+            stScratchRect.set(sbX, listTop, sbX + sbW, listBottom)
+            canvas.drawRoundRect(stScratchRect, 1.5f * density, 1.5f * density, highlightPaint)
             highlightPaint.color = accent
-            canvas.drawRoundRect(RectF(sbX, thumbY, sbX + sbW, thumbY + thumbH), 1.5f * density, 1.5f * density, highlightPaint)
+            stScratchRect.set(sbX, thumbY, sbX + sbW, thumbY + thumbH)
+            canvas.drawRoundRect(stScratchRect, 1.5f * density, 1.5f * density, highlightPaint)
         }
     }
 
@@ -297,7 +332,9 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
     val pillH = 23f * density
     val pillY = bounds.bottom - pillH - 4f * density
     val pillW = bounds.width() - 18f * density
-    val pillRect = RectF(bounds.centerX() - pillW / 2f, pillY, bounds.centerX() + pillW / 2f, pillY + pillH)
+    val pillRect = stCountdownPillRect.apply {
+        set(bounds.centerX() - pillW / 2f, pillY, bounds.centerX() + pillW / 2f, pillY + pillH)
+    }
     val pillCorner = 4f * density
 
     // Base pill track
@@ -305,14 +342,13 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
     highlightPaint.color = Color.argb((28 * alpha).toInt(), Color.red(accent), Color.green(accent), Color.blue(accent))
     canvas.drawRoundRect(pillRect, pillCorner, pillCorner, highlightPaint)
 
-    // Subtle theme-matched horizontal progress fill bar behind the event title & remaining time
-    if (hasActiveCountdown && cdProgress > 0.005f) {
+    // Subtle theme-matched horizontal progress fill bar behind the event title & remaining time (manual targets only)
+    if (hasActiveCountdown && !resolvedCountdown.isCalendarEvent && cdProgress > 0.005f) {
         val fillRight = pillRect.left + (pillRect.width() * cdProgress.coerceIn(0f, 1f))
-        val clipPath = android.graphics.Path().apply {
-            addRoundRect(pillRect, pillCorner, pillCorner, android.graphics.Path.Direction.CW)
-        }
+        stCountdownClipPath.reset()
+        stCountdownClipPath.addRoundRect(pillRect, pillCorner, pillCorner, android.graphics.Path.Direction.CW)
         canvas.save()
-        canvas.clipPath(clipPath)
+        canvas.clipPath(stCountdownClipPath)
         highlightPaint.style = Paint.Style.FILL
         highlightPaint.color = Color.argb((74 * alpha).toInt(), Color.red(accent), Color.green(accent), Color.blue(accent))
         canvas.drawRect(pillRect.left, pillRect.top, fillRight, pillRect.bottom, highlightPaint)

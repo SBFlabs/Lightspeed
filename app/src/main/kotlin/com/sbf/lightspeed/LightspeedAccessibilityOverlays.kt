@@ -134,7 +134,7 @@ internal fun LightspeedAccessibilityService.setupSensorTouchOverlay(prefs: Share
     val sensorOffsetX = (if (isLandscape) prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_OFFSET_X_LANDSCAPE, 300) else prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_OFFSET_X, 105)) * density
     val thicknessDp = (if (isLandscape) prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_THICKNESS_LANDSCAPE, 35) else prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_THICKNESS, 35)).coerceIn(10, 52)
     val sensorHeight = thicknessDp * density
-    val sensorOffsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * density).coerceAtLeast(0f)
+    val sensorOffsetY = (prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_OFFSET_Y, 0) * density).coerceAtLeast(0f)
 
     val sensorLeft = (((screenW - spanPx) / 2f) + sensorOffsetX).coerceIn(0f, screenW - spanPx)
     val sensorTop = sensorOffsetY
@@ -171,7 +171,7 @@ internal fun LightspeedAccessibilityService.setupSensorTouchOverlay(prefs: Share
 }
 
 internal fun LightspeedAccessibilityService.updateSensorTouchOverlayFromPrefs(prefs: SharedPreferences) {
-    val enabled = prefs.getBoolean("pref_statusbar_enabled", false)
+    val enabled = prefs.getBoolean(LightspeedPreferences.KEY_STATUSBAR_ENABLED, false)
     if (!enabled) {
         sensorTouchOverlayView?.let {
             try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "updateSensorTouchOverlayFromPrefs:163", e) }
@@ -188,7 +188,7 @@ internal fun LightspeedAccessibilityService.updateSensorTouchOverlayFromPrefs(pr
     val sensorOffsetX = (if (isLandscape) prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_OFFSET_X_LANDSCAPE, 300) else prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_OFFSET_X, 105)) * density
     val thicknessDp = (if (isLandscape) prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_THICKNESS_LANDSCAPE, 35) else prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_THICKNESS, 35)).coerceIn(10, 52)
     val sensorHeight = thicknessDp * density
-    val sensorOffsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * density).coerceAtLeast(0f)
+    val sensorOffsetY = (prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_OFFSET_Y, 0) * density).coerceAtLeast(0f)
 
     val sensorLeft = (((screenW - spanPx) / 2f) + sensorOffsetX).coerceIn(0f, screenW - spanPx)
     val sensorTop = sensorOffsetY
@@ -291,7 +291,7 @@ internal fun LightspeedAccessibilityService.updateBottomSensorTouchOverlayFromPr
 }
 
 internal fun LightspeedAccessibilityService.updateStatusBarOverlayFromPrefs(prefs: SharedPreferences) {
-    val enabled = prefs.getBoolean("pref_statusbar_enabled", false)
+    val enabled = prefs.getBoolean(LightspeedPreferences.KEY_STATUSBAR_ENABLED, false)
     val isStatusBarPreview = prefs.getBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, false)
     val dlRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "top_line") ?: "top_line"
     val mediaRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none") ?: "none"

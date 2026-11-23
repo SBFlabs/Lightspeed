@@ -160,6 +160,7 @@ object LightspeedDisplayWellnessResetEngine {
 
     fun resetAutoBrightness(context: Context) {
         clearVideoOverride(context)
+        LightspeedEyeCareEngine.applyExtraDim(context, false, 0)
         try {
             if (Settings.System.canWrite(context)) {
                 Settings.System.putInt(

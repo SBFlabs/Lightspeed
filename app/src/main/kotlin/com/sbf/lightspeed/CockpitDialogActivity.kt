@@ -55,6 +55,8 @@ import kotlinx.coroutines.withContext
 import com.sbf.lightspeed.settings.DeckGlassCardSurface
 import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.settings.LightspeedInfinityDialog
+import com.sbf.lightspeed.settings.blockScrimPassthrough
+import com.sbf.lightspeed.settings.overlayScrimDismiss
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import com.sbf.lightspeed.ui.theme.CockpitPalette
@@ -135,14 +137,16 @@ class CockpitDialogActivity : ComponentActivity() {
         val returnCatId = intent.getStringExtra(EXTRA_RETURN_CATEGORY_ID)
             ?.ifBlank { null }
             ?: intent.getStringExtra(EXTRA_CATEGORY_ID)?.ifBlank { null }
-        if (setIndex >= 0) {
-            try {
-                LightspeedAccessibilityService.instance?.reopenCockpitHangar(setIndex)
-            } catch (e: Exception) { logSwallowed("CockpitDialogActivity", "onDestroy:77", e) }
-        } else if (!returnCatId.isNullOrBlank()) {
-            try {
-                LightspeedAccessibilityService.instance?.reopenCategoryCruise(returnCatId)
-            } catch (e: Exception) { logSwallowed("CockpitDialogActivity", "onDestroy:reopenCategoryCruise", e) }
+        if (!com.sbf.lightspeed.system.LightspeedOverlayDismissCoordinator.shouldSuppressReopen()) {
+            if (setIndex >= 0) {
+                try {
+                    LightspeedAccessibilityService.instance?.reopenCockpitHangar(setIndex)
+                } catch (e: Exception) { logSwallowed("CockpitDialogActivity", "onDestroy:77", e) }
+            } else if (!returnCatId.isNullOrBlank()) {
+                try {
+                    LightspeedAccessibilityService.instance?.reopenCategoryCruise(returnCatId)
+                } catch (e: Exception) { logSwallowed("CockpitDialogActivity", "onDestroy:reopenCategoryCruise", e) }
+            }
         }
     }
 
@@ -172,18 +176,24 @@ class CockpitDialogActivity : ComponentActivity() {
                 val pickerBackdropAlpha = activeSnapshot.dimAmount.coerceIn(0.32f, 0.72f)
                 CompositionLocalProvider(LocalDomainPalette provides CockpitPalette) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = if (isWidgetPicker) pickerBackdropAlpha else 0.55f))
-                            .clickable(onClick = { finish() }),
+                        modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = if (isWidgetPicker) pickerBackdropAlpha else 0.55f))
+                                .overlayScrimDismiss(
+                                    context = this@CockpitDialogActivity,
+                                    onTapOutside = { finish() }
+                                )
+                        )
                         if (isWidgetPicker) {
                             DeckGlassCardSurface(
                                 modifier = Modifier
                                     .fillMaxWidth(0.95f)
                                     .fillMaxHeight(0.90f)
-                                    .clickable(enabled = false, onClick = {})
+                                    .blockScrimPassthrough()
                             ) {
                                 Box(modifier = Modifier.padding(14.dp)) {
                                     CategoryHudWidgetPickerContent(
@@ -201,7 +211,7 @@ class CockpitDialogActivity : ComponentActivity() {
                                     .fillMaxWidth(0.92f)
                                     .widthIn(max = 560.dp)
                                     .heightIn(max = maxDialogH)
-                                    .clickable(enabled = false, onClick = {}),
+                                    .blockScrimPassthrough(),
                                 isFlyout = true
                             ) {
                                 Box(

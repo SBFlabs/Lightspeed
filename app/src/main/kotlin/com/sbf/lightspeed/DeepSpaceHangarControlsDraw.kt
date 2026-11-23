@@ -39,7 +39,9 @@ internal fun computeHangarLayoutMetrics(
     screenW: Float,
     screenH: Float,
     d: Float,
-    openAccordion: Int
+    openAccordion: Int,
+    bottomInsetPx: Float = 0f,
+    baseOuterRadiusPx: Float = 135f * d
 ): HangarLayoutMetrics {
     val isLandscape = screenW > screenH
     val ctrlCx = if (isLandscape) screenW * 0.27f else screenW / 2f
@@ -66,27 +68,39 @@ internal fun computeHangarLayoutMetrics(
         else -> rAccY
     }
 
-    val gimbalCx = if (isLandscape) screenW * 0.74f else screenW / 2f
-    val topSafeY = bottomCtrlY + 26f * d
-    val bottomSafeY = screenH - 132f * d
-    val portraitAvailSpan = (bottomSafeY - topSafeY).coerceAtLeast(145f * d)
+    val safeBaseOuter = baseOuterRadiusPx.coerceAtLeast(1f)
+    val navSafeBottom = (screenH - bottomInsetPx - (if (isLandscape) 12f else 14f) * d)
+        .coerceAtLeast(topHangarY + 180f * d)
+    val exitH = (if (isLandscape) 34f else 38f) * d
+    val exitBottom = navSafeBottom
+    val exitTop = exitBottom - exitH
 
-    val cyGimbal = if (isLandscape) {
-        (screenH * 0.41f).coerceIn(110f * d, screenH - 115f * d)
-    } else {
-        ((topSafeY + bottomSafeY) * 0.50f).coerceIn(topSafeY + 72f * d, screenH - 130f * d)
-    }
+    val gimbalCx = if (isLandscape) screenW * 0.74f else screenW / 2f
+    val topSafeY = bottomCtrlY + 22f * d
+    val portraitStackBelowCenterPx = 82f * d
 
     val landscapeGimbalFit = if (isLandscape) {
-        ((screenH * 0.34f) / (135f * d)).coerceIn(0.58f, 1.0f)
+        (((screenH - bottomInsetPx) * 0.34f) / (135f * d)).coerceIn(0.58f, 1.0f)
     } else {
-        ((portraitAvailSpan * 0.44f) / (135f * d)).coerceIn(0.54f, 0.94f)
+        val availForGimbal = (exitTop - portraitStackBelowCenterPx - topSafeY).coerceAtLeast(112f * d)
+        val maxRadiusAllowed = ((availForGimbal - 16f * d) * 0.5f).coerceAtLeast(52f * d)
+        (maxRadiusAllowed / safeBaseOuter).coerceIn(0.45f, 0.94f)
+    }
+
+    val actualRadOuter = safeBaseOuter * landscapeGimbalFit
+    val cyGimbal = if (isLandscape) {
+        val maxLandscapeCy = (navSafeBottom - actualRadOuter - 80f * d).coerceAtLeast(100f * d)
+        ((screenH - bottomInsetPx) * 0.41f).coerceIn(100f * d, maxLandscapeCy)
+    } else {
+        val minCy = topSafeY + actualRadOuter + 8f * d
+        val maxCy = exitTop - actualRadOuter - portraitStackBelowCenterPx
+        maxCy.coerceAtLeast(minCy)
     }
 
     val exitRect = if (isLandscape) {
-        RectF(ctrlCx - (deckW * 0.44f), screenH - 46f * d, ctrlCx + (deckW * 0.44f), screenH - 12f * d)
+        RectF(ctrlCx - (deckW * 0.44f), exitTop, ctrlCx + (deckW * 0.44f), exitBottom)
     } else {
-        RectF(ctrlCx - (deckW * 0.42f), screenH - 56f * d, ctrlCx + (deckW * 0.42f), screenH - 18f * d)
+        RectF(ctrlCx - (deckW * 0.42f), exitTop, ctrlCx + (deckW * 0.42f), exitBottom)
     }
 
     return HangarLayoutMetrics(

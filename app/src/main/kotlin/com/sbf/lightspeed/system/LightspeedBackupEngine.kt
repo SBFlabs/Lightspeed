@@ -288,6 +288,20 @@ object LightspeedBackupEngine {
                     importedCount++
                     continue
                 }
+                if (key == LightspeedPreferences.KEY_SCREEN_TIME_WEEK_CYCLE_MODE) {
+                    val rawMode = value.toString().trim()
+                    val validModes = setOf(
+                        LightspeedPreferences.WEEK_CYCLE_SATURDAY,
+                        LightspeedPreferences.WEEK_CYCLE_SUNDAY,
+                        LightspeedPreferences.WEEK_CYCLE_MONDAY,
+                        LightspeedPreferences.WEEK_CYCLE_MONTHLY_7DAY
+                    )
+                    if (rawMode in validModes) {
+                        editor.putString(key, rawMode)
+                        importedCount++
+                    }
+                    continue
+                }
                 if (isActionTokenKey(key)) {
                     val valueStr = value.toString()
                     if (!isValidActionTokenValue(key, valueStr)) {
@@ -427,7 +441,10 @@ object LightspeedBackupEngine {
                 com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine.refreshActiveAudioPlayers(context)
                 com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine.initialize(context)
                 com.sbf.lightspeed.system.sonic.SonicChannelRouter.applyRoutingRules(context)
+                com.sbf.lightspeed.system.bot.LightspeedBotEngine.stopReplay()
+                com.sbf.lightspeed.system.bot.LightspeedBotEngine.stopContinuousLoop()
                 com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.reload(context)
+                com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.refreshMacroButtonsState()
                 com.sbf.lightspeed.widget.LightspeedStackWidgetProvider.notifyUpdate(context)
                 com.sbf.lightspeed.widget.SpacePodWidgetProvider.notifyUpdate(context)
                 com.sbf.lightspeed.widget.LightspeedFolderWidgetProvider.notifyUpdate(context)
@@ -547,6 +564,10 @@ object LightspeedBackupEngine {
         CockpitGimbalConfigCache.flush()
         LightspeedShortcutManager.clearMemoryCache()
         LightspeedIconManager.clearCache()
+        com.sbf.lightspeed.system.bot.LightspeedBotEngine.stopReplay()
+        com.sbf.lightspeed.system.bot.LightspeedBotEngine.stopContinuousLoop()
+        com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.reload(context)
+        com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.refreshMacroButtonsState()
         LightspeedPreferences.refreshDeckGlassStyle(context)
         LightspeedPreferences.refreshDeckBackdropStyle(context)
         LightspeedPreferences.refreshLiquidGlassConfig(context)

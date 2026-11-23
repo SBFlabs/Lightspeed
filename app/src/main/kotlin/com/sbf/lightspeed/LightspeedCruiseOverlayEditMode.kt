@@ -137,6 +137,9 @@ enum class EditModeTab {
 }
 
 internal fun LightspeedCruiseOverlay.closeEditMode() {
+    sparkPreviewCancelRunnable?.let { uiHandler.removeCallbacks(it) }
+    sparkPreviewCancelRunnable = null
+    deepSpaceRenderer.reactorRenderer.cancelWarp()
     isEditModeOpen = false
     editModeTab = EditModeTab.PAGE
     isEditModePromptOpen = false

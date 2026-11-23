@@ -1,6 +1,7 @@
 package com.sbf.lightspeed
 
 import android.view.MotionEvent
+import android.view.ViewConfiguration
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
@@ -15,7 +16,8 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
     val hF = height.toFloat()
     val activeCatId = cachedCategories.getOrNull(activeCatIndex)?.id ?: "comm"
     val gridTopLimit = getCategoryGridTop(activeCatId)
-    val gridBottomLimit = hF * 0.98f
+    val tipReserveTop = if (!categoryCruiseTipHitRect.isEmpty) categoryCruiseTipHitRect.top else hF * 0.98f
+    val gridBottomLimit = tipReserveTop.coerceAtMost(hF * 0.98f)
     val gridHeightScope = gridBottomLimit - gridTopLimit
     val maxScroll = max(0f, totalGridContentHeight - gridHeightScope)
 
@@ -48,9 +50,20 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
                 touchDownX = x; touchDownY = y; lastTouchY = y
                 stickyPinLongPressFired = false
                 editModeHoldFired = false
+                allTipsState.touchingCruiseTip = !isHudAddWidgetMenuOpen &&
+                    pendingDeleteHudItem == null &&
+                    isTouchOnCategoryCruiseTip(x, y)
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
+                if (allTipsState.touchingCruiseTip) {
+                    val dp = resources.displayMetrics.density
+                    val maxTipSlop = maxOf(24f * dp, ViewConfiguration.get(context).scaledTouchSlop.toFloat())
+                    if (hypot((x - touchDownX).toDouble(), (y - touchDownY).toDouble()) > maxTipSlop) {
+                        allTipsState.touchingCruiseTip = false
+                    }
+                    return true
+                }
                 val deltaY = y - lastTouchY
                 lastTouchY = y
                 computeHudSlotBounds()
@@ -62,13 +75,21 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
                 return true
             }
             MotionEvent.ACTION_UP -> {
+                val dp = resources.displayMetrics.density
+                val maxTapSlop = maxOf(24f * dp, ViewConfiguration.get(context).scaledTouchSlop.toFloat())
+                val isTipTap = hypot((x - touchDownX).toDouble(), (y - touchDownY).toDouble()) <= maxTapSlop
+                if (allTipsState.touchingCruiseTip) {
+                    allTipsState.touchingCruiseTip = false
+                    if (isTipTap) {
+                        openAllTipsOverlay(AllTipsSurface.CATEGORY_CRUISE, promoteFromCruise = false)
+                    }
+                    return true
+                }
                 if (stickyPinLongPressFired || editModeHoldFired) {
                     stickyPinLongPressFired = false
                     editModeHoldFired = false
                     return true
                 }
-                val dp = resources.displayMetrics.density
-                val maxTapSlop = (24f * dp).coerceAtLeast(24f)
                 val isTap = hypot((x - touchDownX).toDouble(), (y - touchDownY).toDouble()) < maxTapSlop
                 if (isTap) {
                     handleHudEditModeTap(x, y)
@@ -78,6 +99,7 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {
+                allTipsState.touchingCruiseTip = false
                 stickyPinLongPressFired = false
                 editModeHoldFired = false
                 activeItem = null
@@ -289,6 +311,7 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
             activeItem = null
             stickyPinLongPressFired = false
             editModeHoldFired = false
+            allTipsState.touchingCruiseTip = false
             stickyPinLongPressRunnable?.let { removeCallbacks(it) }
             stickyPinLongPressRunnable = null
 
@@ -311,6 +334,14 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
                 } else {
                     triggerHardwareHaptic(12, 60)
                 }
+                invalidate()
+                return true
+            }
+
+            if ((isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN) &&
+                isTouchOnCategoryCruiseTip(x, y)
+            ) {
+                allTipsState.touchingCruiseTip = true
                 invalidate()
                 return true
             }
@@ -375,6 +406,14 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
             invalidate(); return true
         }
         MotionEvent.ACTION_MOVE -> {
+            if (allTipsState.touchingCruiseTip) {
+                val dp = resources.displayMetrics.density
+                val maxTipSlop = maxOf(24f * dp, ViewConfiguration.get(context).scaledTouchSlop.toFloat())
+                if (hypot((x - touchDownX).toDouble(), (y - touchDownY).toDouble()) > maxTipSlop) {
+                    allTipsState.touchingCruiseTip = false
+                }
+                return true
+            }
             if (isDraggingEdgeCategorySwitcher && cachedCategories.isNotEmpty() && !pinnedEdgeSwitcherRect.isEmpty) {
                 val count = cachedCategories.size
                 val frac = ((y - pinnedEdgeSwitcherRect.top) / pinnedEdgeSwitcherRect.height().coerceAtLeast(1f)).coerceIn(0f, 0.9999f)
@@ -472,6 +511,18 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
             stickyPinLongPressRunnable?.let { removeCallbacks(it) }
             stickyPinLongPressRunnable = null
 
+            val dp = resources.displayMetrics.density
+            val maxTipSlop = maxOf(24f * dp, ViewConfiguration.get(context).scaledTouchSlop.toFloat())
+            val tapDist = hypot((x - touchDownX).toDouble(), (y - touchDownY).toDouble())
+            if (allTipsState.touchingCruiseTip) {
+                allTipsState.touchingCruiseTip = false
+                if (tapDist <= maxTipSlop) {
+                    openAllTipsOverlay(AllTipsSurface.CATEGORY_CRUISE, promoteFromCruise = false)
+                }
+                activeItem = null
+                return true
+            }
+
             if (stickyPinLongPressFired) {
                 stickyPinLongPressFired = false
                 activeItem = null
@@ -479,7 +530,16 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
                 return true
             }
 
-            if (hypot((x - touchDownX).toDouble(), (y - touchDownY).toDouble()) < 16f) {
+            if (tapDist <= maxTipSlop &&
+                (isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN) &&
+                isTouchOnCategoryCruiseTip(x, y)
+            ) {
+                openAllTipsOverlay(AllTipsSurface.CATEGORY_CRUISE, promoteFromCruise = false)
+                activeItem = null
+                return true
+            }
+
+            if (tapDist < 16f) {
                 val isFarSplit = isFarHalfSplitMode()
                 val isHudArea = if (isFarSplit) {
                     val bounds = getTopHudStripBounds()
@@ -513,6 +573,7 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
             activeItem = null; invalidate(); return true
         }
         MotionEvent.ACTION_CANCEL -> {
+            allTipsState.touchingCruiseTip = false
             isDraggingEdgeCategorySwitcher = false
             stickyPinLongPressRunnable?.let { removeCallbacks(it) }
             stickyPinLongPressRunnable = null

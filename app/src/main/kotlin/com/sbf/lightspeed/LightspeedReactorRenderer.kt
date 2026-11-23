@@ -8,6 +8,7 @@ import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.Typeface
+import android.os.SystemClock
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
@@ -34,14 +35,17 @@ internal class LightspeedReactorRenderer {
         private set
     var warpStartTime: Long = 0L
         private set
+    var warpDurationMs: Float = 130f
+        private set
     var warpFocalPointX: Float = 0f
         private set
     var warpFocalPointY: Float = 0f
         private set
 
-    fun startWarp(focalX: Float, focalY: Float) {
+    fun startWarp(focalX: Float, focalY: Float, durationMs: Float = 130f) {
         isWarpLaunching = true
-        warpStartTime = System.currentTimeMillis()
+        warpStartTime = SystemClock.uptimeMillis()
+        warpDurationMs = durationMs.coerceAtLeast(60f)
         warpFocalPointX = focalX
         warpFocalPointY = focalY
     }
@@ -57,8 +61,12 @@ internal class LightspeedReactorRenderer {
         style: String = "photon_burst"
     ) {
         if (!isWarpLaunching) return
-        val elapsed = (System.currentTimeMillis() - warpStartTime).toFloat()
-        val p = (elapsed / 130f).coerceIn(0f, 1f)
+        val elapsed = (SystemClock.uptimeMillis() - warpStartTime).toFloat()
+        if (elapsed >= warpDurationMs) {
+            cancelWarp()
+            return
+        }
+        val p = (elapsed / warpDurationMs).coerceIn(0f, 1f)
         val ease = 1f - (1f - p) * (1f - p)
         val fade = (1f - p).pow(1.35f).coerceIn(0f, 1f)
 
@@ -68,14 +76,24 @@ internal class LightspeedReactorRenderer {
         val pG = Color.green(m3Primary)
         val pB = Color.blue(m3Primary)
 
-        when (style) {
-            "clean_fade" -> drawMinimalPulseSpark(canvas, cx, cy, ease, fade, pR, pG, pB, density)
-            "nova_bloom" -> drawHaloRippleSpark(canvas, cx, cy, ease, fade, pR, pG, pB, density)
-            "quantum_cross" -> drawOpticalFlareSpark(canvas, cx, cy, ease, fade, pR, pG, pB, density)
-            "ion_embers" -> drawEmberDriftSpark(canvas, cx, cy, p, ease, fade, pR, pG, pB, density)
-            else -> drawPhotonBurstSpark(canvas, cx, cy, ease, fade, pR, pG, pB, density)
-        }
         elementPaint.shader = null
+        elementPaint.color = Color.WHITE
+        elementPaint.alpha = 255
+        elementPaint.style = Paint.Style.FILL
+        try {
+            when (style) {
+                "clean_fade" -> drawMinimalPulseSpark(canvas, cx, cy, ease, fade, pR, pG, pB, density)
+                "nova_bloom" -> drawHaloRippleSpark(canvas, cx, cy, ease, fade, pR, pG, pB, density)
+                "quantum_cross" -> drawOpticalFlareSpark(canvas, cx, cy, ease, fade, pR, pG, pB, density)
+                "ion_embers" -> drawEmberDriftSpark(canvas, cx, cy, p, ease, fade, pR, pG, pB, density)
+                else -> drawPhotonBurstSpark(canvas, cx, cy, ease, fade, pR, pG, pB, density)
+            }
+        } finally {
+            elementPaint.shader = null
+            elementPaint.color = Color.WHITE
+            elementPaint.alpha = 255
+            elementPaint.style = Paint.Style.FILL
+        }
     }
 
     private fun drawSoftRadialGlow(
@@ -88,6 +106,8 @@ internal class LightspeedReactorRenderer {
     ) {
         if (radius <= 1f) return
         elementPaint.style = Paint.Style.FILL
+        elementPaint.color = Color.WHITE
+        elementPaint.alpha = 255
         elementPaint.shader = RadialGradient(
             cx, cy, radius,
             intArrayOf(centerColor, midColor, Color.TRANSPARENT),
@@ -128,6 +148,8 @@ internal class LightspeedReactorRenderer {
         sparkPath.close()
 
         elementPaint.style = Paint.Style.FILL
+        elementPaint.color = Color.WHITE
+        elementPaint.alpha = 255
         elementPaint.shader = LinearGradient(
             xStart, yStart, xEnd, yEnd,
             intArrayOf(Color.TRANSPARENT, color, Color.TRANSPARENT),
@@ -183,6 +205,8 @@ internal class LightspeedReactorRenderer {
         val outerR = (24f + ease * 52f) * density
         if (outerR <= 2f) return
         elementPaint.style = Paint.Style.FILL
+        elementPaint.color = Color.WHITE
+        elementPaint.alpha = 255
         elementPaint.shader = RadialGradient(
             cx, cy, outerR,
             intArrayOf(

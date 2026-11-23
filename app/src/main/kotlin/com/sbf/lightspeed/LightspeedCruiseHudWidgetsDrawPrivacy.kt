@@ -18,6 +18,14 @@ import java.util.Locale
 
 private val widgetLabelByIdCache = java.util.concurrent.ConcurrentHashMap<Int, String>()
 private val hackerMonoTypeface by lazy { Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) }
+private val serifBoldTypeface by lazy { Typeface.create(Typeface.SERIF, Typeface.BOLD) }
+private val condensedBoldTypeface by lazy { Typeface.create("sans-serif-condensed", Typeface.BOLD) }
+private val condensedNormalTypeface by lazy { Typeface.create("sans-serif-condensed", Typeface.NORMAL) }
+private val hudChipPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+private val hudChipLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+private val hudHeaderTitleTextPaint = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG)
+private val hudChipScratchRect = RectF()
+private val privacyBubbleScratchRect = RectF()
 private val hackerGlyphs = arrayOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "4", "7", "9", "A", "E", "F")
 
 internal fun resolveDeviceFontTypeface(fontKey: String, isBold: Boolean): Typeface? =
@@ -27,9 +35,9 @@ private fun resolveInspectorTypeface(context: Context, fontFamily: Int, fontKey:
     DeviceFontScanner.resolveAndroidTypeface(fontKey, isBold)?.let { return it }
     if (fontFamily != 0) {
         return when (fontFamily) {
-            1 -> if (isBold) Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) else Typeface.MONOSPACE
-            2 -> if (isBold) Typeface.create(Typeface.SERIF, Typeface.BOLD) else Typeface.SERIF
-            3 -> Typeface.create("sans-serif-condensed", if (isBold) Typeface.BOLD else Typeface.NORMAL)
+            1 -> if (isBold) hackerMonoTypeface else Typeface.MONOSPACE
+            2 -> if (isBold) serifBoldTypeface else Typeface.SERIF
+            3 -> if (isBold) condensedBoldTypeface else condensedNormalTypeface
             else -> if (isBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         }
     }
@@ -492,8 +500,8 @@ internal fun LightspeedCruiseOverlay.drawWidgetChipHeader(
 ) {
     val chipH = 20f * density
     val chipY = bounds.top + 7f * density
-    val chipPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    val chipPaint = hudChipPaint
+    val labelPaint = hudChipLabelPaint.apply {
         textAlign = Paint.Align.CENTER
         typeface = overlayTypeface(isBold = true)
         textSize = 9.0f * density
@@ -514,7 +522,7 @@ internal fun LightspeedCruiseOverlay.drawWidgetChipHeader(
 
     if (showInfoBadge) {
         val infoW = 20f * density
-        val infoRect = RectF(nextRight - infoW, chipY, nextRight, chipY + chipH)
+        val infoRect = hudChipScratchRect.apply { set(nextRight - infoW, chipY, nextRight, chipY + chipH) }
         val screenTimeTitle = com.sbf.lightspeed.system.lsString(R.string.hud_screen_time).ifBlank { "SCREEN TIME" }
         if (widgetTitle == "SCREEN TIME" || widgetTitle == screenTimeTitle) screenTimeInfoBubbleRect.set(infoRect)
         if (slotIndex > 0) vitalsRectForSlot(hudChipInfoRects, slotIndex).set(infoRect)
@@ -536,9 +544,22 @@ internal fun LightspeedCruiseOverlay.drawWidgetChipHeader(
         vitalsRectForSlot(hudChipInfoRects, slotIndex).setEmpty()
     }
 
+    fun drawFittedChipLabel(text: String, rect: RectF) {
+        var sz = 9.0f * density
+        val maxW = (rect.width() - 6f * density).coerceAtLeast(12f * density)
+        labelPaint.textSize = sz
+        while (labelPaint.measureText(text) > maxW && sz > 6.8f * density) {
+            sz -= 0.35f * density
+            labelPaint.textSize = sz
+        }
+        val fm = labelPaint.fontMetrics
+        canvas.drawText(text, rect.centerX(), rect.centerY() - ((fm.descent + fm.ascent) / 2f), labelPaint)
+        labelPaint.textSize = 9.0f * density
+    }
+
     val chipPad = 12f * density
     val primaryChipW = (labelPaint.measureText(primaryLabel) + chipPad).coerceIn(48f * density, 90f * density)
-    val primaryRect = RectF(nextRight - primaryChipW, chipY, nextRight, chipY + chipH)
+    val primaryRect = hudChipScratchRect.apply { set(nextRight - primaryChipW, chipY, nextRight, chipY + chipH) }
     if (slotIndex > 0) vitalsRectForSlot(hudChipPrimaryRects, slotIndex).set(primaryRect)
     chipPaint.style = Paint.Style.FILL
     chipPaint.color = Color.argb((45 * alpha).toInt(), Color.red(accent), Color.green(accent), Color.blue(accent))
@@ -547,15 +568,17 @@ internal fun LightspeedCruiseOverlay.drawWidgetChipHeader(
     chipPaint.strokeWidth = 0.8f * density
     chipPaint.color = Color.argb((90 * alpha).toInt(), Color.red(accent), Color.green(accent), Color.blue(accent))
     canvas.drawRoundRect(primaryRect, 5f * density, 5f * density, chipPaint)
-    canvas.drawText(primaryLabel, primaryRect.centerX(), primaryRect.centerY() + 3.2f * density, labelPaint)
+    drawFittedChipLabel(primaryLabel, primaryRect)
 
     nextRight = primaryRect.left - 5f * density
 
     var drewSecondary = false
     if (!secondaryLabel.isNullOrBlank()) {
-        val secondaryChipW = (labelPaint.measureText(secondaryLabel) + chipPad).coerceIn(44f * density, 78f * density)
-        if (nextRight - secondaryChipW - titleLeft >= 54f * density) {
-            val secondaryRect = RectF(nextRight - secondaryChipW, chipY, nextRight, chipY + chipH)
+        val desiredSecondaryW = (labelPaint.measureText(secondaryLabel) + chipPad).coerceIn(44f * density, 98f * density)
+        val maxAvailForSecondary = nextRight - titleLeft - 48f * density
+        val secondaryChipW = desiredSecondaryW.coerceAtMost(maxAvailForSecondary)
+        if (secondaryChipW >= 44f * density) {
+            val secondaryRect = hudChipScratchRect.apply { set(nextRight - secondaryChipW, chipY, nextRight, chipY + chipH) }
             if (slotIndex > 0) vitalsRectForSlot(hudChipSecondaryRects, slotIndex).set(secondaryRect)
             chipPaint.style = Paint.Style.FILL
             chipPaint.color = Color.argb((40 * alpha).toInt(), 255, 255, 255)
@@ -564,7 +587,7 @@ internal fun LightspeedCruiseOverlay.drawWidgetChipHeader(
             chipPaint.strokeWidth = 0.8f * density
             chipPaint.color = Color.argb((70 * alpha).toInt(), 255, 255, 255)
             canvas.drawRoundRect(secondaryRect, 5f * density, 5f * density, chipPaint)
-            canvas.drawText(secondaryLabel, secondaryRect.centerX(), secondaryRect.centerY() + 3.2f * density, labelPaint)
+            drawFittedChipLabel(secondaryLabel, secondaryRect)
             nextRight = secondaryRect.left - 6f * density
             drewSecondary = true
         }
@@ -573,7 +596,7 @@ internal fun LightspeedCruiseOverlay.drawWidgetChipHeader(
         vitalsRectForSlot(hudChipSecondaryRects, slotIndex).setEmpty()
     }
 
-    val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    val titlePaint = hudHeaderTitleTextPaint.apply {
         textAlign = Paint.Align.LEFT
         typeface = overlayTypeface(isBold = true)
         textSize = if (isCompactCard) 10.2f * density else 11.2f * density
@@ -583,7 +606,7 @@ internal fun LightspeedCruiseOverlay.drawWidgetChipHeader(
     val maxTitleW = (nextRight - titleLeft).coerceAtLeast(16f * density)
     val fittedTitle = android.text.TextUtils.ellipsize(
         widgetTitle,
-        android.text.TextPaint(titlePaint),
+        titlePaint,
         maxTitleW,
         android.text.TextUtils.TruncateAt.END
     ).toString()
@@ -618,7 +641,7 @@ internal fun LightspeedCruiseOverlay.drawPrivacyScoreInfoBubble(canvas: Canvas) 
     } else {
         getSafeHudTopOffset() + 80f * dp
     }
-    val rect = RectF(left, top, left + bubbleW, top + bubbleH)
+    val rect = privacyBubbleScratchRect.apply { set(left, top, left + bubbleW, top + bubbleH) }
 
     highlightPaint.style = Paint.Style.FILL
     highlightPaint.color = Color.argb(245, 12, 16, 26)

@@ -34,7 +34,9 @@ internal object LightspeedCruiseHudTelemetryPoller {
     private fun seedLastUnplugFromBatteryStats(nowMs: Long): Long {
         return try {
             val proc = com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku(
-                "dumpsys batterystats 2>/dev/null | grep -m 3 -E 'Time on battery:|Battery realtime:'"
+                "out=$(dumpsys batterystats --charged 2>/dev/null | grep -m 3 -E 'Time on battery:|Battery realtime:'); " +
+                    "if [ -n \"\$out\" ]; then printf '%s\\n' \"\$out\"; " +
+                    "else dumpsys batterystats 2>/dev/null | grep -m 3 -E 'Time on battery:|Battery realtime:'; fi"
             ) ?: return 0L
             val output = proc.inputStream.bufferedReader().use { it.readText() }
             try { proc.destroy() } catch (_: Exception) {}
@@ -56,6 +58,155 @@ internal object LightspeedCruiseHudTelemetryPoller {
         }
     }
 
+    private fun ensureUnplugTimestampSeeded(context: Context, nowMs: Long) {
+        if (LightspeedCruiseHudPods.lastUnplugTimestampMs > 0L) return
+        val prefs = context.defaultPrefs()
+        val savedUnplug = prefs.getLong(LightspeedPreferences.KEY_VITALS_LAST_UNPLUG_MS, 0L)
+        if (savedUnplug > 0L && savedUnplug <= nowMs) {
+            LightspeedCruiseHudPods.lastUnplugTimestampMs = savedUnplug
+            LightspeedCruiseHudPods.hasObservedRealUnplug = true
+            return
+        }
+        if (!attemptedShizukuUnplugSeed && com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
+            attemptedShizukuUnplugSeed = true
+            val seededUnplug = seedLastUnplugFromBatteryStats(nowMs)
+            if (seededUnplug > 0L && seededUnplug <= nowMs) {
+                LightspeedCruiseHudPods.lastUnplugTimestampMs = seededUnplug
+                LightspeedCruiseHudPods.hasObservedRealUnplug = true
+                prefs.edit().putLong(LightspeedPreferences.KEY_VITALS_LAST_UNPLUG_MS, seededUnplug).apply()
+            }
+        }
+    }
+
+    private val uidPowerRegex = Regex(
+        """^\s*uid\s+(?:u(\d+)a(\d+)|(\d+)):\s*([0-9]+(?:\.[0-9]+)?)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val computedDrainRegex = Regex("""Computed\s+drain:\s*([0-9]+(?:\.[0-9]+)?)""", RegexOption.IGNORE_CASE)
+
+    // Filter down to the Estimated power use UID summary (~9-25 KB) so Binder UserService never hits 1 MB IPC caps.
+    private const val SHIZUKU_BATTERY_USAGE_CMD =
+        "out=$(dumpsys batterystats --usage 2>/dev/null | grep -iE 'Estimated power use|Computed drain|actual drain|^[[:space:]]*uid[[:space:]]'); " +
+            "if printf '%s\\n' \"\$out\" | grep -qiE '^[[:space:]]*uid[[:space:]]'; then " +
+            "  printf '%s\\n' \"\$out\"; " +
+            "else " +
+            "  dumpsys batterystats --charged 2>/dev/null | grep -iE 'Estimated power use|Computed drain|actual drain|^[[:space:]]*uid[[:space:]]'; " +
+            "fi"
+
+    /**
+     * Reads real unplugged per-app power estimates (in mAh & % drain) from `dumpsys batterystats` via Shizuku,
+     * and seeds/accumulates [LightspeedShizukuBatteryDrainStore] across LAST CHG, TODAY, and 7-DAY spans.
+     */
+    private fun pollShizukuUnpluggedBatteryDrain(context: Context): List<LightspeedCruiseHudPods.AppBatteryDrainEntry> {
+        if (!com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) return emptyList()
+        var proc: Process? = null
+        return try {
+            proc = com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku(SHIZUKU_BATTERY_USAGE_CMD)
+                ?: return emptyList()
+            val uidMahMap = HashMap<Int, Float>()
+            var computedDrainMah = 0f
+            var totalSectionMah = 0f
+            var inEstimatedSection = false
+            var sawAnyHeader = false
+
+            proc.inputStream.bufferedReader().useLines { lines ->
+                for (line in lines) {
+                    val trimmed = line.trim()
+                    if (trimmed.isEmpty()) continue
+                    if (line.contains("Estimated power use", ignoreCase = true)) {
+                        sawAnyHeader = true
+                        if (inEstimatedSection && (uidMahMap.isNotEmpty() || computedDrainMah > 0f)) {
+                            break
+                        }
+                        inEstimatedSection = true
+                        continue
+                    }
+
+                    if (!inEstimatedSection) {
+                        if (computedDrainRegex.containsMatchIn(line) || uidPowerRegex.containsMatchIn(line)) {
+                            inEstimatedSection = true
+                        } else {
+                            continue
+                        }
+                    }
+
+                    computedDrainRegex.find(line)?.groupValues?.getOrNull(1)?.toFloatOrNull()?.let { parsedComputed ->
+                        if (parsedComputed > computedDrainMah) computedDrainMah = parsedComputed
+                    }
+
+                    val uidMatch = uidPowerRegex.find(line)
+                    if (uidMatch != null) {
+                        sawAnyHeader = true
+                        val userStr = uidMatch.groupValues[1]
+                        val appStr = uidMatch.groupValues[2]
+                        val rawUidStr = uidMatch.groupValues[3]
+                        val mah = uidMatch.groupValues[4].toFloatOrNull() ?: 0f
+                        val uid = if (userStr.isNotEmpty() && appStr.isNotEmpty()) {
+                            (userStr.toIntOrNull() ?: 0) * 100_000 + 10_000 + (appStr.toIntOrNull() ?: 0)
+                        } else {
+                            rawUidStr.toIntOrNull() ?: -1
+                        }
+                        if (mah > 0f && uid >= 0) {
+                            totalSectionMah += mah
+                            val appId = uid % 100_000
+                            if (appId >= 10_000) {
+                                uidMahMap[uid] = (uidMahMap[uid] ?: 0f) + mah
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (uidMahMap.isEmpty()) {
+                if (sawAnyHeader) LightspeedShizukuBatteryDrainStore.markLiveLastChargeEmpty()
+                return emptyList()
+            }
+            val pm = context.packageManager
+            val pkgMahMap = HashMap<String, Float>()
+            val pkgLabelMap = HashMap<String, String>()
+
+            for ((uid, mah) in uidMahMap) {
+                val pkgs = try { pm.getPackagesForUid(uid) } catch (_: Exception) { null } ?: continue
+                if (pkgs.isEmpty()) continue
+                val primaryPkg = pkgs.firstOrNull { pkg ->
+                    try { pm.getLaunchIntentForPackage(pkg) != null } catch (_: Exception) { false }
+                } ?: pkgs[0]
+                pkgMahMap[primaryPkg] = (pkgMahMap[primaryPkg] ?: 0f) + mah
+                if (!pkgLabelMap.containsKey(primaryPkg)) {
+                    val label = try {
+                        pm.getApplicationLabel(pm.getApplicationInfo(primaryPkg, 0)).toString()
+                    } catch (_: Exception) {
+                        primaryPkg
+                    }
+                    pkgLabelMap[primaryPkg] = label
+                }
+            }
+
+            if (pkgMahMap.isEmpty()) {
+                LightspeedShizukuBatteryDrainStore.markLiveLastChargeEmpty()
+                return emptyList()
+            }
+            val uidSumMah = pkgMahMap.values.sum()
+            val denom = maxOf(computedDrainMah, totalSectionMah, uidSumMah).coerceAtLeast(0.1f)
+            val observedCycleStartMs = if (LightspeedCruiseHudPods.hasObservedRealUnplug) {
+                LightspeedCruiseHudPods.lastUnplugTimestampMs
+            } else {
+                0L
+            }
+            LightspeedShizukuBatteryDrainStore.ingestLiveSnapshot(
+                context = context,
+                pkgMahMap = pkgMahMap,
+                pkgLabelMap = pkgLabelMap,
+                totalDrainMah = denom,
+                observedCycleStartMs = observedCycleStartMs
+            )
+        } catch (_: Throwable) {
+            emptyList()
+        } finally {
+            try { proc?.destroy() } catch (_: Exception) {}
+        }
+    }
+
     fun refreshTelemetryAsync(
         context: Context,
         force: Boolean = false,
@@ -73,12 +224,36 @@ internal object LightspeedCruiseHudTelemetryPoller {
 
         val appCtx = context.applicationContext ?: context
         val now = System.currentTimeMillis()
+        val activeSystemSpans = linkedSetOf("today", "7d")
+        if (needBattery) {
+            val batSlots = if (!activeCategoryId.isNullOrBlank()) {
+                CategoryHudManager.getHudItems(appCtx, activeCategoryId)
+                    .filter { it.type == LightspeedCruiseHudPods.MODE_LS_BATTERY_SYSTEM }
+                    .map { it.slotIndex }
+                    .ifEmpty { listOf(1, 2, 3) }
+            } else {
+                listOf(1, 2, 3)
+            }
+            for (slot in batSlots) {
+                val bMode = LightspeedCruiseHudPods.getBatteryMode(appCtx, activeCategoryId, slot)
+                if (bMode == "system") {
+                    val bSpan = LightspeedCruiseHudPods.getBatterySpan(appCtx, activeCategoryId, slot)
+                    if (bSpan in setOf("1h", "3h", "today", "3d", "7d", "30d")) {
+                        activeSystemSpans.add(bSpan)
+                    }
+                }
+            }
+        }
         val spansToFetch = mutableListOf<String>()
         if (needUsage && LightspeedUsageStats.hasUsageAccess(appCtx)) {
             val candidateSpans = mutableSetOf("1d")
             if (needBattery) {
                 candidateSpans.add("7d")
                 candidateSpans.add("last_charge")
+                if ("1h" in activeSystemSpans) candidateSpans.add("1h")
+                if ("3h" in activeSystemSpans) candidateSpans.add("3h")
+                if ("3d" in activeSystemSpans) candidateSpans.add("3d")
+                if ("30d" in activeSystemSpans) candidateSpans.add("30d")
             }
             if (activeModes == null || LightspeedCruiseHudPods.MODE_LS_SCREEN_TIME in activeModes) {
                 val screenTimeSlots = if (!activeCategoryId.isNullOrBlank()) {
@@ -103,18 +278,30 @@ internal object LightspeedCruiseHudTelemetryPoller {
             }
         }
 
+        val shizukuActive = com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive
+        val drainCooldownMs = if (LightspeedCruiseHudPods.shizukuBatteryDrainApps.isNotEmpty()) 30_000L else 5_000L
+        val shouldFetchShizukuDrain = needBattery &&
+            shizukuActive &&
+            !LightspeedCruiseHudPods.isRefreshingShizukuBatteryDrain &&
+            (force || !LightspeedCruiseHudPods.hasShizukuBatteryDrainSnapshot || (now - LightspeedCruiseHudPods.lastShizukuBatteryDrainRefreshMs) >= drainCooldownMs)
+
         val shouldFetchBattery = needBattery &&
             !LightspeedCruiseHudPods.isRefreshingBattery &&
             (force || !LightspeedCruiseHudPods.hasBatterySnapshot || (now - LightspeedCruiseHudPods.lastBatteryRefreshMs) >= 5_000L)
 
-        if (spansToFetch.isEmpty() && !shouldFetchBattery) return
+        if (spansToFetch.isEmpty() && !shouldFetchBattery && !shouldFetchShizukuDrain) return
 
         LightspeedCruiseHudPods.inFlightUsageSpans.addAll(spansToFetch)
         if (shouldFetchBattery) {
             LightspeedCruiseHudPods.isRefreshingBattery = true
         }
+        if (shouldFetchShizukuDrain) {
+            LightspeedCruiseHudPods.isRefreshingShizukuBatteryDrain = true
+        }
         LightspeedCruiseHudPods.isRefreshingTelemetry =
-            LightspeedCruiseHudPods.isRefreshingBattery || LightspeedCruiseHudPods.inFlightUsageSpans.isNotEmpty()
+            LightspeedCruiseHudPods.isRefreshingBattery ||
+                LightspeedCruiseHudPods.isRefreshingShizukuBatteryDrain ||
+                LightspeedCruiseHudPods.inFlightUsageSpans.isNotEmpty()
         LightspeedCruiseHudPods.lastRefreshMs = now
 
         LightspeedCruiseHudPods.scope.launch {
@@ -122,36 +309,35 @@ internal object LightspeedCruiseHudTelemetryPoller {
                 // Poll Battery/System Vitals first (~15ms) so Vitals/RAM/Storage never wait behind long UsageStats scans.
                 if (shouldFetchBattery) {
                     try {
-                        updateSystemVitalsSnapshot(appCtx)
+                        updateSystemVitalsSnapshot(appCtx, activeSystemSpans, force)
                         LightspeedCruiseHudPods.hasBatterySnapshot = true
                         LightspeedCruiseHudPods.lastBatteryRefreshMs = System.currentTimeMillis()
                     } finally {
                         LightspeedCruiseHudPods.isRefreshingBattery = false
                     }
-                    if (spansToFetch.isNotEmpty()) {
+                    if (spansToFetch.isNotEmpty() || shouldFetchShizukuDrain) {
                         LightspeedCruiseHudPods.onSnapshotUpdated?.invoke()
                     }
+                }
+                if (shouldFetchShizukuDrain) {
+                    try {
+                        ensureUnplugTimestampSeeded(appCtx, System.currentTimeMillis())
+                        val polled = pollShizukuUnpluggedBatteryDrain(appCtx)
+                        if (polled.isNotEmpty() || !LightspeedCruiseHudPods.hasShizukuBatteryDrainSnapshot) {
+                            LightspeedCruiseHudPods.shizukuBatteryDrainApps = polled
+                        }
+                        LightspeedCruiseHudPods.hasShizukuBatteryDrainSnapshot = true
+                        LightspeedCruiseHudPods.lastShizukuBatteryDrainRefreshMs = System.currentTimeMillis()
+                    } finally {
+                        LightspeedCruiseHudPods.isRefreshingShizukuBatteryDrain = false
+                    }
+                    LightspeedCruiseHudPods.onSnapshotUpdated?.invoke()
                 }
                 for (span in spansToFetch) {
                     try {
                         val fetchNow = System.currentTimeMillis()
                         if (span == "last_charge") {
-                            val prefs = appCtx.defaultPrefs()
-                            if (LightspeedCruiseHudPods.lastUnplugTimestampMs <= 0L) {
-                                val savedUnplug = prefs.getLong(LightspeedPreferences.KEY_VITALS_LAST_UNPLUG_MS, 0L)
-                                if (savedUnplug > 0L && savedUnplug <= fetchNow) {
-                                    LightspeedCruiseHudPods.lastUnplugTimestampMs = savedUnplug
-                                    LightspeedCruiseHudPods.hasObservedRealUnplug = true
-                                } else if (!attemptedShizukuUnplugSeed && com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
-                                    attemptedShizukuUnplugSeed = true
-                                    val seededUnplug = seedLastUnplugFromBatteryStats(fetchNow)
-                                    if (seededUnplug > 0L && seededUnplug <= fetchNow) {
-                                        LightspeedCruiseHudPods.lastUnplugTimestampMs = seededUnplug
-                                        LightspeedCruiseHudPods.hasObservedRealUnplug = true
-                                        prefs.edit().putLong(LightspeedPreferences.KEY_VITALS_LAST_UNPLUG_MS, seededUnplug).apply()
-                                    }
-                                }
-                            }
+                            ensureUnplugTimestampSeeded(appCtx, fetchNow)
                             val bootStart = (fetchNow - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(0L)
                             val startMs = if (LightspeedCruiseHudPods.hasObservedRealUnplug && LightspeedCruiseHudPods.lastUnplugTimestampMs > 0L) {
                                 LightspeedCruiseHudPods.lastUnplugTimestampMs
@@ -162,17 +348,41 @@ internal object LightspeedCruiseHudTelemetryPoller {
                                 LightspeedUsageStats.usageMillisSince(appCtx, startMs)
                             LightspeedCruiseHudPods.usageAvailableSpanMsBySpan[span] =
                                 (fetchNow - startMs).coerceAtLeast(0L)
+                        } else if (span == "1h") {
+                            val fetchedMap = LightspeedUsageStats.usageMillisSince(appCtx, (fetchNow - 3_600_000L).coerceAtLeast(0L))
+                            LightspeedCruiseHudPods.usageCacheBySpan[span] = fetchedMap
+                            LightspeedCruiseHudPods.latestBatterySnapshot =
+                                LightspeedCruiseHudPods.latestBatterySnapshot.copy(screenOneHourMs = fetchedMap.values.sum())
+                        } else if (span == "3h") {
+                            val fetchedMap = LightspeedUsageStats.usageMillisSince(appCtx, (fetchNow - 3L * 3_600_000L).coerceAtLeast(0L))
+                            LightspeedCruiseHudPods.usageCacheBySpan[span] = fetchedMap
+                            LightspeedCruiseHudPods.latestBatterySnapshot =
+                                LightspeedCruiseHudPods.latestBatterySnapshot.copy(screenThreeHourMs = fetchedMap.values.sum())
                         } else {
                             val days = when (span) {
                                 "1d" -> 1
+                                "3d" -> 3
                                 "7d" -> 7
                                 "30d" -> 30
                                 "365d" -> 365
                                 "all" -> 3650
                                 else -> 1
                             }
-                            LightspeedCruiseHudPods.usageCacheBySpan[span] =
-                                LightspeedUsageStats.usageMillisByPackage(appCtx, days)
+                            val fetchedMap = LightspeedUsageStats.usageMillisByPackage(appCtx, days)
+                            LightspeedCruiseHudPods.usageCacheBySpan[span] = fetchedMap
+                            if (span == "1d") {
+                                LightspeedCruiseHudPods.latestBatterySnapshot =
+                                    LightspeedCruiseHudPods.latestBatterySnapshot.copy(screenTodayMs = fetchedMap.values.sum())
+                            } else if (span == "3d") {
+                                LightspeedCruiseHudPods.latestBatterySnapshot =
+                                    LightspeedCruiseHudPods.latestBatterySnapshot.copy(screenThreeDayMs = fetchedMap.values.sum())
+                            } else if (span == "7d") {
+                                LightspeedCruiseHudPods.latestBatterySnapshot =
+                                    LightspeedCruiseHudPods.latestBatterySnapshot.copy(screenSevenDayMs = fetchedMap.values.sum())
+                            } else if (span == "30d") {
+                                LightspeedCruiseHudPods.latestBatterySnapshot =
+                                    LightspeedCruiseHudPods.latestBatterySnapshot.copy(screenThirtyDayMs = fetchedMap.values.sum())
+                            }
                             if (days > 1 && days < 3650) {
                                 LightspeedCruiseHudPods.usageAvailableSpanMsBySpan[span] =
                                     LightspeedUsageStats.getAvailableUsageSpanMs(appCtx, days)
@@ -187,13 +397,19 @@ internal object LightspeedCruiseHudTelemetryPoller {
             } catch (_: Exception) {
             } finally {
                 LightspeedCruiseHudPods.isRefreshingTelemetry =
-                    LightspeedCruiseHudPods.isRefreshingBattery || LightspeedCruiseHudPods.inFlightUsageSpans.isNotEmpty()
+                    LightspeedCruiseHudPods.isRefreshingBattery ||
+                        LightspeedCruiseHudPods.isRefreshingShizukuBatteryDrain ||
+                        LightspeedCruiseHudPods.inFlightUsageSpans.isNotEmpty()
                 LightspeedCruiseHudPods.onSnapshotUpdated?.invoke()
             }
         }
     }
 
-    private fun updateSystemVitalsSnapshot(context: Context) {
+    private fun updateSystemVitalsSnapshot(
+        context: Context,
+        activeSystemSpans: Set<String> = setOf("today"),
+        forceNetworkRefresh: Boolean = false
+    ) {
         val prefs = context.defaultPrefs()
         if (LightspeedCruiseHudPods.sessionPeakChargeWatts < 0f) {
             LightspeedCruiseHudPods.sessionPeakChargeWatts =
@@ -429,17 +645,27 @@ internal object LightspeedCruiseHudTelemetryPoller {
         val mobileTx = android.net.TrafficStats.getMobileTxBytes()
         val totalRx = android.net.TrafficStats.getTotalRxBytes()
         val totalTx = android.net.TrafficStats.getTotalTxBytes()
-        val netSupported = mobileRx != android.net.TrafficStats.UNSUPPORTED.toLong() &&
-            totalRx != android.net.TrafficStats.UNSUPPORTED.toLong()
-        val mobileBytes = if (netSupported) mobileRx + mobileTx else -1L
-        val wifiBytes = if (netSupported) ((totalRx + totalTx) - (mobileRx + mobileTx)).coerceAtLeast(0L) else -1L
-        val wifiRxBytes = if (netSupported) (totalRx - mobileRx).coerceAtLeast(0L) else -1L
-        val wifiTxBytes = if (netSupported) (totalTx - mobileTx).coerceAtLeast(0L) else -1L
+        val mobileSupported = mobileRx >= 0L && mobileTx >= 0L
+        val totalSupported = totalRx >= 0L && totalTx >= 0L
+        val safeMobRx = if (mobileSupported) mobileRx else 0L
+        val safeMobTx = if (mobileSupported) mobileTx else 0L
+        val mobileBytes = if (mobileSupported) safeMobRx + safeMobTx else -1L
+        val wifiRxBytes = if (totalSupported) (totalRx - safeMobRx).coerceAtLeast(0L) else -1L
+        val wifiTxBytes = if (totalSupported) (totalTx - safeMobTx).coerceAtLeast(0L) else -1L
+        val wifiBytes = if (totalSupported) wifiRxBytes + wifiTxBytes else -1L
 
+        val oneHourMap = LightspeedCruiseHudPods.usageCacheBySpan["1h"] ?: emptyMap()
+        val threeHourMap = LightspeedCruiseHudPods.usageCacheBySpan["3h"] ?: emptyMap()
         val sevenDayMap = LightspeedCruiseHudPods.usageCacheBySpan["7d"] ?: emptyMap()
         val sevenDayDailyAvgHrs = (sevenDayMap.values.sum() / 3_600_000.0) / 7.0
         val todayMap = LightspeedCruiseHudPods.usageCacheBySpan["1d"] ?: emptyMap()
+        val threeDayMap = LightspeedCruiseHudPods.usageCacheBySpan["3d"] ?: emptyMap()
+        val thirtyDayMap = LightspeedCruiseHudPods.usageCacheBySpan["30d"] ?: emptyMap()
         val sinceChargeScrn = LightspeedCruiseHudPods.formatDurationCompact(todayMap.values.sum())
+
+        for (spanKey in activeSystemSpans) {
+            LightspeedNetworkUsageAnalyzer.refreshDeviceTotalsIfNeeded(context, spanKey, forceNetworkRefresh)
+        }
 
         val capMahForEst = if (designCapMah > 0) designCapMah else 5000
         val currentMahForEst = if (chargeMah > 0) chargeMah.toFloat() else (capMahForEst * (batPct / 100f))
@@ -488,12 +714,16 @@ internal object LightspeedCruiseHudTelemetryPoller {
             awakePct = awakePct,
             mobileBytes = mobileBytes,
             wifiBytes = wifiBytes,
-            mobileRxBytes = if (netSupported) mobileRx.coerceAtLeast(0L) else -1L,
-            mobileTxBytes = if (netSupported) mobileTx.coerceAtLeast(0L) else -1L,
+            mobileRxBytes = if (mobileSupported) safeMobRx else -1L,
+            mobileTxBytes = if (mobileSupported) safeMobTx else -1L,
             wifiRxBytes = wifiRxBytes,
             wifiTxBytes = wifiTxBytes,
+            screenOneHourMs = oneHourMap.values.sum(),
+            screenThreeHourMs = threeHourMap.values.sum(),
             screenTodayMs = todayMap.values.sum(),
+            screenThreeDayMs = threeDayMap.values.sum(),
             screenSevenDayMs = sevenDayMap.values.sum(),
+            screenThirtyDayMs = thirtyDayMap.values.sum(),
             chargeMah = chargeMah,
             designCapacityMah = designCapMah,
             healthLabel = healthLabel,

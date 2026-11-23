@@ -227,6 +227,7 @@ class LightspeedLeftWingOverlay(
     private var isScrubbing = false
     private var scrubStartX = 0f
     private var isHoldFired = false
+    private var pendingHoldReleaseAction: String? = null
     private var currentGesture = "NONE"
     internal var activeZoneKey = "LEFT_CENTER"
     private var scrubType = "none"
@@ -253,6 +254,9 @@ class LightspeedLeftWingOverlay(
                     LightspeedHapticEngine.deflectorHold(context)
                     initScrubHud()
                     invalidate()
+                } else if (action == "system:scroll_to_top" || action == "system:scroll_to_bottom") {
+                    pendingHoldReleaseAction = action
+                    LightspeedHapticEngine.deflectorHold(context)
                 } else {
                     LightspeedHapticEngine.deflectorHold(context)
                     performActionByName(action)
@@ -282,6 +286,7 @@ class LightspeedLeftWingOverlay(
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                pendingHoldReleaseAction = null
                 startRawX = rawX
                 startRawY = rawY
                 lastTouchRawX = rawX
@@ -312,7 +317,7 @@ class LightspeedLeftWingOverlay(
                 }
 
                 if (activeZoneKey == "LEFT_CENTER") {
-                    (service as? LightspeedAccessibilityService)?.startCruiseFromLeft(rawX, rawY)
+                    (service as? LightspeedAccessibilityService)?.startCruiseFromLeft(rawX, rawY, event.getPointerId(0))
                     return true
                 }
 
@@ -468,60 +473,19 @@ class LightspeedLeftWingOverlay(
                 return true
             }
 
-            MotionEvent.ACTION_UP -> {
-                isCurrentlyTouched = false
-                invalidate()
-                uiHandler.removeCallbacks(holdRunnable)
+            MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_POINTER_UP -> {
                 if (activeZoneKey == "LEFT_CENTER") {
                     (service as? LightspeedAccessibilityService)?.forwardTouchEventToCruise(isLeft = true, event = event)
                     return true
                 }
+            }
 
-                val density = resources.displayMetrics.density
-                val maxExcursionX = highestXReached - startRawX
-                val maxExcursionUp = startRawY - lowestYReached
-                val maxExcursionDown = highestYReached - startRawY
-                val maxExcursion = maxOf(maxExcursionX, maxExcursionUp, maxExcursionDown)
-
-                if (isScrubbing || currentGesture == "SCRUBBING") {
-                    isScrubbing = false
-                    currentGesture = "NONE"
-                    activeScrubActionKey = null
-                    hudTitle = ""
-                    hudValue = ""
-                    activeScrubBrightness = -1
-                    activeScrubVolumePct = -1
-                    activeScrubAccumulator = 0f
-                    LightspeedStatusBarOverlay.dismissActionHud(0L)
-                    invalidate()
-                    return true
-                }
-
-                if (!isHoldFired) {
-                    val isReturning = currentGesture == "SWIPE_RIGHT_BACK" || currentGesture == "SWIPE_UP_DOWN" || currentGesture == "SWIPE_DOWN_UP"
-
-                    if (isReturning || (currentGesture != "NONE" && maxExcursion >= (18f * density))) {
-                        val action = getEffectiveAction(activeZoneKey, currentGesture, false)
-                        if (action != "none") {
-                            if (isReturning) {
-                                LightspeedHapticEngine.deflectorRebound(context)
-                            } else if (currentGesture.contains("_") && !currentGesture.startsWith("SWIPE_LEFT") && !currentGesture.startsWith("SWIPE_RIGHT")) {
-                                LightspeedHapticEngine.deflectorTwoStep(context)
-                            } else if (currentGesture == "SWIPE_RIGHT_UP" || currentGesture == "SWIPE_RIGHT_DOWN" || currentGesture == "SWIPE_UP_RIGHT" || currentGesture == "SWIPE_DOWN_RIGHT") {
-                                LightspeedHapticEngine.deflectorTwoStep(context)
-                            } else {
-                                LightspeedHapticEngine.deflectorSingleSwipe(context)
-                            }
-                            performActionByName(action)
-                        }
-                    } else if (maxExcursion < (18f * density)) {
-                        handleTap()
-                    }
-                }
-                return true
+            MotionEvent.ACTION_UP -> {
+                return finishLeftWingUp(rawX, rawY, event)
             }
 
             MotionEvent.ACTION_CANCEL -> {
+                pendingHoldReleaseAction = null
                 isCurrentlyTouched = false
                 invalidate()
                 uiHandler.removeCallbacks(holdRunnable)
@@ -543,6 +507,65 @@ class LightspeedLeftWingOverlay(
                 invalidate()
                 return true
             }
+        }
+        return true
+    }
+
+    private fun finishLeftWingUp(rawX: Float, rawY: Float, forwardEvent: MotionEvent? = null): Boolean {
+        isCurrentlyTouched = false
+        invalidate()
+        uiHandler.removeCallbacks(holdRunnable)
+        if (activeZoneKey == "LEFT_CENTER") {
+            if (forwardEvent != null) {
+                (service as? LightspeedAccessibilityService)?.forwardTouchEventToCruise(isLeft = true, event = forwardEvent)
+            }
+            return true
+        }
+
+        val density = resources.displayMetrics.density
+        val maxExcursionX = highestXReached - startRawX
+        val maxExcursionUp = startRawY - lowestYReached
+        val maxExcursionDown = highestYReached - startRawY
+        val maxExcursion = maxOf(maxExcursionX, maxExcursionUp, maxExcursionDown)
+
+        if (isScrubbing || currentGesture == "SCRUBBING") {
+            isScrubbing = false
+            currentGesture = "NONE"
+            activeScrubActionKey = null
+            hudTitle = ""
+            hudValue = ""
+            activeScrubBrightness = -1
+            activeScrubVolumePct = -1
+            activeScrubAccumulator = 0f
+            LightspeedStatusBarOverlay.dismissActionHud(0L)
+            invalidate()
+            return true
+        }
+
+        val deferredHoldAction = pendingHoldReleaseAction
+        pendingHoldReleaseAction = null
+        if (!isHoldFired) {
+            val isReturning = currentGesture == "SWIPE_RIGHT_BACK" || currentGesture == "SWIPE_UP_DOWN" || currentGesture == "SWIPE_DOWN_UP"
+
+            if (isReturning || (currentGesture != "NONE" && maxExcursion >= (18f * density))) {
+                val action = getEffectiveAction(activeZoneKey, currentGesture, false)
+                if (action != "none") {
+                    if (isReturning) {
+                        LightspeedHapticEngine.deflectorRebound(context)
+                    } else if (currentGesture.contains("_") && !currentGesture.startsWith("SWIPE_LEFT") && !currentGesture.startsWith("SWIPE_RIGHT")) {
+                        LightspeedHapticEngine.deflectorTwoStep(context)
+                    } else if (currentGesture == "SWIPE_RIGHT_UP" || currentGesture == "SWIPE_RIGHT_DOWN" || currentGesture == "SWIPE_UP_RIGHT" || currentGesture == "SWIPE_DOWN_RIGHT") {
+                        LightspeedHapticEngine.deflectorTwoStep(context)
+                    } else {
+                        LightspeedHapticEngine.deflectorSingleSwipe(context)
+                    }
+                    performActionByName(action)
+                }
+            } else if (maxExcursion < (18f * density)) {
+                handleTap()
+            }
+        } else if (deferredHoldAction != null) {
+            uiHandler.postDelayed({ performActionByName(deferredHoldAction) }, 35L)
         }
         return true
     }

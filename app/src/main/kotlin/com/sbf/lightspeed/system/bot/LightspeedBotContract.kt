@@ -68,6 +68,7 @@ object LightspeedBotContract {
     const val SCOPE_THIS_WINDOW = "window"
     const val SCOPE_THIS_APP = "app"
     const val SCOPE_GLOBAL = "global"
+    const val DEFAULT_MACRO_SCOPE = SCOPE_THIS_APP
     const val KEY_BOT_MACRO_SCOPE_PREFIX = "pref_bot_macro_scope_"
 
     const val MAX_BOT_MACROS = 10

@@ -116,20 +116,33 @@ fun BatteryExemptionDeckDialog(
         val activeSnapshot = LocalDeckTheme.current
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
+            dialogWindow?.setLayout(
+                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                android.view.WindowManager.LayoutParams.MATCH_PARENT
+            )
             dialogWindow?.setDimAmount(activeSnapshot.dimAmount)
         }
 
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 18.dp),
+                .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .overlayScrimDismiss(
+                        context = context,
+                        onTapOutside = onDismiss
+                    )
+            )
             DeckGlassCardSurface(
                 modifier = Modifier
+                    .padding(horizontal = 8.dp, vertical = 18.dp)
                     .fillMaxWidth(0.98f)
                     .fillMaxHeight(0.88f)
                     .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
+                    .blockScrimPassthrough()
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     Column(

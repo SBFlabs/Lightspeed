@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import android.animation.Animator
@@ -41,6 +42,7 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.Toast
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
+import com.sbf.lightspeed.settings.resolveCanvasPalette
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
@@ -100,7 +102,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var batterySpanInfoBubbleRect: android.graphics.RectF = android.graphics.RectF()
     internal var batterySpanInfoKey: String = "7d"
     internal var batterySpanInfoMode: String = "apps"
+    internal var allTipsOverlaySurface: AllTipsSurface? = null
+    internal val allTipsState = AllTipsOverlayState()
+    internal val categoryCruiseTipHitRect: android.graphics.RectF = android.graphics.RectF()
+    internal var isTouchingHangarTip: Boolean = false
     internal val screenTimeIgnoreBtnRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val screenTimeWkBarRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val screenTimeWellbeingBtnRects: MutableMap<Int, android.graphics.RectF> = HashMap()
     internal var isPrivacyScoreInfoBubbleOpen: Boolean = false
     internal var privacyScoreInfoRect: android.graphics.RectF = android.graphics.RectF()
     internal val vitalsTempGaugeRects: MutableMap<Int, android.graphics.RectF> = HashMap()
@@ -108,9 +116,21 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal val vitalsSwapGaugeRects: MutableMap<Int, android.graphics.RectF> = HashMap()
     internal val vitalsIntStorageBarRects: MutableMap<Int, android.graphics.RectF> = HashMap()
     internal val vitalsExtStorageBarRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val vitalsCellularRowRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val vitalsWifiRowRects: MutableMap<Int, android.graphics.RectF> = HashMap()
     internal val hudChipInfoRects: MutableMap<Int, android.graphics.RectF> = HashMap()
     internal val hudChipPrimaryRects: MutableMap<Int, android.graphics.RectF> = HashMap()
     internal val hudChipSecondaryRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val vitalsBatterySettingsBtnRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val vitalsNetworkState = VitalsNetworkTabState()
+    internal val cruiseMultiTouch = CruiseMultiTouchState()
+
+    internal var cachedHudBoundCatId: String? = null
+    internal var cachedHudBoundLayer: CruiseLayer? = null
+    internal var cachedHudBoundEditMode: Boolean = false
+    internal var cachedHudBoundLeftFlank: Boolean = false
+    internal var cachedHudBoundW: Int = -1
+    internal var cachedHudBoundH: Int = -1
 
     internal fun vitalsRectForSlot(
         map: MutableMap<Int, android.graphics.RectF>,
@@ -213,6 +233,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var tuneFontDropdownDragged: Boolean = false
     internal var tuneFontDropdownTracking: Boolean = false
     internal var tuneTempUnitPillRect: android.graphics.RectF = android.graphics.RectF()
+    internal val tuneWeekCyclePillRects = mutableMapOf<String, android.graphics.RectF>()
     internal var pinnedEdgeSwitcherRect: android.graphics.RectF = android.graphics.RectF()
     internal var isDraggingEdgeCategorySwitcher: Boolean = false
 
@@ -236,11 +257,27 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     
     internal var isCruising = false
     internal var isStickyPinned = false
+    internal var hangarTipIndex: Int = -1
+    internal var categoryCruiseTipIndex: Int = -1
+    internal var categoryTipRotatedForSession: Boolean = false
+    internal var gearSetTipIndex: Int = -1
+    internal var pendingHoldReleaseScrollAction: String? = null
     internal var currentLayer: CruiseLayer = CruiseLayer.HIDDEN
         set(value) {
             if (field != value) {
                 val wasIdle = (field == CruiseLayer.HIDDEN || field == CruiseLayer.NEUTRAL)
                 field = value
+                allTipsOverlaySurface = null
+                allTipsState.reset()
+                isTouchingHangarTip = false
+                if (value == CruiseLayer.COCKPIT_HANGAR) {
+                    hangarTipIndex = (hangarTipIndex + 1) % HANGAR_TIP_COUNT
+                } else if ((value == CruiseLayer.CATEGORY || value == CruiseLayer.GRID || value == CruiseLayer.STICKY_PIN) && !categoryTipRotatedForSession) {
+                    categoryTipRotatedForSession = true
+                    categoryCruiseTipIndex = (categoryCruiseTipIndex + 1) % CATEGORY_CRUISE_TIP_COUNT
+                } else if (value == CruiseLayer.FAVORITES_GEARS) {
+                    gearSetTipIndex = (gearSetTipIndex + 1) % GEAR_SET_TIP_COUNT
+                }
                 refreshActiveRenderEffect()
                 val nowIdle = (value == CruiseLayer.HIDDEN || value == CruiseLayer.NEUTRAL)
                 if (wasIdle != nowIdle) {
@@ -326,16 +363,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var lastPermissionToastTime = 0L
     internal var overScrollBoundaryAccumulator = 0f
     internal var settingsCategoryAppended = false
-    internal var settingsRevealedByHold = false
     internal var settingsRevealHapticFired = false
     internal var categoryFilteredAnchorY = -1f
     internal var overScrollAnchorRawY = -1f
-    internal var bottomHoldRevealRunnable: Runnable? = null
-
-    internal fun cancelBottomHoldReveal() {
-        bottomHoldRevealRunnable?.let { uiHandler.removeCallbacks(it) }
-        bottomHoldRevealRunnable = null
-    }
     internal var hangarBayScrollOffset = 0f
     internal var hangarBayTouchDownX = 0f
     internal var hangarBayTouchDownY = 0f
@@ -370,14 +400,15 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         if (isCruising && currentLayer == CruiseLayer.NEUTRAL) {
             currentLayer = CruiseLayer.CATEGORY
             categoryScrubbingEngaged = true
-            entranceStartTime = System.currentTimeMillis()
+            entranceStartTime = android.os.SystemClock.uptimeMillis()
             invalidate()
         }
     }
 
     internal val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_") || key.startsWith("pref_deflector_") || key.startsWith("pref_gear_") || key.startsWith("pref_cockpit_"))) {
+        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_") || key.startsWith("pref_deflector_") || key.startsWith("pref_gear_") || key.startsWith("pref_cockpit_") || key.startsWith("pref_category_"))) {
             post {
+                cachedHudBoundCatId = null
                 updateRenderCache()
                 updateMetricsDimensions()
                 invalidate()
@@ -443,6 +474,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var editModeDragY = 0f
     internal var editModeDragRunnable: Runnable? = null
     internal var hudVisibilityLongPressRunnable: Runnable? = null
+    internal var sparkPreviewCancelRunnable: Runnable? = null
 
     internal val categoryAppsCache = mutableMapOf<String, List<LightspeedDataBridge.LaunchTarget>>()
     internal val categoryGridCache = mutableMapOf<String, List<PlacedItem>>()
@@ -612,12 +644,17 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
-        uiHandler.removeCallbacks(hudLiveRefreshRunnable)
+        uiHandler.removeCallbacksAndMessages(null)
+        snapAnimator?.cancel()
+        snapAnimator = null
+        vitalsVelocityTracker?.recycle()
+        vitalsVelocityTracker = null
         closePinnedAppMenu()
         closeEditMode()
         stopGearAutoRepeat()
         categoryIconJob?.cancel()
         categoryIconJob = null
+        overlayIoScope.coroutineContext.cancelChildren()
         applicationIconCache.clear()
         vitalsRowIconLruCache.evictAll()
         categoryAppsCache.clear()
@@ -643,13 +680,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     /** Widget container that owns the current touch sequence (pinned state), or null. */
-    private var widgetTouchTarget: ScrollableAppWidgetContainer? = null
+    internal var widgetTouchTarget: ScrollableAppWidgetContainer? = null
 
     private var hudInterceptDownX = 0f
     private var hudInterceptDownY = 0f
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-        if (isHudEditMode || isHudTuneModalOpen || isHudAddWidgetMenuOpen || isCategoryIconPickerOpen || isEditModeOpen || isAlertsHistoryModalOpen || isFirewallModalOpen || isVitalsModalOpen || isPrivacyScoreInfoBubbleOpen) {
+        if (isHudEditMode || isHudTuneModalOpen || isHudAddWidgetMenuOpen || isCategoryIconPickerOpen || isEditModeOpen || isAlertsHistoryModalOpen || isFirewallModalOpen || isVitalsModalOpen || isPrivacyScoreInfoBubbleOpen || allTipsOverlaySurface != null) {
             return true
         }
         val slop = android.view.ViewConfiguration.get(context).scaledTouchSlop
@@ -681,14 +718,21 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        val pinned = isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN
+        val pinned = isStickyPinned || (!isCruising && currentLayer == CruiseLayer.STICKY_PIN)
         val blocked = isHudEditMode || isHudTuneModalOpen || isHudAddWidgetMenuOpen ||
             isCategoryIconPickerOpen || isEditModeOpen || isCountdownModalOpen ||
             isAlertsHistoryModalOpen || isFirewallModalOpen || isVitalsModalOpen ||
             isPrivacyScoreInfoBubbleOpen || isScreenTimeInfoBubbleOpen || isBatterySpanInfoBubbleOpen || isPinnedAppMenuOpen() ||
+            allTipsOverlaySurface != null ||
             currentLayer == CruiseLayer.COCKPIT_HANGAR
+        if (!blocked && isCruising && isOpenedFromLeftFlank && !isDispatchingFromLeftFlankView) {
+            handleSplitSecondaryTouch(ev) { super.dispatchTouchEvent(ev) }?.let { return it }
+        }
+        if (!blocked && ((isCruising && ev.pointerCount > 1) || cruiseMultiTouch.secondaryPointerId != MotionEvent.INVALID_POINTER_ID)) {
+            return handleSameWindowMultiTouch(ev, fromLeftWing = false) { super.dispatchTouchEvent(ev) }
+        }
         if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
-            widgetTouchTarget = if (pinned && !blocked && !isTouchOnPinnedEdgeSwitcher(ev.x, ev.y)) {
+            widgetTouchTarget = if (pinned && !blocked && !isTouchOnPinnedEdgeSwitcher(ev.x, ev.y) && !isTouchOnCategoryCruiseTip(ev.x, ev.y)) {
                 findWidgetContainerAt(ev.x, ev.y)
             } else {
                 null
@@ -704,9 +748,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             return handled
         }
         if (blocked) {
-            return onTouchEvent(ev)
-        }
-        if (isHudEditMode || isHudTuneModalOpen || isHudAddWidgetMenuOpen || currentLayer == CruiseLayer.COCKPIT_HANGAR) {
             return onTouchEvent(ev)
         }
         if (isCruising || pinned) {
@@ -797,9 +838,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     override fun dispatchDraw(canvas: Canvas) {
         super.dispatchDraw(canvas)
-        if (currentLayer == CruiseLayer.GRID || isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN) {
+        val inGridOrPinned = currentLayer == CruiseLayer.GRID || isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN
+        if (inGridOrPinned) {
             drawPinnedEdgeSwitcher(canvas)
-            drawCruiseModalsOverlay(canvas)
         }
         if (isHudEditMode) {
             val snapshot = com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
@@ -807,6 +848,26 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val accent = ensureHighContrastColor(tintColor)
             val effectiveDensity = resources.displayMetrics.density * getHudScale()
             drawHudEditModeOverlay(canvas, activeCategoryHudItems, effectiveDensity, accent)
+        }
+        if (currentLayer == CruiseLayer.CATEGORY || inGridOrPinned) {
+            drawCategoryCruiseRotatingTip(canvas)
+        } else {
+            categoryCruiseTipHitRect.setEmpty()
+        }
+        if (inGridOrPinned) {
+            drawCruiseModalsOverlay(canvas)
+        }
+        if (isEditModeOpen && deepSpaceRenderer.isWarpLaunching) {
+            val palette = com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
+                .resolveCanvasPalette(context)
+            val focusAccent = categoryFocusAccentColor(palette.primaryAccentArgb)
+            drawHyperdriveWarpSurge(canvas, focusAccent, resources.displayMetrics.density)
+            if (deepSpaceRenderer.isWarpLaunching) {
+                postInvalidateOnAnimation()
+            }
+        }
+        if (allTipsOverlaySurface != null) {
+            drawAllTipsGhostOverlay(canvas)
         }
     }
 

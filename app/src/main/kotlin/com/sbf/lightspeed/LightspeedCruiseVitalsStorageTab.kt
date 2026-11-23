@@ -574,14 +574,16 @@ internal fun LightspeedCruiseOverlay.drawVitalsStorageTabContent(
             curY += rowH
         }
     }
-    LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+    LightspeedHudVectorIcons.applyScrollEdgeFeathering(
         canvas = canvas,
         left = listLeft,
         top = curListTop,
         right = listRight,
         bottom = listBottom,
-        featherTopPx = if (vitalsModalScrollOffset > 0.5f) 18f * dp else 0f,
-        featherBottomPx = if (vitalsModalScrollOffset < vitalsModalMaxScroll - 0.5f) 20f * dp else 0f,
+        scrollOffset = vitalsModalScrollOffset,
+        maxScroll = vitalsModalMaxScroll,
+        featherTopPx = 18f * dp,
+        featherBottomPx = 20f * dp,
         density = dp,
         seed = 8202
     )

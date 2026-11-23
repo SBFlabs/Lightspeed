@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -50,6 +51,7 @@ import com.sbf.lightspeed.system.TopAppCloser
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.LightspeedAppCategorizer
 import com.sbf.lightspeed.LightspeedDataBridge
+import com.sbf.lightspeed.settings.resolveCanvasPalette
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import java.util.concurrent.ConcurrentHashMap
@@ -398,6 +400,30 @@ object LightspeedConsciousAirlockOverlay {
         onAbort: () -> Unit
     ) {
         val lsColors = LightspeedStyle.colors
+        val colorMode = remember {
+            service.defaultPrefs().getString(
+                LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_COLOR_MODE,
+                LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12
+            ) ?: LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12
+        }
+        val deckSnapshot = remember { com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(service) }
+        val resolvedPalette = remember(deckSnapshot, colorMode) {
+            deckSnapshot.resolveCanvasPalette(service, colorMode)
+        }
+        val airlockAccent = Color(resolvedPalette.primaryAccentArgb)
+        val airlockSecondary = Color(resolvedPalette.secondaryAccentArgb)
+        val airlockBorder = Color(resolvedPalette.borderArgb)
+        val airlockVoidBg = androidx.compose.ui.graphics.lerp(
+            Color(0xFF04060C),
+            Color(resolvedPalette.panelOuterArgb).copy(alpha = 1f),
+            0.35f
+        ).copy(alpha = 0.96f)
+        val airlockCardBg = androidx.compose.ui.graphics.lerp(
+            Color(0xFF0C1220),
+            Color(resolvedPalette.panelInnerArgb).copy(alpha = 1f),
+            0.55f
+        ).copy(alpha = 0.92f)
+        val proceedTextColor = if (airlockAccent.luminance() > 0.5f) Color.Black else Color.White
         val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
         var secondsLeft by remember { mutableIntStateOf(5) }
         val appLabel = remember(packageName) {
@@ -472,7 +498,7 @@ object LightspeedConsciousAirlockOverlay {
         LaunchedEffect(packageName) {
             val startUptime = SystemClock.uptimeMillis()
             while (!isTelemetryLoaded || (SystemClock.uptimeMillis() - startUptime) < 380L) {
-                kotlinx.coroutines.delay(33L)
+                kotlinx.coroutines.delay(16L)
                 flipTick++
             }
             isFlipPhaseActive = false
@@ -511,7 +537,7 @@ object LightspeedConsciousAirlockOverlay {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xF604060C)),
+                .background(airlockVoidBg),
             contentAlignment = Alignment.Center
         ) {
             // 1. Full-Bleed Category Cruise Starfield & Subtle Astrogation Nebula (Covers Cutout & Status Bar)
@@ -525,8 +551,8 @@ object LightspeedConsciousAirlockOverlay {
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            lsColors.accentInfo.copy(alpha = 0.16f),
-                            lsColors.accentInfo.copy(alpha = 0.05f),
+                            airlockAccent.copy(alpha = 0.16f),
+                            airlockSecondary.copy(alpha = 0.05f),
                             Color.Transparent
                         ),
                         center = Offset(cx, cy),
@@ -560,14 +586,14 @@ object LightspeedConsciousAirlockOverlay {
                     .widthIn(max = if (isLandscape) 520.dp else 380.dp)
                     .fillMaxWidth(if (isLandscape) 0.82f else 0.90f)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(Color(0xE80C1220))
-                    .border(1.2.dp, lsColors.accentInfo.copy(alpha = 0.45f), RoundedCornerShape(22.dp))
+                    .background(airlockCardBg)
+                    .border(1.2.dp, airlockBorder.copy(alpha = 0.45f), RoundedCornerShape(22.dp))
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 22.dp, vertical = if (isLandscape) 14.dp else 22.dp)
             ) {
                 Text(
                     text = lsString(R.string.airlock_banner),
-                    color = lsColors.accentInfo,
+                    color = airlockAccent,
                     fontWeight = FontWeight.Bold,
                     fontSize = 11.sp,
                     letterSpacing = 1.8.sp
@@ -627,7 +653,7 @@ object LightspeedConsciousAirlockOverlay {
                                 )
                                 Text(
                                     text = lsString(R.string.airlock_sector_time, categoryTitle, sectorTimeText),
-                                    color = lsColors.accentInfo,
+                                    color = airlockAccent,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -643,13 +669,13 @@ object LightspeedConsciousAirlockOverlay {
                             modifier = Modifier
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(Color.White.copy(alpha = 0.06f))
-                                .border(1.dp, lsColors.accentInfo.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
+                                .border(1.dp, airlockBorder.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
                                 .padding(horizontal = 18.dp, vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = if (secondsLeft > 0) "0${secondsLeft}s" else lsString(R.string.airlock_ready),
-                                color = lsColors.accentInfo,
+                                color = airlockAccent,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -709,7 +735,7 @@ object LightspeedConsciousAirlockOverlay {
                             )
                             Text(
                                 text = lsString(R.string.airlock_sector_time, categoryTitle, sectorTimeText),
-                                color = lsColors.accentInfo,
+                                color = airlockAccent,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -720,13 +746,13 @@ object LightspeedConsciousAirlockOverlay {
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color.White.copy(alpha = 0.06f))
-                            .border(1.2.dp, lsColors.accentInfo.copy(alpha = 0.55f), RoundedCornerShape(16.dp))
+                            .border(1.2.dp, airlockBorder.copy(alpha = 0.55f), RoundedCornerShape(16.dp))
                             .padding(horizontal = 28.dp, vertical = 14.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = if (secondsLeft > 0) "✦  0${secondsLeft}s  ✦" else lsString(R.string.airlock_ready_wide),
-                            color = lsColors.accentInfo,
+                            color = airlockAccent,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.5.sp
@@ -757,14 +783,14 @@ object LightspeedConsciousAirlockOverlay {
                         onClick = onProceed,
                         enabled = secondsLeft == 0,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = lsColors.accentInfo,
+                            containerColor = airlockAccent,
                             disabledContainerColor = Color.White.copy(alpha = 0.08f)
                         ),
                         modifier = Modifier.weight(1f).height(40.dp)
                     ) {
                         Text(
                             text = if (secondsLeft > 0) lsString(R.string.airlock_wait_btn, secondsLeft) else lsString(R.string.airlock_proceed_btn),
-                            color = if (secondsLeft > 0) Color.Gray else Color.Black,
+                            color = if (secondsLeft > 0) Color.Gray else proceedTextColor,
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold
                         )

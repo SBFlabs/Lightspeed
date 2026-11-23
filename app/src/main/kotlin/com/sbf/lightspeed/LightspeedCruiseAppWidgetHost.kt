@@ -280,12 +280,17 @@ internal fun LightspeedCruiseOverlay.updateCategoryAppWidgetView() {
 
         val isFarSplit = isFarHalfSplitMode()
         val hudTopLimit = getSafeHudTopOffset() + if (isHudEditMode) 36f * dp else 0f
-        val hudBottomLimit = if (isFarSplit || isHudEditMode) {
+        val rawHudBottomLimit = if (isFarSplit || isHudEditMode) {
             height.toFloat() * 0.94f
         } else if (hudMaxScroll > 0f) {
             getTopHudStripBounds().bottom + 2f * dp
         } else {
             getTopHudStripBounds().bottom + 10f * dp
+        }
+        val hudBottomLimit = if (shouldShowCategoryCruiseRotatingTip()) {
+            minOf(rawHudBottomLimit, getCategoryCruiseTipReserveTopY() - 4f * dp)
+        } else {
+            rawHudBottomLimit
         }
         val scrolledT = baseT - hudScrollOffset
 
@@ -305,7 +310,7 @@ internal fun LightspeedCruiseOverlay.updateCategoryAppWidgetView() {
                 val widgetContext = CruiseWidgetContext(
                     base = context,
                     onPendingActivityLaunch = {
-                        service?.pendingWidgetLaunchDismissUntilMs = android.os.SystemClock.uptimeMillis() + 1200L
+                        service?.pendingWidgetLaunchDismissUntilMs = android.os.SystemClock.uptimeMillis() + 1800L
                     },
                     onDismissOverlay = { dismissOverlay() }
                 )

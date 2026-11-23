@@ -267,17 +267,42 @@ fun DeckThemeCustomizationDialog(
     }
 
     // Main Dialog Host
+    val scrimContext = androidx.compose.ui.platform.LocalContext.current
     val activeDensity = LocalDensity.current
     Dialog(
         onDismissRequest = { handleDismissAttempt() },
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         CompositionLocalProvider(LocalDensity provides activeDensity) {
+        val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        androidx.compose.runtime.SideEffect {
+            dialogWindow?.setLayout(
+                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                android.view.WindowManager.LayoutParams.MATCH_PARENT
+            )
+            dialogWindow?.setDimAmount(liveSnapshot.dimAmount)
+        }
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .overlayScrimDismiss(
+                        context = scrimContext,
+                        onTapOutside = { handleDismissAttempt() },
+                        onLongPressOutside = {
+                            com.sbf.lightspeed.system.LightspeedOverlayDismissCoordinator.dismissAll(scrimContext)
+                        }
+                    )
+            )
         // The dialog card ITSELF renders directly in the live theme optics
         DeckGlassCardSurface(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
-                .fillMaxHeight(0.88f),
+                .fillMaxHeight(0.88f)
+                .blockScrimPassthrough(),
             snapshotOverride = liveSnapshot
         ) {
             Column(
@@ -363,6 +388,7 @@ fun DeckThemeCustomizationDialog(
                     onSaveAndApply = { saveCurrentChanges() }
                 )
             }
+        }
         }
         }
     }

@@ -20,10 +20,15 @@ enum class SignatureStatus {
 
 enum class InstallOrigin(val displayName: String, val isOfficialClient: Boolean) {
     OBTAINIUM("Obtainium", true),
-    SHIZUSTORE("ShizuStore", true),
+    OBTAINX("ObtainX", true),
     ORION_STORE("Orion Store", true),
-    DIRECT_SIDELOAD("Manual or Browser Sideload", false),
-    THIRD_PARTY_STORE("Third-Party App Store", false)
+    SHIZUSTORE("ShizuStore", true),
+    UPTODOWN("Uptodown", false),
+    APKPURE("APKPure", false),
+    APPTEKA("Appteka", false),
+    APTOIDE("Aptoide", false),
+    DIRECT_SIDELOAD("Direct / Sideload Install", false),
+    THIRD_PARTY_STORE("Third-Party Installer", false)
 }
 
 data class BuildVerificationState(
@@ -65,6 +70,10 @@ object DistributionVerifier {
         "com.android.shell",
         "com.google.android.packageinstaller",
         "com.android.packageinstaller",
+        "com.samsung.android.packageinstaller",
+        "com.miui.packageinstaller",
+        "com.oplus.appdetail",
+        "com.transsion.packageinstaller",
         "moe.shizuku.privileged.api"
     )
 
@@ -114,15 +123,24 @@ object DistributionVerifier {
         }
 
         for (pkg in candidates) {
+            val lower = pkg.lowercase()
             when {
-                pkg in OBTAINIUM_PACKAGES -> return InstallOrigin.OBTAINIUM
-                pkg in SHIZUSTORE_PACKAGES -> return InstallOrigin.SHIZUSTORE
-                pkg == "com.orion.store" -> return InstallOrigin.ORION_STORE
+                lower.contains("obtainx") -> return InstallOrigin.OBTAINX
+                lower.contains("obtainium") -> return InstallOrigin.OBTAINIUM
+                pkg in SHIZUSTORE_PACKAGES || lower.contains("shizustore") -> return InstallOrigin.SHIZUSTORE
+                pkg == "com.orion.store" || lower.contains("orion.store") || lower.contains("orionstore") -> return InstallOrigin.ORION_STORE
+                lower.contains("uptodown") -> return InstallOrigin.UPTODOWN
+                lower.contains("apkpure") -> return InstallOrigin.APKPURE
+                lower.contains("appteka") -> return InstallOrigin.APPTEKA
+                lower.contains("aptoide") -> return InstallOrigin.APTOIDE
             }
         }
 
         val isDirectOrSystemInstaller = candidates.isEmpty() || candidates.all { pkg ->
-            pkg in DIRECT_INSTALLER_PACKAGES || pkg.endsWith(".packageinstaller")
+            val lower = pkg.lowercase()
+            pkg in DIRECT_INSTALLER_PACKAGES ||
+                lower.endsWith(".packageinstaller") ||
+                lower.contains("packageinstaller")
         }
         return if (isDirectOrSystemInstaller) {
             InstallOrigin.DIRECT_SIDELOAD

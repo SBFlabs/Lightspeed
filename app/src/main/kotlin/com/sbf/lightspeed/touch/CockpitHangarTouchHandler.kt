@@ -24,7 +24,17 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
     val screenH = height.toFloat()
     val prefs = prefs()
     val openAccordion = prefs.getInt(KEY_HANGAR_OPEN_ACCORDION, -1)
-    val layout = computeHangarLayoutMetrics(screenW, screenH, d, openAccordion)
+    val unitScale = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getUnitScale(context)
+    val customDiameterScale = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getCustomDiameterScale(context)
+    val baseOuterRadiusPx = 135f * unitScale * customDiameterScale
+    val layout = computeHangarLayoutMetrics(
+        screenW = screenW,
+        screenH = screenH,
+        d = d,
+        openAccordion = openAccordion,
+        bottomInsetPx = getHangarBottomInsetPx(),
+        baseOuterRadiusPx = baseOuterRadiusPx
+    )
 
     val ctrlCx = layout.ctrlCx
     val deckW = layout.deckW
@@ -42,8 +52,6 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
     val targetFocusAngle = if (reticleOri == com.sbf.lightspeed.system.LightspeedPreferences.RETICLE_ORIENTATION_MIRRORED_FLANK && isOpenedFromLeftFlank) 0f else 180f
 
     val gearShape = CockpitGearRepository.getGearShape(context)
-    val unitScale = DeepSpaceGearGeometry.computeGearUnitScale(context)
-    val customDiameterScale = CockpitGearRepository.getGearCustomDiameterScale(context)
     val dGimbal = unitScale * customDiameterScale * layout.landscapeGimbalFit
 
     val gimbalCx = layout.gimbalCx
@@ -69,6 +77,7 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
     when (event.action) {
         MotionEvent.ACTION_DOWN -> {
             hasLongPressFired = false
+            isTouchingHangarTip = false
             longPressHangarBayRunnable?.let { removeCallbacks(it) }
             longPressCogRunnable?.let { removeCallbacks(it) }
             longPressHangarBayRunnable = null
@@ -132,6 +141,11 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
 
                 // 2. Accordion Tabs & Expanded Controls (0: FLEET, 1: RETICLE, 2: SHAPE)
                 if (handleCockpitHangarAccordionTouch(x, y, d, layout, openAccordion, setsList, slotW, maxScroll, customDiameterScale)) {
+                    return true
+                }
+
+                if (!deepSpaceRenderer.hangarTipRect.isEmpty && deepSpaceRenderer.hangarTipRect.contains(x, y)) {
+                    isTouchingHangarTip = true
                     return true
                 }
 
@@ -292,7 +306,7 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                 }
 
                 // 8. Bottom Exit Capsule
-                if (layout.exitRect.contains(x, y) || y < (20f * d) || y > (height - 15f * d)) {
+                if (layout.exitRect.contains(x, y) || y < (20f * d) || y > layout.exitRect.bottom) {
                     dismissOverlay()
                     return true
                 }
@@ -300,6 +314,12 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
         }
         MotionEvent.ACTION_MOVE -> {
             val distMoved = kotlin.math.hypot(x - hangarBayTouchDownX, y - hangarBayTouchDownY)
+            if (isTouchingHangarTip) {
+                if (distMoved > 14f * d) {
+                    isTouchingHangarTip = false
+                }
+                return true
+            }
             if (distMoved > 10f * d) {
                 longPressHangarBayRunnable?.let { removeCallbacks(it) }
                 longPressCogRunnable?.let { removeCallbacks(it) }
@@ -351,6 +371,14 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
             longPressCogRunnable?.let { removeCallbacks(it) }
             longPressHangarBayRunnable = null
             longPressCogRunnable = null
+
+            if (isTouchingHangarTip) {
+                isTouchingHangarTip = false
+                if (event.actionMasked == MotionEvent.ACTION_UP) {
+                    openAllTipsOverlay(AllTipsSurface.COCKPIT_HANGAR, promoteFromCruise = false)
+                }
+                return true
+            }
 
             if (hasLongPressFired) {
                 hasLongPressFired = false

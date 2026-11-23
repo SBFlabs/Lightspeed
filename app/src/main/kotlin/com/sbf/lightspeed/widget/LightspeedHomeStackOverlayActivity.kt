@@ -31,6 +31,8 @@ import androidx.core.view.WindowCompat
 import com.sbf.lightspeed.MultiWidgetContainer
 import com.sbf.lightspeed.TacticalWidgetPickerModal
 import com.sbf.lightspeed.settings.DeckGlassCardSurface
+import com.sbf.lightspeed.settings.blockScrimPassthrough
+import com.sbf.lightspeed.settings.overlayScrimDismiss
 import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
@@ -101,15 +103,22 @@ class LightspeedHomeStackOverlayActivity : ComponentActivity() {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Transparent)
-                            .clickable { finish() },
+                            .background(Color.Transparent),
                         contentAlignment = Alignment.Center
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .overlayScrimDismiss(
+                                    context = this@LightspeedHomeStackOverlayActivity,
+                                    onTapOutside = { finish() }
+                                )
+                        )
                         DeckGlassCardSurface(
                             modifier = Modifier
                                 .fillMaxWidth(0.92f)
                                 .heightIn(min = 320.dp, max = 560.dp)
-                                .clickable(enabled = false) {}
+                                .blockScrimPassthrough()
                         ) {
                             Column(
                                 modifier = Modifier

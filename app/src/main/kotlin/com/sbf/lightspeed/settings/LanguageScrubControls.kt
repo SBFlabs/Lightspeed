@@ -21,9 +21,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -36,8 +39,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
@@ -51,6 +57,8 @@ import com.sbf.lightspeed.system.LightspeedLocaleEngine.BadgeTone
 import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
+import com.sbf.lightspeed.ui.theme.LocalLightspeedColors
 import kotlin.math.abs
 
 /**
@@ -208,7 +216,7 @@ fun GuidebookLanguageButton(onOpenGuidebook: () -> Unit) {
         if (showHud) {
             VocabularyScrubHud(activeIndex = vocabIndex, dimmed = axis == AXIS_VERTICAL)
             // Anchored slightly to the LEFT of the icon so a right thumb never covers the labels.
-            Popup(
+            LightspeedScrubPopup(
                 alignment = Alignment.TopEnd,
                 offset = IntOffset(with(density) { (-30).dp.roundToPx() }, with(density) { 46.dp.roundToPx() })
             ) {
@@ -512,10 +520,64 @@ private fun vocabModeAt(index: Int): LanguageMode? = when (index) {
     else -> null
 }
 
+/**
+ * Popup wrapper that preserves Lightspeed's active layout direction, Central Command
+ * typography, and independent density/fontScale even when Android OS is in RTL (e.g. Arabic)
+ * with enlarged OS display/font scaling.
+ */
+@Composable
+private fun LightspeedScrubPopup(
+    alignment: Alignment,
+    offset: IntOffset,
+    content: @Composable () -> Unit
+) {
+    val activeDensity = LocalDensity.current
+    val activeLayoutDirection = LocalLayoutDirection.current
+    val activeTypography = MaterialTheme.typography
+    val activeColorScheme = MaterialTheme.colorScheme
+    val activeTextStyle = LocalTextStyle.current.merge(activeTypography.bodyMedium)
+    val activeLsColors = LightspeedStyle.colors
+    val activeDeckTheme = LocalDeckTheme.current
+    val targetAndroidDir = if (activeLayoutDirection == LayoutDirection.Rtl) {
+        android.view.View.LAYOUT_DIRECTION_RTL
+    } else {
+        android.view.View.LAYOUT_DIRECTION_LTR
+    }
+
+    Popup(alignment = alignment, offset = offset) {
+        val popupView = LocalView.current
+        SideEffect {
+            if (popupView.layoutDirection != targetAndroidDir) {
+                popupView.layoutDirection = targetAndroidDir
+            }
+            popupView.rootView?.let { root ->
+                if (root.layoutDirection != targetAndroidDir) {
+                    root.layoutDirection = targetAndroidDir
+                }
+            }
+        }
+        MaterialTheme(colorScheme = activeColorScheme, typography = activeTypography) {
+            CompositionLocalProvider(
+                LocalDensity provides activeDensity,
+                LocalLayoutDirection provides activeLayoutDirection,
+                LocalTextStyle provides activeTextStyle,
+                LocalLightspeedColors provides activeLsColors,
+                LocalDeckTheme provides activeDeckTheme
+            ) {
+                content()
+            }
+        }
+    }
+}
+
 @Composable
 private fun VocabularyScrubHud(activeIndex: Int, dimmed: Boolean) {
     val colorScheme = MaterialTheme.colorScheme
-    Popup(alignment = Alignment.TopCenter, offset = IntOffset(0, -180)) {
+    val activeDensity = LocalDensity.current
+    LightspeedScrubPopup(
+        alignment = Alignment.TopCenter,
+        offset = IntOffset(0, with(activeDensity) { (-58).dp.roundToPx() })
+    ) {
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(24.dp))

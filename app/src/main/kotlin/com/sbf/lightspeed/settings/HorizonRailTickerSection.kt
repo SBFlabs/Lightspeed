@@ -34,7 +34,7 @@ fun HorizonRailTickerSection(
         onToggle = onToggle
     ) {
         var isRailTextEnabled by rememberSaveable {
-            mutableStateOf(prefs.getBoolean("pref_horizon_rail_text_enabled", true))
+            mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true))
         }
 
         PrefToggleRow(
@@ -43,7 +43,7 @@ fun HorizonRailTickerSection(
             isChecked = isRailTextEnabled,
             onCheckedChange = {
                 isRailTextEnabled = it
-                prefs.edit().putBoolean("pref_horizon_rail_text_enabled", it).apply()
+                prefs.edit().putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, it).apply()
                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:42", e) }
                 onRefreshNeeded()
             }
@@ -142,9 +142,9 @@ fun HorizonRailTickerSection(
                 }
             )
 
-            PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_size", "", "Micro-Font Size (dp)", 7, 16, 1, 9)
+            PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SIZE, "", "Micro-Font Size (dp)", 7, 16, 1, 9)
 
-            val currentTextPos = prefs.getString("pref_horizon_rail_text_position", "below") ?: "below"
+            val currentTextPos = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_POSITION, "below") ?: "below"
             val textPosOptions = listOf(
                 "below" to lsString(R.string.hr_pos_below),
                 "above" to lsString(R.string.hr_pos_above),
@@ -156,7 +156,7 @@ fun HorizonRailTickerSection(
                 currentKey = currentTextPos,
                 options = textPosOptions,
                 onSelected = { key ->
-                    prefs.edit().putString("pref_horizon_rail_text_position", key).apply()
+                    prefs.edit().putString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_POSITION, key).apply()
                     try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:136", e) }
                     onRefreshNeeded()
                 }

@@ -315,10 +315,7 @@ fun HudRefuelingBaySection(
                         prefs.edit().putBoolean(LightspeedPreferences.KEY_REFUELING_SLEEP_BLACKOUT, checked).apply()
                         onRefreshNeeded()
                     },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    colors = deckSwitchColors()
                 )
             }
 

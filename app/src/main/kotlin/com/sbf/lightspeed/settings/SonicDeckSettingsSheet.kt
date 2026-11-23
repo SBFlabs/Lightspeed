@@ -73,7 +73,8 @@ fun SonicDeckSettingsSheet(
                         customHudEnabled = it
                         prefs.edit().putBoolean(LightspeedPreferences.KEY_CUSTOM_VOLUME_HUD_ENABLED, it).apply()
                         onStateChanged()
-                    }
+                    },
+                    colors = deckSwitchColors()
                 )
             }
         }
@@ -95,7 +96,8 @@ fun SonicDeckSettingsSheet(
                         voiceIsolationEnabled = it
                         SonicVoiceIsolationEngine.setEnabled(context, it)
                         onStateChanged()
-                    }
+                    },
+                    colors = deckSwitchColors()
                 )
             }
             if (voiceIsolationEnabled) {

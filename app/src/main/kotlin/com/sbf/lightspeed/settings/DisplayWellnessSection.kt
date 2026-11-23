@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.LockClock
@@ -60,6 +61,14 @@ fun DisplayWellnessSection(
             ) ?: LightspeedPreferences.AIRLOCK_ABORT_MODE_CLOSE_APP
         )
     }
+    var airlockColorMode by remember {
+        mutableStateOf(
+            prefs.getString(
+                LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_COLOR_MODE,
+                LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12
+            ) ?: LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12
+        )
+    }
     var showAppPickerDialog by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -81,7 +90,8 @@ fun DisplayWellnessSection(
                         extraDimEnabled = it
                         LightspeedEyeCareEngine.applyExtraDim(context, it, extraDimLevel.toInt())
                         onStateChanged()
-                    }
+                    },
+                    colors = deckSwitchColors()
                 )
             }
             if (extraDimEnabled) {
@@ -117,7 +127,8 @@ fun DisplayWellnessSection(
                         eyeCareEnabled = it
                         LightspeedEyeCareEngine.applyEyeCare(context, it, eyeCareTemp.toInt())
                         onStateChanged()
-                    }
+                    },
+                    colors = deckSwitchColors()
                 )
             }
             if (eyeCareEnabled) {
@@ -165,7 +176,8 @@ fun DisplayWellnessSection(
                             prefs.edit().putBoolean(LightspeedPreferences.KEY_EYE_REST_REMINDER_ENABLED, it).apply()
                             LightspeedEyeCareEngine.onScreenStateChanged(context, it)
                             onStateChanged()
-                        }
+                        },
+                        colors = deckSwitchColors()
                     )
                 }
                 if (eyeRestEnabled) {
@@ -222,7 +234,8 @@ fun DisplayWellnessSection(
                         smartPixelsEnabled = it
                         LightspeedSmartPixelsOverlay.setEnabled(context, it, smartPixelsPattern)
                         onStateChanged()
-                    }
+                    },
+                    colors = deckSwitchColors()
                 )
             }
             if (smartPixelsEnabled) {
@@ -259,7 +272,8 @@ fun DisplayWellnessSection(
                             prefs.edit().putBoolean(LightspeedPreferences.KEY_SMART_PIXELS_DISABLE_ON_CAST, it).apply()
                             LightspeedSmartPixelsOverlay.refreshCaptureBypass(context)
                             onStateChanged()
-                        }
+                        },
+                        colors = deckSwitchColors()
                     )
                 }
             }
@@ -282,7 +296,8 @@ fun DisplayWellnessSection(
                         airlockEnabled = it
                         prefs.edit().putBoolean(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ENABLED, it).apply()
                         onStateChanged()
-                    }
+                    },
+                    colors = deckSwitchColors()
                 )
             }
             if (airlockEnabled) {
@@ -317,6 +332,38 @@ fun DisplayWellnessSection(
                         modifier = Modifier.weight(1f)
                     )
                 }
+                Spacer(Modifier.height(8.dp))
+                Text(lsString(R.string.airlock_color_engine), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
+                Spacer(Modifier.height(4.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 to lsString(R.string.ce_theme_12),
+                        LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC to lsString(R.string.ce_material_3),
+                        LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION to lsString(R.string.ce_hybrid)
+                    ).forEach { (mode, label) ->
+                        DeckSubChip(
+                            text = label,
+                            isActive = airlockColorMode == mode,
+                            onClick = {
+                                airlockColorMode = mode
+                                prefs.edit().putString(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_COLOR_MODE, mode).apply()
+                                onStateChanged()
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                DeckSubChip(
+                    text = lsString(R.string.act_native_wellbeing),
+                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    isActive = false,
+                    onClick = {
+                        com.sbf.lightspeed.system.NativeSettingsLauncher.openDigitalWellbeing(context)
+                    }
+                )
             }
         }
     }

@@ -331,6 +331,9 @@ internal fun LightspeedCruiseOverlay.handleVitalsTaskManagerModalTouch(event: Mo
                 if (vitalsActiveTabKey == "storage" && handleVitalsStorageTabTouch(x, y)) {
                     return true
                 }
+                if (vitalsActiveTabKey == "network" && handleVitalsNetworkTabTouch(x, y)) {
+                    return true
+                }
                 for ((sKey, rect) in vitalsTaskSortPillRects) {
                     if (rect.contains(x, y)) {
                         triggerHardwareHaptic(16, 80)

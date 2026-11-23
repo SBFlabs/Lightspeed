@@ -213,7 +213,12 @@ internal fun LightspeedCruiseOverlay.drawHudEditModeOverlay(
 
         // 3. In-place header controls over each widget card (no W-/W+/H-/H+ bars)
         val scrollTop = toolbarTop + toolbarH + 2f * dp
-        val scrollBottom = height.toFloat() * 0.96f
+        val rawScrollBottom = height.toFloat() * 0.96f
+        val scrollBottom = if (shouldShowCategoryCruiseRotatingTip()) {
+            minOf(rawScrollBottom, getCategoryCruiseTipReserveTopY() - 4f * dp)
+        } else {
+            rawScrollBottom
+        }
         val editLayerCount = canvas.saveLayer(tStartX, scrollTop, tEndX, scrollBottom, null)
         canvas.clipRect(tStartX, scrollTop, tEndX, scrollBottom)
         canvas.save()
@@ -315,14 +320,16 @@ internal fun LightspeedCruiseOverlay.drawHudEditModeOverlay(
             }
         }
         canvas.restore()
-        LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+        LightspeedHudVectorIcons.applyScrollEdgeFeathering(
             canvas = canvas,
             left = tStartX,
             top = scrollTop,
             right = tEndX,
             bottom = scrollBottom,
-            featherTopPx = if (hudScrollOffset > 0.5f) 18f * dp else 0f,
-            featherBottomPx = if (hudScrollOffset < hudMaxScroll - 0.5f) 24f * dp else 0f,
+            scrollOffset = hudScrollOffset,
+            maxScroll = hudMaxScroll,
+            featherTopPx = 18f * dp,
+            featherBottomPx = 24f * dp,
             density = dp,
             seed = 8606
         )

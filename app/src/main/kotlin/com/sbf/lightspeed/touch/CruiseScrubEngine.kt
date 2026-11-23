@@ -128,7 +128,9 @@ object CruiseScrubEngine {
         val bottomExtreme = prefs.getString(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_BOTTOM_EXTREME, LightspeedPreferences.SCRUB_EXTREME_NONE) ?: LightspeedPreferences.SCRUB_EXTREME_NONE
 
         // Seamless Sub-Zero Dimming: route based on user choice
-        val currentDimLevel = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 0)
+        val isExtraDimEnabled = prefs.getBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, false)
+        val rawDimLevel = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 0)
+        val currentDimLevel = if (isExtraDimEnabled) rawDimLevel else 0
         if (curBright <= 3 && steps < 0) {
             when (bottomExtreme) {
                 LightspeedPreferences.SCRUB_EXTREME_SMART_PIXELS -> {
@@ -186,23 +188,36 @@ object CruiseScrubEngine {
                     )
                 }
             }
-        } else if (currentDimLevel > 0 && steps > 0 && curBright <= 3) {
+        } else if (isExtraDimEnabled && steps > 0) {
             val newDimLevel = (currentDimLevel - (steps * 10)).coerceIn(0, 90)
+            val preservedBright = curBright.coerceIn(1, 255)
             if (newDimLevel == 0) {
                 com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.applyExtraDim(context, false, 0)
                 com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.clearVideoOverride(context)
             } else {
                 com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.applyExtraDim(context, true, newDimLevel)
-                com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.setVideoOverride(context, 0.004f)
+                if (curBright <= 3) {
+                    com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.setVideoOverride(context, 0.004f)
+                }
             }
             onHaptic?.invoke()
-            return ScrubResult(
-                title = if (newDimLevel > 0) "EXTRA DIM" else "BRIGHTNESS",
-                value = if (newDimLevel > 0) "$newDimLevel%" else "1%",
-                currentValue = 1,
-                stepIndex = (newDimLevel / 10),
-                totalSteps = 10
-            )
+            return if (newDimLevel > 0) {
+                ScrubResult(
+                    title = "EXTRA DIM",
+                    value = "$newDimLevel%",
+                    currentValue = preservedBright,
+                    stepIndex = (newDimLevel / 10),
+                    totalSteps = 10
+                )
+            } else {
+                ScrubResult(
+                    title = "BRIGHTNESS",
+                    value = "${(preservedBright * 100 / 255).coerceAtLeast(1)}%",
+                    currentValue = preservedBright,
+                    stepIndex = (preservedBright * brightResolution / 255),
+                    totalSteps = brightResolution
+                )
+            }
         }
 
         val isAccelEnabled = prefs.getBoolean(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_ACCELERATION_ENABLED, true)

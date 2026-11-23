@@ -44,23 +44,34 @@ object LightspeedBotScreenScanner {
         "navigate up", "back", "close", "dismiss"
     )
 
+    internal fun isOwnOrSystemPackage(service: AccessibilityService, pkg: String?): Boolean {
+        if (pkg.isNullOrBlank()) return true
+        if (pkg == service.packageName ||
+            pkg == "com.sbf.lightspeed" ||
+            pkg == "com.sbf.lightspeed.nightly" ||
+            pkg == "com.android.systemui" ||
+            pkg.contains("systemui")
+        ) return true
+        return LightspeedForegroundTracker.isInputMethodPackage(service, pkg)
+    }
+
     /**
      * Resolves the primary underlying application window.
      * Iterates service.windows in topmost-first order, picking the first window where
-     * window.type == AccessibilityWindowInfo.TYPE_APPLICATION and bounds height >= 50% screen height,
-     * effectively ignoring floating overlay panels (e.g. Ramblr, SmartPanel), system UI, input methods, and own overlays.
+     * window.type == AccessibilityWindowInfo.TYPE_APPLICATION and bounds height >= 50% screen height
+     * (falling back to >= 15% height for split-screen / keyboard-shrunk windows),
+     * effectively ignoring floating overlay panels, system UI, input methods, and own overlays.
      */
     fun resolveUnderlyingAppWindow(service: AccessibilityService?): AccessibilityWindowInfo? {
         if (service == null) return null
         val windows = try { service.windows } catch (_: Exception) { null } ?: return null
         if (windows.isEmpty()) return null
 
-        val metrics = service.resources.displayMetrics
-        val screenH = metrics.heightPixels
-        val minHeight = (screenH * 0.5f).toInt()
-        val ownPkg = service.packageName
-
+        val (_, screenH) = LightspeedBotGestureDispatcher.resolveDisplayBounds(service)
+        val primaryMinHeight = (screenH * 0.5f).toInt()
+        val fallbackMinHeight = (screenH * 0.15f).toInt()
         val rect = Rect()
+
         // Topmost window has the highest layer in AccessibilityService window stack
         val sorted = try {
             windows.sortedByDescending { it.layer }
@@ -68,18 +79,16 @@ object LightspeedBotScreenScanner {
             windows.reversed()
         }
 
-        for (win in sorted) {
-            if (win.type != AccessibilityWindowInfo.TYPE_APPLICATION) continue
-
-            win.getBoundsInScreen(rect)
-            if (rect.height() < minHeight) continue
-
-            val r = try { win.root } catch (_: Exception) { null } ?: continue
-            val pkg = r.packageName?.toString() ?: continue
-            if (pkg.isBlank() || pkg == ownPkg || pkg == "com.android.systemui") continue
-            if (LightspeedForegroundTracker.isInputMethodPackage(service, pkg)) continue
-
-            return win
+        for (minH in intArrayOf(primaryMinHeight, fallbackMinHeight)) {
+            for (win in sorted) {
+                if (win.type != AccessibilityWindowInfo.TYPE_APPLICATION) continue
+                win.getBoundsInScreen(rect)
+                if (rect.height() < minH) continue
+                val r = try { win.root } catch (_: Exception) { null } ?: continue
+                val pkg = r.packageName?.toString()
+                if (isOwnOrSystemPackage(service, pkg)) continue
+                return win
+            }
         }
         return null
     }
@@ -106,6 +115,35 @@ object LightspeedBotScreenScanner {
                 className.endsWith("Switch") ||
                 className.contains("ActionMenuItem") ||
                 className.contains("Tab")
+    }
+
+    internal fun isIgnoredViewIdToken(viewIdResourceName: String?): Boolean {
+        val leaf = viewIdResourceName?.substringAfterLast('/')?.trim()
+        if (leaf.isNullOrBlank()) return true
+        return isIgnoredViewId(leaf)
+    }
+
+    /**
+     * Returns true only when [node] is an actual clickable control with meaningful identity
+     * metadata (never generic layout containers, WebViews, RecyclerViews, or ScrollViews),
+     * preventing freeform taps from being misbound to enclosing containers.
+     */
+    internal fun isActionableElementNode(node: AccessibilityNodeInfo?): Boolean {
+        if (node == null) return false
+        val cls = node.className?.toString()
+        if (isLayoutContainer(cls)) return false
+        if (!cls.isNullOrBlank() && (
+                cls.startsWith("android.webkit.") ||
+                cls.contains("RecyclerView", ignoreCase = true) ||
+                cls.contains("ScrollView", ignoreCase = true)
+            )
+        ) return false
+        val clickable = node.isClickable || node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_CLICK }
+        if (!clickable) return false
+        val hasMeaningfulId = !isIgnoredViewIdToken(node.viewIdResourceName)
+        val hasText = !node.text.isNullOrBlank()
+        val hasDesc = !node.contentDescription.isNullOrBlank()
+        return hasMeaningfulId || hasText || hasDesc
     }
 
     /**

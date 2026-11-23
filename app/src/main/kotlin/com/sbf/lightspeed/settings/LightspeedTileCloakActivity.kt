@@ -65,26 +65,24 @@ class LightspeedTileCloakActivity : ComponentActivity() {
             LightspeedTheme(forceDark = true) {
                 DeckTheme {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.65f))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { finish() }
-                            ),
+                        modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.65f))
+                                .overlayScrimDismiss(
+                                    context = this@LightspeedTileCloakActivity,
+                                    onTapOutside = { finish() }
+                                )
+                        )
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(0.94f)
                                 .fillMaxHeight(0.86f)
                                 .widthIn(max = 440.dp)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = {}
-                                )
+                                .blockScrimPassthrough()
                         ) {
                             DeckGlassCardSurface(
                                 modifier = Modifier.fillMaxSize()

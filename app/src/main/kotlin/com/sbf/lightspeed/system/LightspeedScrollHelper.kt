@@ -17,42 +17,95 @@ import com.sbf.lightspeed.LightspeedAccessibilityService
 
 object LightspeedScrollHelper {
     private const val TAG = "LightspeedScrollHelper"
-    private const val SWIPE_DURATION_MS = 130L
-    private const val SWIPE_GAP_MS = 140L
+    private const val SEGMENT_DURATION_MS = 14L
+    private const val FALLBACK_SINGLE_SWIPE_MS = 55L
+    private const val SAFE_TOP_RATIO = 0.25f
+    private const val SAFE_BOTTOM_RATIO = 0.75f
+    private const val MAX_CHAINED_FLINGS = 4
+    private const val CHAIN_FLING_GAP_MS = 220L
+    private const val MAX_BFS_NODES = 200
+    private const val MAX_BOUNDARY_BFS_NODES = 60
+
+    // Accelerating stroke fractions: clears touchSlop gently on segment 0, then ramps sharply to peak terminal velocity at pointer-up.
+    private val FLING_SEGMENT_FRACTIONS = floatArrayOf(0.00f, 0.08f, 0.28f, 0.60f, 1.00f)
+
+    private val KNOWN_BROWSER_PACKAGES = setOf(
+        "com.brave.browser",
+        "com.brave.browser_beta",
+        "com.brave.browser_nightly",
+        "com.android.chrome",
+        "com.microsoft.emmx",
+        "com.sec.android.app.sbrowser",
+        "com.duckduckgo.mobile.android"
+    )
+    private val KNOWN_BROWSER_PREFIXES = arrayOf(
+        "com.brave.browser",
+        "com.chrome.",
+        "org.mozilla.",
+        "com.opera.",
+        "com.vivaldi.",
+        "com.kiwibrowser.",
+        "org.cromite.",
+        "app.vanadium."
+    )
 
     private val handler = Handler(Looper.getMainLooper())
-    private var activeStepRunnable: StepRunnable? = null
+    private var activeFlingSession: FlingSession? = null
+
+    private fun isKnownBrowserPackage(pkg: String?): Boolean {
+        if (pkg.isNullOrBlank()) return false
+        if (pkg in KNOWN_BROWSER_PACKAGES) return true
+        return KNOWN_BROWSER_PREFIXES.any { pkg.startsWith(it) }
+    }
+
+    private fun isBrowserWebViewNode(node: AccessibilityNodeInfo): Boolean {
+        val cls = node.className?.toString() ?: return false
+        return cls.contains("webkit.", ignoreCase = true) ||
+            cls.contains("chromium", ignoreCase = true) ||
+            cls.contains("gecko", ignoreCase = true) ||
+            (cls.contains("web", ignoreCase = true) && cls.contains("view", ignoreCase = true))
+    }
 
     private fun getFrontPackage(service: AccessibilityService): String? {
-        return LightspeedAccessibilityService.lastAppPackage
-            ?: service.rootInActiveWindow?.let { root ->
-                val pkg = root.packageName?.toString()
-                @Suppress("DEPRECATION") root.recycle()
-                pkg
+        val ownPkg = service.packageName
+        LightspeedAccessibilityService.lastAppPackage
+            ?.takeIf { it.isNotBlank() && it != ownPkg && it != "com.android.systemui" }
+            ?.let { return it }
+
+        service.rootInActiveWindow?.let { root ->
+            val pkg = root.packageName?.toString()
+            @Suppress("DEPRECATION") root.recycle()
+            if (!pkg.isNullOrBlank() && pkg != ownPkg && pkg != "com.android.systemui") {
+                return pkg
             }
-            ?: service.windows?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION || it.isActive }?.root?.let { root ->
+        }
+
+        return service.windows
+            ?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION || it.isActive }
+            ?.root
+            ?.let { root ->
                 val pkg = root.packageName?.toString()
                 @Suppress("DEPRECATION") root.recycle()
-                pkg
+                pkg?.takeIf { it.isNotBlank() && it != ownPkg && it != "com.android.systemui" }
             }
     }
 
     fun cancelPendingSwipes() {
-        activeStepRunnable?.let { runnable ->
-            runnable.isCancelled = true
-            handler.removeCallbacks(runnable)
-            activeStepRunnable = null
-        }
+        activeFlingSession?.cancel()
+        activeFlingSession = null
+        handler.removeCallbacksAndMessages(null)
     }
 
     fun scroll(context: Context, toBottom: Boolean) {
         cancelPendingSwipes()
         val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance ?: return
         val token = if (toBottom) "system:scroll_to_bottom" else "system:scroll_to_top"
+        val siblingToken = if (toBottom) "system:scroll_to_top" else "system:scroll_to_bottom"
         val frontPackage = getFrontPackage(service)
 
         val assignedMethods = if (!frontPackage.isNullOrBlank()) {
             ActionMethods.getAssignedMethodsForApp(context, token, frontPackage)
+                .ifEmpty { ActionMethods.getAssignedMethodsForApp(context, siblingToken, frontPackage) }
         } else {
             emptySet()
         }
@@ -78,97 +131,122 @@ object LightspeedScrollHelper {
             useSwipe = isAuto || ActionMethods.SCROLL_SWIPE in methods
         }
 
+        Log.d(TAG, "scroll(toBottom=$toBottom, pkg=$frontPackage, assigned=$assignedMethods, auto=$isAuto, swipe=$useSwipe)")
+
         var anyNodeMoved = false
 
         if (usePosition || usePage || useStep) {
             val scrollableNodes = mutableListOf<AccessibilityNodeInfo>()
-            val windows = service.windows
-
-            if (!windows.isNullOrEmpty()) {
-                for (window in windows) {
-                    if (window.type == AccessibilityWindowInfo.TYPE_APPLICATION || window.isActive) {
-                        val root = window.root ?: continue
-                        collectScrollableNodes(root, scrollableNodes, toBottom)
+            try {
+                val activeRoot = service.rootInActiveWindow
+                if (activeRoot != null) {
+                    val activePkg = activeRoot.packageName?.toString()
+                    if (frontPackage.isNullOrBlank() || activePkg == frontPackage || (activePkg != service.packageName && activePkg != "com.android.systemui")) {
+                        collectScrollableNodes(activeRoot, scrollableNodes, toBottom)
                     }
-                }
-            }
-
-            if (scrollableNodes.isEmpty()) {
-                service.rootInActiveWindow?.let { root ->
-                    collectScrollableNodes(root, scrollableNodes, toBottom)
-                }
-            }
-
-            if (scrollableNodes.isNotEmpty()) {
-                // Order candidates by visible on-screen area, biggest first
-                val targetNodes = scrollableNodes.sortedByDescending { node ->
-                    val bounds = Rect()
-                    node.getBoundsInScreen(bounds)
-                    bounds.width().toLong() * bounds.height().toLong()
+                    @Suppress("DEPRECATION")
+                    activeRoot.recycle()
                 }
 
-                for (node in targetNodes) {
-                    try {
-                        var nodeMoved = false
-
-                        if (usePosition && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                            val bundle = Bundle().apply {
-                                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_ROW_INT, if (toBottom) Int.MAX_VALUE else 0)
-                                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_COLUMN_INT, 0)
-                            }
-                            val posSuccess = node.performAction(
-                                AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.id,
-                                bundle
-                            )
-                            if (posSuccess) {
-                                nodeMoved = true
+                if (scrollableNodes.isEmpty()) {
+                    val windows = service.windows
+                    if (!windows.isNullOrEmpty()) {
+                        for (window in windows) {
+                            if (window.type == AccessibilityWindowInfo.TYPE_APPLICATION) {
+                                val root = window.root ?: continue
+                                val wPkg = root.packageName?.toString()
+                                if (frontPackage.isNullOrBlank() || wPkg == frontPackage) {
+                                    collectScrollableNodes(root, scrollableNodes, toBottom)
+                                }
+                                @Suppress("DEPRECATION")
+                                root.recycle()
+                                if (scrollableNodes.isNotEmpty()) break
                             }
                         }
+                    }
+                }
 
-                        if (!nodeMoved && (usePage || useStep)) {
-                            var passes = 0
-                            while (passes < 25) {
-                                var moved = false
-                                if (usePage && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                    val actionId = if (toBottom) {
-                                        AccessibilityNodeInfo.AccessibilityAction.ACTION_PAGE_DOWN.id
-                                    } else {
-                                        AccessibilityNodeInfo.AccessibilityAction.ACTION_PAGE_UP.id
-                                    }
-                                    moved = node.performAction(actionId)
+                if (scrollableNodes.isNotEmpty()) {
+                    // Order candidates by visible on-screen area, biggest first
+                    val targetNodes = scrollableNodes.sortedByDescending { node ->
+                        val bounds = Rect()
+                        node.getBoundsInScreen(bounds)
+                        bounds.width().toLong() * bounds.height().toLong()
+                    }
+                    val isKnownBrowser = isKnownBrowserPackage(frontPackage)
+
+                    for (node in targetNodes) {
+                        try {
+                            var nodeMoved = false
+
+                            if (usePosition && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                val bundle = Bundle().apply {
+                                    putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_ROW_INT, if (toBottom) Int.MAX_VALUE else 0)
+                                    putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_COLUMN_INT, 0)
                                 }
-                                if (!moved && useStep) {
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                val posSuccess = node.performAction(
+                                    AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.id,
+                                    bundle
+                                )
+                                if (posSuccess) {
+                                    nodeMoved = true
+                                }
+                            }
+
+                            // In AUTO mode, browsers/Chromium ignore ACTION_SCROLL_TO_POSITION and handle
+                            // ACTION_PAGE/ACTION_SCROLL asynchronously (moving only ~1 viewport without fling).
+                            // Skip those on browser or embedded web nodes so AUTO executes the high-velocity swipe fling.
+                            val skipFallbackLoopInAuto = isAuto && !nodeMoved && (isKnownBrowser || isBrowserWebViewNode(node))
+                            if (!nodeMoved && !skipFallbackLoopInAuto && (usePage || useStep)) {
+                                var passes = 0
+                                while (passes < 25) {
+                                    var moved = false
+                                    if (usePage && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                                         val actionId = if (toBottom) {
-                                            AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.id
+                                            AccessibilityNodeInfo.AccessibilityAction.ACTION_PAGE_DOWN.id
                                         } else {
-                                            AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id
+                                            AccessibilityNodeInfo.AccessibilityAction.ACTION_PAGE_UP.id
                                         }
                                         moved = node.performAction(actionId)
                                     }
-                                    if (!moved && !hasHorizontalScrollAction(node)) {
-                                        val actionId = if (toBottom) {
-                                            AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
-                                        } else {
-                                            AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+                                    if (!moved && useStep) {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                            val actionId = if (toBottom) {
+                                                AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.id
+                                            } else {
+                                                AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id
+                                            }
+                                            moved = node.performAction(actionId)
                                         }
-                                        moved = node.performAction(actionId)
+                                        if (!moved && !hasHorizontalScrollAction(node)) {
+                                            val actionId = if (toBottom) {
+                                                AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                                            } else {
+                                                AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+                                            }
+                                            moved = node.performAction(actionId)
+                                        }
                                     }
+                                    if (!moved) break
+                                    nodeMoved = true
+                                    passes++
                                 }
-                                if (!moved) break
-                                nodeMoved = true
-                                passes++
                             }
-                        }
 
-                        if (nodeMoved) {
-                            anyNodeMoved = true
-                            // Act on the biggest first, stop at the first node that actually moves
-                            break
+                            if (nodeMoved) {
+                                anyNodeMoved = true
+                                // Act on the biggest first, stop at the first node that actually moves
+                                break
+                            }
+                        } catch (e: Exception) {
+                            logSwallowed(TAG, if (toBottom) "scrollToBottom" else "scrollToTop", e)
                         }
-                    } catch (e: Exception) {
-                        logSwallowed(TAG, if (toBottom) "scrollToBottom" else "scrollToTop", e)
                     }
+                }
+            } finally {
+                for (n in scrollableNodes) {
+                    @Suppress("DEPRECATION")
+                    n.recycle()
                 }
             }
         }
@@ -178,177 +256,121 @@ object LightspeedScrollHelper {
         }
     }
 
-    private fun isVerticalScrollableCandidate(node: AccessibilityNodeInfo): Boolean {
-        if (hasHorizontalScrollAction(node)) return false
-        val collectionInfo = node.collectionInfo
-        if (collectionInfo != null && collectionInfo.columnCount > 1 && collectionInfo.rowCount <= 1) {
-            return false
-        }
-        val actions = node.actionList
-        val hasVerticalAction = actions.any { action ->
-            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                (action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id ||
-                 action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.id)) ||
-            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                (action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_PAGE_UP.id ||
-                 action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_PAGE_DOWN.id))
-        }
-        return node.isScrollable || hasVerticalAction
+    private fun isOverlayIdle(): Boolean {
+        val a11y = LightspeedAccessibilityService.instance ?: return true
+        val overlay = a11y.overlayView ?: return true
+        return (overlay.currentLayer == CruiseLayer.NEUTRAL || overlay.currentLayer == CruiseLayer.HIDDEN) &&
+            !overlay.isEditModeOpen
     }
 
-    private fun hasVerticalScrollActionCandidate(node: AccessibilityNodeInfo): Boolean {
-        if (isVerticalScrollableCandidate(node)) {
-            val actions = node.actionList
-            val hasVerticalQAction = actions.any {
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                    (it.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id ||
-                     it.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.id)
-            }
-            if (hasVerticalQAction) return true
-        }
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            val found = hasVerticalScrollActionCandidate(child)
-            @Suppress("DEPRECATION")
-            child.recycle()
-            if (found) return true
-        }
-        return false
-    }
-
-    private fun isBoundaryCheckPossible(service: AccessibilityService): Boolean {
-        var root: AccessibilityNodeInfo? = null
-        return try {
-            root = service.rootInActiveWindow ?: service.windows?.firstOrNull {
-                it.type == AccessibilityWindowInfo.TYPE_APPLICATION || it.isActive
-            }?.root ?: return false
-            hasVerticalScrollActionCandidate(root)
-        } catch (e: Exception) {
-            logSwallowed(TAG, "isBoundaryCheckPossible", e)
-            false
-        } finally {
-            @Suppress("DEPRECATION")
-            root?.recycle()
-        }
-    }
-
-    private fun findTargetScrollableNode(
-        node: AccessibilityNodeInfo,
-        bestSoFar: Pair<AccessibilityNodeInfo, Long>?
-    ): Pair<AccessibilityNodeInfo, Long>? {
-        var currentBest = bestSoFar
-        if (isVerticalScrollableCandidate(node)) {
-            val bounds = Rect()
-            node.getBoundsInScreen(bounds)
-            val area = bounds.width().toLong() * bounds.height().toLong()
-            if (currentBest == null || area > currentBest.second) {
-                @Suppress("DEPRECATION")
-                currentBest?.first?.recycle()
-                val copy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    AccessibilityNodeInfo(node)
-                } else {
-                    @Suppress("DEPRECATION")
-                    AccessibilityNodeInfo.obtain(node)
-                }
-                currentBest = Pair(copy, area)
-            }
-        }
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            currentBest = findTargetScrollableNode(child, currentBest)
-            @Suppress("DEPRECATION")
-            child.recycle()
-        }
-        return currentBest
-    }
-
-    private fun hasReachedBoundary(service: AccessibilityService, toBottom: Boolean): Boolean {
-        var root: AccessibilityNodeInfo? = null
-        var targetNode: AccessibilityNodeInfo? = null
-        try {
-            root = service.rootInActiveWindow ?: service.windows?.firstOrNull {
-                it.type == AccessibilityWindowInfo.TYPE_APPLICATION || it.isActive
-            }?.root ?: return false
-
-            val best = findTargetScrollableNode(root, null)
-            targetNode = best?.first ?: return false
-
-            val actions = targetNode.actionList
-            val hasScrollUp = actions.any {
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                    it.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id
-            }
-            val hasScrollDown = actions.any {
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                    it.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.id
-            }
-
-            if (!hasScrollUp && !hasScrollDown) {
-                return false
-            }
-
-            return if (toBottom) {
-                hasScrollUp && !hasScrollDown
-            } else {
-                hasScrollDown && !hasScrollUp
-            }
-        } catch (e: Exception) {
-            logSwallowed(TAG, "hasReachedBoundary", e)
-            return false
-        } finally {
-            @Suppress("DEPRECATION")
-            targetNode?.recycle()
-            @Suppress("DEPRECATION")
-            root?.recycle()
-        }
-    }
-
-    private class StepRunnable(
+    private class FlingSession(
         private val service: AccessibilityService,
-        private val gesture: GestureDescription,
         private val toBottom: Boolean,
-        private val canCheckBoundary: Boolean,
         private val initialPackage: String?
-    ) : Runnable {
-        private val maxSwipes = 1
-        var swipeCount = 0
+    ) {
         @Volatile
         var isCancelled = false
+        private var pendingChainRunnable: Runnable? = null
 
-        override fun run() {
-            if (isCancelled) return
-            if (swipeCount >= maxSwipes) {
+        fun cancel() {
+            isCancelled = true
+            pendingChainRunnable?.let { handler.removeCallbacks(it) }
+            pendingChainRunnable = null
+        }
+
+        fun start() {
+            dispatchFling(flingIndex = 0)
+        }
+
+        private fun dispatchFling(flingIndex: Int) {
+            if (isCancelled || !isOverlayIdle()) {
                 cancelPendingSwipes()
                 return
             }
-            if (swipeCount > 0) {
-                val currentPkg = getFrontPackage(service)
-                if (initialPackage != null && currentPkg != null && currentPkg != initialPackage) {
-                    cancelPendingSwipes()
-                    return
+
+            val displayMetrics = service.resources.displayMetrics
+            val width = displayMetrics.widthPixels.toFloat()
+            val height = displayMetrics.heightPixels.toFloat()
+            if (width <= 0f || height <= 0f) {
+                cancelPendingSwipes()
+                return
+            }
+
+            val centerX = width * 0.5f
+            val startY = if (toBottom) height * SAFE_BOTTOM_RATIO else height * SAFE_TOP_RATIO
+            val endY = if (toBottom) height * SAFE_TOP_RATIO else height * SAFE_BOTTOM_RATIO
+            val spanY = endY - startY
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                dispatchSegment(
+                    flingIndex = flingIndex,
+                    segmentIndex = 0,
+                    prevStroke = null,
+                    centerX = centerX,
+                    startY = startY,
+                    spanY = spanY
+                )
+            } else {
+                val path = Path().apply {
+                    moveTo(centerX, startY)
+                    lineTo(centerX, endY)
+                }
+                val stroke = GestureDescription.StrokeDescription(path, 0L, FALLBACK_SINGLE_SWIPE_MS)
+                val gesture = GestureDescription.Builder().addStroke(stroke).build()
+                dispatchGestureStep(gesture) {
+                    onFlingCycleCompleted(flingIndex)
                 }
             }
-            swipeCount++
+        }
+
+        private fun dispatchSegment(
+            flingIndex: Int,
+            segmentIndex: Int,
+            prevStroke: GestureDescription.StrokeDescription?,
+            centerX: Float,
+            startY: Float,
+            spanY: Float
+        ) {
+            if (isCancelled || !isOverlayIdle()) {
+                cancelPendingSwipes()
+                return
+            }
+            val segmentCount = FLING_SEGMENT_FRACTIONS.size - 1
+            val y0 = startY + spanY * FLING_SEGMENT_FRACTIONS[segmentIndex]
+            val y1 = startY + spanY * FLING_SEGMENT_FRACTIONS[segmentIndex + 1]
+            val willContinue = segmentIndex < segmentCount - 1
+
+            val path = Path().apply {
+                moveTo(centerX, y0)
+                lineTo(centerX, y1)
+            }
+            val stroke = if (prevStroke == null) {
+                GestureDescription.StrokeDescription(path, 0L, SEGMENT_DURATION_MS, willContinue)
+            } else {
+                prevStroke.continueStroke(path, 0L, SEGMENT_DURATION_MS, willContinue)
+            }
+            val gesture = GestureDescription.Builder().addStroke(stroke).build()
+
+            dispatchGestureStep(gesture) {
+                if (willContinue) {
+                    dispatchSegment(flingIndex, segmentIndex + 1, stroke, centerX, startY, spanY)
+                } else {
+                    Log.d(TAG, "fling #$flingIndex completed (toBottom=$toBottom, pkg=$initialPackage)")
+                    onFlingCycleCompleted(flingIndex)
+                }
+            }
+        }
+
+        private fun dispatchGestureStep(gesture: GestureDescription, onComplete: () -> Unit) {
+            if (isCancelled) return
             try {
                 val dispatched = service.dispatchGesture(
                     gesture,
                     object : AccessibilityService.GestureResultCallback() {
                         override fun onCompleted(gestureDescription: GestureDescription?) {
                             super.onCompleted(gestureDescription)
-                            if (isCancelled) return
-                            if (canCheckBoundary && hasReachedBoundary(service, toBottom)) {
-                                cancelPendingSwipes()
-                                return
-                            }
-                            if (swipeCount < maxSwipes) {
-                                val currentPkg = getFrontPackage(service)
-                                if (initialPackage != null && currentPkg != null && currentPkg != initialPackage) {
-                                    cancelPendingSwipes()
-                                    return
-                                }
-                                handler.postDelayed(this@StepRunnable, SWIPE_GAP_MS)
-                            } else {
-                                cancelPendingSwipes()
+                            if (!isCancelled) {
+                                onComplete()
                             }
                         }
 
@@ -360,7 +382,7 @@ object LightspeedScrollHelper {
                     handler
                 )
                 if (!dispatched) {
-                    Log.w(TAG, "swipeScroll: dispatchGesture returned false on swipe $swipeCount")
+                    Log.w(TAG, "swipeScroll: dispatchGesture returned false")
                     cancelPendingSwipes()
                 }
             } catch (e: Exception) {
@@ -368,38 +390,137 @@ object LightspeedScrollHelper {
                 cancelPendingSwipes()
             }
         }
+
+        private fun onFlingCycleCompleted(flingIndex: Int) {
+            if (isCancelled) return
+            if (flingIndex + 1 >= MAX_CHAINED_FLINGS) {
+                cancelPendingSwipes()
+                return
+            }
+            val chainTask = Runnable {
+                pendingChainRunnable = null
+                if (isCancelled || !isOverlayIdle()) {
+                    cancelPendingSwipes()
+                    return@Runnable
+                }
+                val currentPkg = getFrontPackage(service)
+                if (!initialPackage.isNullOrBlank() && !currentPkg.isNullOrBlank() && currentPkg != initialPackage) {
+                    cancelPendingSwipes()
+                    return@Runnable
+                }
+                if (!canStillScrollInDirection(service, initialPackage, toBottom)) {
+                    Log.d(TAG, "stop chained fling after #$flingIndex: boundary reached (toBottom=$toBottom)")
+                    cancelPendingSwipes()
+                    return@Runnable
+                }
+                dispatchFling(flingIndex + 1)
+            }
+            pendingChainRunnable = chainTask
+            handler.postDelayed(chainTask, CHAIN_FLING_GAP_MS)
+        }
     }
 
     private fun swipeScroll(service: AccessibilityService, toBottom: Boolean, initialPackage: String?) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
-
-        val a11y = LightspeedAccessibilityService.instance
-        if (a11y?.overlayView?.let { it.currentLayer != CruiseLayer.NEUTRAL && it.currentLayer != CruiseLayer.HIDDEN } == true ||
-            a11y?.overlayView?.isEditModeOpen == true) {
-            return
-        }
-
-        val displayMetrics = service.resources.displayMetrics
-        val width = displayMetrics.widthPixels.toFloat()
-        val height = displayMetrics.heightPixels.toFloat()
-        if (width <= 0f || height <= 0f) return
-
-        val centerX = width * 0.5f
-        val startY = if (toBottom) height * 0.88f else height * 0.18f
-        val endY = if (toBottom) height * 0.18f else height * 0.88f
-
-        val path = Path().apply {
-            moveTo(centerX, startY)
-            lineTo(centerX, endY)
-        }
-        val stroke = GestureDescription.StrokeDescription(path, 0L, SWIPE_DURATION_MS)
-        val gesture = GestureDescription.Builder().addStroke(stroke).build()
+        if (!isOverlayIdle()) return
 
         cancelPendingSwipes()
-        val canCheckBoundary = isBoundaryCheckPossible(service)
-        val stepRunnable = StepRunnable(service, gesture, toBottom, canCheckBoundary, initialPackage)
-        activeStepRunnable = stepRunnable
-        handler.post(stepRunnable)
+        val session = FlingSession(service, toBottom, initialPackage)
+        activeFlingSession = session
+        session.start()
+    }
+
+    /**
+     * Checks strictly directional scroll actions ONLY (never generic [AccessibilityNodeInfo.isScrollable]
+     * or `ACTION_SCROLL_TO_POSITION`, which stay true in Chromium even at scrollY == 0).
+     */
+    private fun hasDirectionalScrollAction(node: AccessibilityNodeInfo, toBottom: Boolean): Boolean {
+        val collectionInfo = node.collectionInfo
+        if (collectionInfo != null && collectionInfo.columnCount > 1 && collectionInfo.rowCount <= 1) {
+            return false
+        }
+        val actions = node.actionList
+        val hasVertical = actions.any { action ->
+            if (toBottom) {
+                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.id) ||
+                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_PAGE_DOWN.id)
+            } else {
+                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id) ||
+                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_PAGE_UP.id)
+            }
+        }
+        if (hasVertical) return true
+
+        val hasGeneric = actions.any { action ->
+            if (toBottom) action.id == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+            else action.id == AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+        }
+        return hasGeneric && !hasHorizontalScrollAction(node)
+    }
+
+    private fun canStillScrollInDirection(
+        service: AccessibilityService,
+        targetPkg: String?,
+        toBottom: Boolean
+    ): Boolean {
+        val root = try {
+            service.rootInActiveWindow
+        } catch (_: Exception) {
+            null
+        } ?: return false
+
+        val queue = ArrayDeque<Pair<AccessibilityNodeInfo, Boolean>>()
+        val bounds = Rect()
+        val rootPkg = root.packageName?.toString()
+        if (!targetPkg.isNullOrBlank() && !rootPkg.isNullOrBlank() && rootPkg != targetPkg) {
+            @Suppress("DEPRECATION")
+            root.recycle()
+            return false
+        }
+        queue.addLast(root to true)
+        var visited = 0
+
+        try {
+            while (queue.isNotEmpty() && visited < MAX_BOUNDARY_BFS_NODES) {
+                val (current, shouldRecycle) = queue.removeFirst()
+                visited++
+                var foundMatch = false
+                var isBrowserHost = false
+
+                if (hasDirectionalScrollAction(current, toBottom)) {
+                    current.getBoundsInScreen(bounds)
+                    if (bounds.width() > 0 && bounds.height() > 0) {
+                        foundMatch = true
+                    }
+                }
+                if (!foundMatch) {
+                    isBrowserHost = isBrowserWebViewNode(current)
+                    if (!isBrowserHost && visited < MAX_BOUNDARY_BFS_NODES) {
+                        val childCount = current.childCount
+                        for (i in 0 until childCount) {
+                            if (visited + queue.size >= MAX_BOUNDARY_BFS_NODES) break
+                            val child = current.getChild(i) ?: continue
+                            queue.addLast(child to true)
+                        }
+                    }
+                }
+
+                if (shouldRecycle) {
+                    @Suppress("DEPRECATION")
+                    current.recycle()
+                }
+                if (foundMatch) return true
+            }
+            return false
+        } finally {
+            while (queue.isNotEmpty()) {
+                val (remaining, shouldRecycle) = queue.removeFirst()
+                if (shouldRecycle) {
+                    @Suppress("DEPRECATION")
+                    remaining.recycle()
+                }
+            }
+        }
     }
 
     private fun hasHorizontalScrollAction(node: AccessibilityNodeInfo): Boolean {
@@ -478,19 +599,55 @@ object LightspeedScrollHelper {
         list: MutableList<AccessibilityNodeInfo>,
         toBottom: Boolean = false
     ) {
-        if (canScrollVertically(node, toBottom)) {
-            val copy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                AccessibilityNodeInfo(node)
-            } else {
-                @Suppress("DEPRECATION")
-                AccessibilityNodeInfo.obtain(node)
-            }
-            list.add(copy)
-        }
+        val queue = ArrayDeque<Pair<AccessibilityNodeInfo, Boolean>>()
+        queue.addLast(node to false)
+        var visited = 0
 
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            collectScrollableNodes(child, list, toBottom)
+        try {
+            while (queue.isNotEmpty() && visited < MAX_BFS_NODES) {
+                val (current, shouldRecycle) = queue.removeFirst()
+                visited++
+                var isScrollableBrowserHost = false
+
+                if (canScrollVertically(current, toBottom)) {
+                    val copy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        AccessibilityNodeInfo(current)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        AccessibilityNodeInfo.obtain(current)
+                    }
+                    list.add(copy)
+                    val cls = current.className?.toString()
+                    isScrollableBrowserHost = cls != null && (
+                        cls.contains("webkit.", ignoreCase = true) ||
+                        cls.contains("chromium", ignoreCase = true) ||
+                        (cls.contains("web", ignoreCase = true) && cls.contains("view", ignoreCase = true))
+                    )
+                }
+
+                // Skip descending into browser DOM host children (hundreds/thousands of inner HTML nodes)
+                if (!isScrollableBrowserHost && visited < MAX_BFS_NODES) {
+                    val childCount = current.childCount
+                    for (i in 0 until childCount) {
+                        if (visited + queue.size >= MAX_BFS_NODES) break
+                        val child = current.getChild(i) ?: continue
+                        queue.addLast(child to true)
+                    }
+                }
+
+                if (shouldRecycle) {
+                    @Suppress("DEPRECATION")
+                    current.recycle()
+                }
+            }
+        } finally {
+            while (queue.isNotEmpty()) {
+                val (remaining, shouldRecycle) = queue.removeFirst()
+                if (shouldRecycle) {
+                    @Suppress("DEPRECATION")
+                    remaining.recycle()
+                }
+            }
         }
     }
 }

@@ -132,9 +132,15 @@ internal fun LightspeedCruiseOverlay.drawHudTuneModal(
 
     val isInspector = item.type == LightspeedCruiseHudPods.MODE_APP_AND_CAT
     val isVitals = item.type == LightspeedCruiseHudPods.MODE_LS_BATTERY_SYSTEM
+    val isScreenTime = item.type == LightspeedCruiseHudPods.MODE_LS_SCREEN_TIME
     val specs = buildTuneSliderSpecs(item)
     val headerH = 34f * dp
-    val extraRowH = if (isInspector) 40f * dp else if (isVitals) 32f * dp else 0f
+    val extraRowH = when {
+        isInspector -> 40f * dp
+        isVitals -> 32f * dp
+        isScreenTime -> 46f * dp
+        else -> 0f
+    }
     val scopeRowH = 40f * dp
     val footerH = 38f * dp
     val maxAvailH = (screenH - 24f * dp).coerceAtLeast(240f * dp)
@@ -359,6 +365,7 @@ internal fun LightspeedCruiseOverlay.drawHudTuneModal(
 
     tuneFontPillRects.clear()
     tuneTempUnitPillRect.setEmpty()
+    tuneWeekCyclePillRects.clear()
     if (!isInspector) {
         tuneFontDropdownRect.setEmpty()
         tuneFontDropdownListRect.setEmpty()
@@ -435,6 +442,68 @@ internal fun LightspeedCruiseOverlay.drawHudTuneModal(
         textPaint.color = colors.textPrimary
         val tFm = textPaint.fontMetrics
         canvas.drawText("TEMPERATURE UNIT: ${if (isF) "FAHRENHEIT (°F)" else "CELSIUS (°C)"} (TAP TO SWITCH)", tuneTempUnitPillRect.centerX(), tuneTempUnitPillRect.centerY() - ((tFm.descent + tFm.ascent) / 2f), textPaint)
+        curY += extraRowH
+    } else if (isScreenTime) {
+        val activeWkMode = LightspeedCruiseHudPods.getWeekCycleMode(context)
+        val lblY = curY + 11f * dp
+        val rowLeft = left + 14f * dp
+        val rowRight = left + modalW - 14f * dp
+        val maxValW = ((rowRight - rowLeft) * 0.56f).coerceAtLeast(60f * dp)
+
+        textPaint.textAlign = Paint.Align.RIGHT
+        textPaint.typeface = overlayTypeface(isBold = true)
+        textPaint.textSize = 9.0f * dp * ts
+        textPaint.color = themeAccent
+        val activeFull = clipTextToWidth(LightspeedCruiseHudPods.weekCycleFullLabel(activeWkMode), maxValW)
+        val activeW = textPaint.measureText(activeFull)
+        canvas.drawText(activeFull, rowRight, lblY, textPaint)
+
+        textPaint.textAlign = Paint.Align.LEFT
+        textPaint.typeface = overlayTypeface(isBold = true)
+        textPaint.textSize = 9.8f * dp * ts
+        textPaint.color = colors.textMuted
+        val maxTitleW = (rowRight - activeW - rowLeft - 8f * dp).coerceAtLeast(40f * dp)
+        canvas.drawText(
+            clipTextToWidth(com.sbf.lightspeed.system.lsString(R.string.ed_tune_wk_cycle).ifBlank { "WK PROGRESS CYCLE" }, maxTitleW),
+            rowLeft,
+            lblY,
+            textPaint
+        )
+
+        val wPillY = lblY + 5f * dp
+        val wPillH = 22f * dp
+        val wGap = 5f * dp
+        val modes = LightspeedCruiseHudPods.WEEK_CYCLE_MODES
+        val wPillW = ((rowRight - rowLeft) - (wGap * (modes.size - 1))) / modes.size
+        for ((idx, modeKey) in modes.withIndex()) {
+            val isSel = (modeKey == activeWkMode)
+            val pLeft = rowLeft + idx * (wPillW + wGap)
+            val pRect = tuneWeekCyclePillRects.getOrPut(modeKey) { RectF() }
+            pRect.set(pLeft, wPillY, pLeft + wPillW, wPillY + wPillH)
+
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = if (isSel) themeAccent else colors.pillBg
+            canvas.drawRoundRect(pRect, 6f * dp, 6f * dp, highlightPaint)
+
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = 0.9f * dp
+            highlightPaint.color = if (isSel) themeAccent else colors.pillBorder
+            canvas.drawRoundRect(pRect, 6f * dp, 6f * dp, highlightPaint)
+
+            val shortLbl = LightspeedCruiseHudPods.weekCycleShortLabel(modeKey)
+            textPaint.textAlign = Paint.Align.CENTER
+            textPaint.typeface = overlayTypeface(isBold = isSel)
+            var lblSize = 9.2f * dp * ts
+            textPaint.textSize = lblSize
+            val maxBtnTextW = (wPillW - 6f * dp).coerceAtLeast(16f * dp)
+            while (textPaint.measureText(shortLbl) > maxBtnTextW && lblSize > 6.8f * dp) {
+                lblSize -= 0.4f * dp
+                textPaint.textSize = lblSize
+            }
+            textPaint.color = if (isSel) colors.onAccentColor else colors.textPrimary
+            val wFm = textPaint.fontMetrics
+            canvas.drawText(shortLbl, pRect.centerX(), pRect.centerY() - ((wFm.descent + wFm.ascent) / 2f), textPaint)
+        }
         curY += extraRowH
     }
 
@@ -597,14 +666,16 @@ internal fun LightspeedCruiseOverlay.drawHudTuneModal(
             }
             rowY += rowH
         }
-        LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+        LightspeedHudVectorIcons.applyScrollEdgeFeathering(
             canvas = canvas,
             left = fClipL,
             top = fClipT,
             right = fClipR,
             bottom = fClipB,
-            featherTopPx = if (tuneFontDropdownScrollOffset > 0.5f) 14f * dp else 0f,
-            featherBottomPx = if (tuneFontDropdownScrollOffset < tuneFontDropdownMaxScroll - 0.5f) 16f * dp else 0f,
+            scrollOffset = tuneFontDropdownScrollOffset,
+            maxScroll = tuneFontDropdownMaxScroll,
+            featherTopPx = 14f * dp,
+            featherBottomPx = 16f * dp,
             density = dp,
             seed = 8505
         )

@@ -69,14 +69,7 @@ fun PrefToggleRow(
         Switch(
             checked = isChecked,
             onCheckedChange = null,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = LightspeedStyle.colors.textPrimary,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                checkedBorderColor = Color.Transparent,
-                uncheckedThumbColor = LightspeedStyle.colors.textPrimary.copy(alpha = 0.75f),
-                uncheckedTrackColor = LightspeedStyle.colors.textPrimary.copy(alpha = 0.12f),
-                uncheckedBorderColor = LightspeedStyle.colors.textPrimary.copy(alpha = 0.25f)
-            )
+            colors = deckSwitchColors()
         )
     }
 }

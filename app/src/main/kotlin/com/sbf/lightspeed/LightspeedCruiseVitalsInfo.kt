@@ -83,6 +83,36 @@ private val VITALS_INFO_RAM = listOf(
     )
 )
 
+private val VITALS_INFO_NETWORK = listOf(
+    VitalsInfoEntry(
+        "1H / 3H / TODAY / 3D / 7D / 30D",
+        "Real per-app Wi-Fi and Cellular traffic measured offline via Android NetworkStatsManager using Usage Access (zero Internet permission)."
+    ),
+    VitalsInfoEntry(
+        "ALL / WI-FI / CELL",
+        "Filter between combined traffic, Wi-Fi only, or mobile cellular data. Sorted from highest data consumer down."
+    ),
+    VitalsInfoEntry(
+        "TAP AN APP ROW",
+        "Opens Android App Info so you can inspect mobile data or restrict background data."
+    )
+)
+
+private val VITALS_INFO_NETWORK_WIFI_ONLY = listOf(
+    VitalsInfoEntry(
+        "1H / 3H / TODAY / 3D / 7D / 30D",
+        "Real per-app Wi-Fi traffic measured offline via Android NetworkStatsManager using Usage Access (zero Internet permission)."
+    ),
+    VitalsInfoEntry(
+        "ALL / WI-FI",
+        "Inspect per-app Wi-Fi usage sorted from highest data consumer down (Cellular controls are hidden on Wi-Fi-only devices)."
+    ),
+    VitalsInfoEntry(
+        "TAP AN APP ROW",
+        "Opens Android App Info so you can inspect data usage or restrict background data."
+    )
+)
+
 private var vitalsInfoCacheKey: String = ""
 private var vitalsInfoCacheLines: List<VitalsInfoLine> = emptyList()
 
@@ -146,14 +176,17 @@ internal fun LightspeedCruiseOverlay.drawVitalsInfoCard(
     highlightPaint.color = Color.argb(150, Color.red(accent), Color.green(accent), Color.blue(accent))
     canvas.drawRoundRect(vitalsInfoCardRect, 10f * dp, 10f * dp, highlightPaint)
 
+    val hasCellular = if (tabKey == "network") LightspeedNetworkUsageAnalyzer.hasCellularCapability(context) else true
     val entries = when (tabKey) {
         "wakelocks" -> VITALS_INFO_WAKELOCK
         "ram" -> VITALS_INFO_RAM
+        "network" -> if (hasCellular) VITALS_INFO_NETWORK else VITALS_INFO_NETWORK_WIFI_ONLY
         else -> VITALS_INFO_CPU
     }
     val title = when (tabKey) {
         "wakelocks" -> "WAKELOCK GUIDE"
         "ram" -> "RAM & SWAP GUIDE"
+        "network" -> "NETWORK USAGE GUIDE"
         else -> "CPU & HEAT GUIDE"
     }
 
@@ -165,7 +198,7 @@ internal fun LightspeedCruiseOverlay.drawVitalsInfoCard(
     for (sizeDp in floatArrayOf(10f, 9.2f, 8.6f, 8.2f)) {
         val sizePx = sizeDp * dp
         val lineH = sizePx * 1.34f
-        val cacheKey = "$tabKey|${sizePx.toInt()}|${maxW.toInt()}"
+        val cacheKey = "$tabKey|$hasCellular|${sizePx.toInt()}|${maxW.toInt()}"
         val lines = if (cacheKey == vitalsInfoCacheKey) {
             vitalsInfoCacheLines
         } else {

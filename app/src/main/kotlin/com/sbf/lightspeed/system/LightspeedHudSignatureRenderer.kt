@@ -101,8 +101,14 @@ object LightspeedHudSignatureRenderer {
                 "EQ SPECTRUM · $db"
             }
             "signature_solar_lux" -> {
-                val nits = (10 + (fraction * fraction * 990f).roundToInt()).coerceIn(5, 1000)
-                "PHOTOMETER · ~${nits} NITS"
+                if (title.equals("EXTRA DIM", ignoreCase = true)) {
+                    val dimPct = cleanVal.substringBefore('%').filter { it.isDigit() }.toIntOrNull()
+                        ?: (stepIndex.coerceAtLeast(0) * 10).coerceIn(0, 100)
+                    "EXTRA DIM · -${dimPct}%"
+                } else {
+                    val nits = (10 + (fraction * fraction * 990f).roundToInt()).coerceIn(5, 1000)
+                    "PHOTOMETER · ~${nits} NITS"
+                }
             }
             "signature_chrono_dial" -> "SLEEP HORIZON · STEP ${stepIndex.coerceAtLeast(0) + 1}/${totalSteps.coerceAtLeast(1)}"
             else -> "THRUSTER · VELOCITY VECTOR"

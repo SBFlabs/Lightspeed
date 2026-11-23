@@ -8,10 +8,12 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedUsageStats
 import com.sbf.lightspeed.system.NightlyFeatures
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.lsString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
@@ -98,6 +100,16 @@ object LightspeedCruiseHudPods {
             "7d" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_7day).ifBlank { "7-DAY" }
         )
 
+    val SYSTEM_SPAN_OPTIONS: List<Pair<String, String>>
+        get() = listOf(
+            "1h" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_1h).ifBlank { "1H" },
+            "3h" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_3h).ifBlank { "3H" },
+            "today" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_today).ifBlank { "TODAY" },
+            "3d" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_3day).ifBlank { "3-DAY" },
+            "7d" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_7day).ifBlank { "7-DAY" },
+            "30d" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_30day).ifBlank { "30-DAY" }
+        )
+
     val PRIVACY_VIEW_OPTIONS: List<Pair<String, String>>
         get() = listOf(
             "alerts" to com.sbf.lightspeed.system.lsString(R.string.hud_opt_alerts).ifBlank { "ALERTS" },
@@ -116,9 +128,17 @@ object LightspeedCruiseHudPods {
     fun getAvailableUsageSpanMs(span: String): Long = usageAvailableSpanMsBySpan[span] ?: 0L
 
     fun isSpanPartial(span: String): Boolean = when (span) {
+        "3d" -> {
+            val avail = usageAvailableSpanMsBySpan["3d"] ?: 0L
+            avail > 0L && avail < (3L * 24L - 4L) * 3_600_000L
+        }
         "7d" -> {
             val avail = usageAvailableSpanMsBySpan["7d"] ?: 0L
             avail > 0L && avail < (7L * 24L - 4L) * 3_600_000L
+        }
+        "30d" -> {
+            val avail = usageAvailableSpanMsBySpan["30d"] ?: 0L
+            avail > 0L && avail < (30L * 24L - 12L) * 3_600_000L
         }
         "last_charge" -> !hasObservedRealUnplug
         else -> false
@@ -161,6 +181,35 @@ object LightspeedCruiseHudPods {
         }
     }
 
+    fun formatTrafficSize(bytes: Long): String {
+        if (bytes <= 0L) return "0B"
+        if (bytes < 1024L) return "${bytes}B"
+        val kb = bytes.toDouble() / 1024.0
+        if (bytes < 1024L * 1024L) return "${kb.roundToInt().coerceAtLeast(1)}K"
+        val mb = bytes.toDouble() / (1024.0 * 1024.0)
+        if (bytes < 1024L * 1024L * 1024L) {
+            return if (mb >= 10.0) "${mb.roundToInt()}M" else String.format(Locale.US, "%.1fM", mb)
+        }
+        val tb = bytes.toDouble() / (1024.0 * 1024.0 * 1024.0 * 1024.0)
+        if (tb >= 0.95) return String.format(Locale.US, "%.1fT", tb)
+        val gb = bytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
+        return if (gb >= 10.0) "${gb.roundToInt()}G" else String.format(Locale.US, "%.1fG", gb)
+    }
+
+    data class AppBatteryDrainEntry(
+        val packageName: String,
+        val label: String,
+        val drainPct: Float,
+        val drainMah: Float
+    )
+
+    @Volatile var shizukuBatteryDrainApps: List<AppBatteryDrainEntry> = emptyList()
+        internal set
+    @Volatile var hasShizukuBatteryDrainSnapshot: Boolean = false
+        internal set
+    @Volatile internal var lastShizukuBatteryDrainRefreshMs: Long = 0L
+    @Volatile internal var isRefreshingShizukuBatteryDrain: Boolean = false
+
     data class BatterySnapshot(
         val levelPct: Int = 0,
         val isCharging: Boolean = false,
@@ -189,8 +238,12 @@ object LightspeedCruiseHudPods {
         val mobileTxBytes: Long = -1L,
         val wifiRxBytes: Long = -1L,
         val wifiTxBytes: Long = -1L,
+        val screenOneHourMs: Long = 0L, // real foreground time from usage stats (last 1h)
+        val screenThreeHourMs: Long = 0L, // real foreground time from usage stats (last 3h)
         val screenTodayMs: Long = 0L,   // real foreground time from usage stats (last day)
+        val screenThreeDayMs: Long = 0L, // real foreground time from usage stats (last 3 days)
         val screenSevenDayMs: Long = 0L,// real foreground time from usage stats (last 7 days)
+        val screenThirtyDayMs: Long = 0L, // real foreground time from usage stats (last 30 days)
         val chargeMah: Int = -1,        // current battery charge in mAh (-1 if unavailable)
         val designCapacityMah: Int = -1,// full design capacity in mAh (-1 if unavailable)
         val healthLabel: String = "GOOD",
@@ -258,7 +311,26 @@ object LightspeedCruiseHudPods {
 
     fun flipDigitsIfActive(text: String, seedOffset: Int = 0): String = text
 
-    fun scrambleDigits(text: String, seedOffset: Int = 0): String = text
+    fun scrambleDigits(text: String, seedOffset: Int = 0): String {
+        val tick = (android.os.SystemClock.uptimeMillis() / 16L).toInt()
+        if (text == "--" || text.startsWith("0m")) {
+            val d1 = ((tick + seedOffset * 7) and 0x7FFFFFFF) % 9 + 1
+            val d2 = ((tick * 3 + seedOffset * 13) and 0x7FFFFFFF) % 10
+            val suffix = if (text.startsWith("0m")) text.removePrefix("0m") else ""
+            return "${d1}${d2}m$suffix"
+        }
+        val sb = StringBuilder(text.length)
+        for (i in text.indices) {
+            val c = text[i]
+            if (c in '0'..'9') {
+                val scrambled = ((tick + i * 7 + seedOffset * 13) and 0x7FFFFFFF) % 10
+                sb.append(('0'.code + scrambled).toChar())
+            } else {
+                sb.append(c)
+            }
+        }
+        return sb.toString()
+    }
 
     /** Maps legacy item types (app_only, ls_privacy) onto the unified Focused App Inspector type. */
     fun canonicalHudType(raw: String): String = when (raw) {
@@ -503,7 +575,7 @@ object LightspeedCruiseHudPods {
             slot1Prefix = LightspeedPreferences.KEY_CATEGORY_HUD_BATTERY_SPAN_PREFIX,
             slot2Prefix = LightspeedPreferences.KEY_CATEGORY_HUD_SLOT2_BATTERY_SPAN_PREFIX,
             globalKey = LightspeedPreferences.KEY_CATEGORY_HUD_BATTERY_SPAN,
-            defaultValue = "7d"
+            defaultValue = "last_charge"
         )
 
     fun setBatterySpan(context: Context, categoryId: String?, span: String, slotIndex: Int = 1) {
@@ -534,7 +606,9 @@ object LightspeedCruiseHudPods {
         val current = getBatterySpan(context, categoryId, slotIndex)
         val mode = getBatteryMode(context, categoryId, slotIndex)
         val next = if (mode == "system") {
-            if (current == "today") "7d" else "today"
+            val normalized = if (SYSTEM_SPAN_OPTIONS.any { it.first == current }) current else "today"
+            val idx = SYSTEM_SPAN_OPTIONS.indexOfFirst { it.first == normalized }.let { if (it >= 0) it else 0 }
+            SYSTEM_SPAN_OPTIONS[(idx + 1) % SYSTEM_SPAN_OPTIONS.size].first
         } else {
             val idx = BATTERY_SPAN_OPTIONS.indexOfFirst { it.first == current }.let { if (it >= 0) it else 0 }
             BATTERY_SPAN_OPTIONS[(idx + 1) % BATTERY_SPAN_OPTIONS.size].first
@@ -685,4 +759,83 @@ object LightspeedCruiseHudPods {
     }
 
     fun getUsageMap(span: String): Map<String, Long> = usageCacheBySpan[span] ?: emptyMap()
+
+    fun getShizukuBatteryDrainApps(context: Context, span: String): List<AppBatteryDrainEntry> {
+        if (!ElevatedTaskCloser.isShizukuActive) return emptyList()
+        return LightspeedShizukuBatteryDrainStore.getEntriesForSpan(context, span)
+    }
+
+    val WEEK_CYCLE_MODES = listOf(
+        LightspeedPreferences.WEEK_CYCLE_SATURDAY,
+        LightspeedPreferences.WEEK_CYCLE_SUNDAY,
+        LightspeedPreferences.WEEK_CYCLE_MONDAY,
+        LightspeedPreferences.WEEK_CYCLE_MONTHLY_7DAY
+    )
+
+    fun defaultWeekCycleMode(): String = when (Calendar.getInstance().firstDayOfWeek) {
+        Calendar.SATURDAY -> LightspeedPreferences.WEEK_CYCLE_SATURDAY
+        Calendar.SUNDAY -> LightspeedPreferences.WEEK_CYCLE_SUNDAY
+        else -> LightspeedPreferences.WEEK_CYCLE_MONDAY
+    }
+
+    fun getWeekCycleMode(context: Context): String {
+        val saved = context.defaultPrefs().getString(
+            LightspeedPreferences.KEY_SCREEN_TIME_WEEK_CYCLE_MODE,
+            null
+        )
+        return if (saved != null && saved in WEEK_CYCLE_MODES) saved else defaultWeekCycleMode()
+    }
+
+    fun setWeekCycleMode(context: Context, mode: String) {
+        if (mode !in WEEK_CYCLE_MODES) return
+        context.defaultPrefs().edit()
+            .putString(LightspeedPreferences.KEY_SCREEN_TIME_WEEK_CYCLE_MODE, mode)
+            .apply()
+    }
+
+    fun cycleWeekCycleMode(context: Context): String {
+        val current = getWeekCycleMode(context)
+        val idx = WEEK_CYCLE_MODES.indexOf(current).let { if (it >= 0) it else 0 }
+        val next = WEEK_CYCLE_MODES[(idx + 1) % WEEK_CYCLE_MODES.size]
+        setWeekCycleMode(context, next)
+        return next
+    }
+
+    fun weekCycleShortLabel(mode: String): String = when (mode) {
+        LightspeedPreferences.WEEK_CYCLE_SATURDAY -> lsString(R.string.wk_cycle_sat_short).ifBlank { "SAT" }
+        LightspeedPreferences.WEEK_CYCLE_SUNDAY -> lsString(R.string.wk_cycle_sun_short).ifBlank { "SUN" }
+        LightspeedPreferences.WEEK_CYCLE_MONDAY -> lsString(R.string.wk_cycle_mon_short).ifBlank { "MON" }
+        else -> lsString(R.string.wk_cycle_monthly_short).ifBlank { "1-7 MO" }
+    }
+
+    fun weekCycleFullLabel(mode: String): String = when (mode) {
+        LightspeedPreferences.WEEK_CYCLE_SATURDAY -> lsString(R.string.wk_cycle_sat_full).ifBlank { "Week starts Saturday" }
+        LightspeedPreferences.WEEK_CYCLE_SUNDAY -> lsString(R.string.wk_cycle_sun_full).ifBlank { "Week starts Sunday" }
+        LightspeedPreferences.WEEK_CYCLE_MONDAY -> lsString(R.string.wk_cycle_mon_full).ifBlank { "Week starts Monday" }
+        else -> lsString(R.string.wk_cycle_monthly_full).ifBlank { "Monthly 7-Day Cycle (1-7, 8-14, 15-21, 22-end)" }
+    }
+
+    fun computeWeekProgressRatio(calNow: Calendar, mode: String): Float {
+        val minsToday = calNow.get(Calendar.HOUR_OF_DAY) * 60f + calNow.get(Calendar.MINUTE)
+        if (mode == LightspeedPreferences.WEEK_CYCLE_MONTHLY_7DAY) {
+            val dayOfMonth = calNow.get(Calendar.DAY_OF_MONTH)
+            val daysInMonth = calNow.getActualMaximum(Calendar.DAY_OF_MONTH).coerceAtLeast(28)
+            val (cycleStart, cycleEnd) = when {
+                dayOfMonth <= 7 -> 1 to 7
+                dayOfMonth <= 14 -> 8 to 14
+                dayOfMonth <= 21 -> 15 to 21
+                else -> 22 to daysInMonth
+            }
+            val cycleDays = (cycleEnd - cycleStart + 1).coerceAtLeast(1)
+            val dayInCycle = (dayOfMonth - cycleStart).coerceAtLeast(0)
+            return ((dayInCycle * 1440f + minsToday) / (cycleDays * 1440f)).coerceIn(0.02f, 1f)
+        }
+        val startDow = when (mode) {
+            LightspeedPreferences.WEEK_CYCLE_SATURDAY -> Calendar.SATURDAY
+            LightspeedPreferences.WEEK_CYCLE_SUNDAY -> Calendar.SUNDAY
+            else -> Calendar.MONDAY
+        }
+        val dayInWeek = (calNow.get(Calendar.DAY_OF_WEEK) - startDow + 7) % 7
+        return ((dayInWeek * 1440f + minsToday) / (7f * 1440f)).coerceIn(0.02f, 1f)
+    }
 }

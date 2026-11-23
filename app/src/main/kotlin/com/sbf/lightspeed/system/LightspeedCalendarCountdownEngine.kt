@@ -47,7 +47,8 @@ object LightspeedCalendarCountdownEngine {
     data class DisplayCountdown(
         val title: String,
         val targetMs: Long,
-        val progressFraction: Float
+        val progressFraction: Float,
+        val isCalendarEvent: Boolean = false
     )
 
     @Volatile
@@ -259,17 +260,12 @@ object LightspeedCalendarCountdownEngine {
         return if (cfg.source == SOURCE_CALENDAR) {
             val ev = getNextUpcomingEvent(context, cfg.calendarIds) ?: return null
             if (ev.startMs <= now) return null
-            val lookbackFloor = now - 86_400_000L
-            val windowStartMs = if (ev.prevEventEndMs in lookbackFloor..now && ev.prevEventEndMs < ev.startMs) {
-                ev.prevEventEndMs
-            } else {
-                val leadIn24h = ev.startMs - 86_400_000L
-                val sod = startOfDayMs(now)
-                if (now >= leadIn24h) maxOf(leadIn24h, sod) else sod
-            }
-            val denom = (ev.startMs - windowStartMs).coerceAtLeast(60_000L)
-            val progress = ((now - windowStartMs).toFloat() / denom.toFloat()).coerceIn(0f, 1f)
-            DisplayCountdown(title = ev.title, targetMs = ev.startMs, progressFraction = progress)
+            DisplayCountdown(
+                title = ev.title,
+                targetMs = ev.startMs,
+                progressFraction = 0f,
+                isCalendarEvent = true
+            )
         } else {
             if (cfg.targetMs <= now) return null
             val windowStartMs = if (cfg.startMs in 1L until cfg.targetMs) {

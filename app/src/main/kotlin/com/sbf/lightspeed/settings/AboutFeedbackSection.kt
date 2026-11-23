@@ -390,11 +390,7 @@ fun AboutFeedbackSection(context: Context) {
 
             val resolvedVerification = buildVerification
             if (resolvedVerification != null) {
-                val originLabel = if (resolvedVerification.installOrigin == com.sbf.lightspeed.system.InstallOrigin.DIRECT_SIDELOAD) {
-                    lsString(R.string.bver_origin_sideload)
-                } else {
-                    resolvedVerification.installOrigin.displayName
-                }
+                val originLabel = resolveInstallOriginLabel(resolvedVerification.installOrigin)
                 val (verifyIcon, verifyTint, verifySubtitle) = when (resolvedVerification.signatureStatus) {
                     SignatureStatus.OFFICIAL_RELEASE -> Triple(
                         Icons.Default.CheckCircle,

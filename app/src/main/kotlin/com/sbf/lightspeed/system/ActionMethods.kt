@@ -136,11 +136,12 @@ object ActionMethods {
 
     fun getAssignedMethodsForApp(context: Context, token: String, packageName: String): Set<String> {
         val canon = canonical(token)
+        val cleanPkg = packageName.removePrefix("app:").trim()
         val result = mutableSetOf<String>()
         val allMethods = options(canon).map { it.id }
         for (m in allMethods) {
             val apps = getMethodApps(context, canon, m)
-            if (packageName in apps) {
+            if (cleanPkg in apps || "app:$cleanPkg" in apps) {
                 result.add(m)
             }
         }

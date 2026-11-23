@@ -166,13 +166,16 @@ fun HudExperimentalLabsSection(
                                 ed.apply()
                                 com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.reload(context)
                                 onRefreshNeeded()
-                            }
+                            },
+                            colors = deckSwitchColors()
                         )
                     }
                 }
 
                 if (isTrackpadLabsEnabled) {
                     HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+                    TrackpadRotatingTipBanner()
 
                     // Flank selector
                     Row(

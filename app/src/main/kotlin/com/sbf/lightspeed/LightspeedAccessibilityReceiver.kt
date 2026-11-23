@@ -263,7 +263,7 @@ internal fun LightspeedAccessibilityService.teardown() {
         baySleepBlackoutView = null
     }
     baySleepBlackoutParams = null
-    handler.removeCallbacks(baySleepRaiseRunnable)
+    handler.removeCallbacksAndMessages(null)
     com.sbf.lightspeed.system.SonicDeckManager.dismiss(this)
     com.sbf.lightspeed.system.VistaDeckManager.dismiss(this)
     com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine.stopMonitoring()

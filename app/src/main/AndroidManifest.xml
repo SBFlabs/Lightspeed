@@ -375,7 +375,7 @@
         <activity
             android:name=".system.bot.BotMacroEditorDialog"
             android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:theme="@style/Theme.Lightspeed.Floating"
             android:excludeFromRecents="true" />
 
         <!-- 1-Tap Shortcut Trampoline Activity for Home Screen and Launcher shortcuts -->

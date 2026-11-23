@@ -472,6 +472,10 @@ object LightspeedIconManager {
                 "system:core_cooling" -> com.sbf.lightspeed.R.drawable.ic_power
                 "system:refueling_bay" -> com.sbf.lightspeed.R.drawable.ic_beacon_sparkle
                 "system:battery_exemption" -> com.sbf.lightspeed.R.drawable.ic_power
+                "system:native_wifi_settings" -> com.sbf.lightspeed.R.drawable.ic_native_wifi
+                "system:native_bluetooth_settings" -> com.sbf.lightspeed.R.drawable.ic_native_bluetooth
+                "system:native_battery_settings" -> com.sbf.lightspeed.R.drawable.ic_native_battery
+                "system:native_digital_wellbeing" -> com.sbf.lightspeed.R.drawable.ic_native_wellbeing
                 else -> null
             }
             if (resId != null) {

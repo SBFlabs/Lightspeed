@@ -33,7 +33,6 @@ internal fun LightspeedCruiseOverlay.evaluateSpatialMetrics(rawX: Float, rawY: F
             isCategoryVectorLocked = true
         }
         if (categoryScrubbingEngaged && (horizontalPull > entryThreshold || flankDistance > (36f * density))) {
-            cancelBottomHoldReveal()
             currentLayer = CruiseLayer.GRID
             triggerCruiseLayerJumpHaptic()
             viewportScrollOffset = 0f
@@ -47,7 +46,9 @@ internal fun LightspeedCruiseOverlay.evaluateSpatialMetrics(rawX: Float, rawY: F
             val baseCatCount = cachedCategories.count { it.id != "launcher_settings_virtual_id" }.coerceAtLeast(1)
             val catLineH = ((endYArea - startYArea) / baseCatCount) * categorySpacingScale()
 
-            // Vertical hysteresis deadzone (~5.5dp) filters finger micro-tremors at the bottom rail
+            // Continuous 1:1 rawY drives category scroll for smooth native-refresh motion;
+            // apply hysteresisPx only to the bottom overscroll reveal detent.
+            val stabilizedNormY = ((rawY - verticalStartAnchor) / verticalComfortScope).coerceIn(0f, 1f)
             val hysteresisPx = 5.5f * density
             val effectiveRawY = if (categoryFilteredAnchorY < 0f) {
                 categoryFilteredAnchorY = rawY
@@ -60,12 +61,11 @@ internal fun LightspeedCruiseOverlay.evaluateSpatialMetrics(rawX: Float, rawY: F
                 categoryFilteredAnchorY
             }
 
-            val stabilizedNormY = ((effectiveRawY - verticalStartAnchor) / verticalComfortScope).coerceIn(0f, 1f)
             val bottomThresholdY = verticalStartAnchor + verticalComfortScope
-            // Scale overscroll threshold to available space below the rail so landscape & small tablets remain reachable
-            val availableBottomSpace = (hF - bottomThresholdY).coerceAtLeast(1f)
-            val revealThresholdPx = minOf(40f * density, availableBottomSpace * 0.55f).coerceAtLeast(8f * density)
-            val glideSpanPx = minOf(28f * density, availableBottomSpace * 0.40f).coerceAtLeast(10f * density)
+            val effectiveBottomAnchorY = maxOf(bottomThresholdY, touchDownRawY)
+            // Scale swipe-down reveal threshold to available space below the rail so landscape & low pills stay reachable
+            val availableBottomSpace = (hF - effectiveBottomAnchorY).coerceAtLeast(1f)
+            val revealThresholdPx = minOf(36f * density, availableBottomSpace * 0.48f).coerceAtLeast(10f * density)
             val isInBottomZone = (activeCatIndex >= baseCatCount - 1) || (stabilizedNormY >= 0.96f) || settingsCategoryAppended
 
             fun fireSettingsRevealHapticOnce() {
@@ -75,92 +75,72 @@ internal fun LightspeedCruiseOverlay.evaluateSpatialMetrics(rawX: Float, rawY: F
                 }
             }
 
-            fun revealHiddenCentralCommand(viaHold: Boolean) {
-                if (settingsCategoryAppended) return
-                settingsCategoryAppended = true
-                settingsRevealedByHold = viaHold
-                cancelBottomHoldReveal()
-                fireSettingsRevealHapticOnce()
-                val mutableCats = cachedCategories.toMutableList()
-                val hasSettings = mutableCats.any { it.id == "launcher_settings_virtual_id" }
-                if (!hasSettings) {
-                    val cmdLabel = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(
-                        com.sbf.lightspeed.system.LightspeedVocabulary.Key.CENTRAL_COMMAND
-                    )
-                    mutableCats.add(LightspeedDataBridge.CategoryNode("launcher_settings_virtual_id", "⚙ $cmdLabel"))
-                    cachedCategories = mutableCats
-                }
-                if (viaHold) {
-                    val settingsIdx = cachedCategories.indexOfLast { it.id == "launcher_settings_virtual_id" }
-                    if (settingsIdx >= 0) {
-                        val baseSlotSpan = (baseCatCount - 1).coerceAtLeast(0).toFloat()
-                        categoryVisualOffset = (hF / 2f) - (startYArea + (catLineH / 2f) + ((baseSlotSpan + 1f) * catLineH))
-                        if (!isCategoryVectorLocked && activeCatIndex != settingsIdx) {
-                            activeCatIndex = settingsIdx
-                            hudScrollOffset = 0f
-                            computeHudSlotBounds()
-                            scheduleDebouncedWidgetAttach()
-                        }
-                        invalidate()
+            fun revealHiddenCentralCommand() {
+                if (!settingsCategoryAppended) {
+                    settingsCategoryAppended = true
+                    val mutableCats = cachedCategories.toMutableList()
+                    val hasSettings = mutableCats.any { it.id == "launcher_settings_virtual_id" }
+                    if (!hasSettings) {
+                        val cmdLabel = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(
+                            com.sbf.lightspeed.system.LightspeedVocabulary.Key.CENTRAL_COMMAND
+                        )
+                        mutableCats.add(LightspeedDataBridge.CategoryNode("launcher_settings_virtual_id", "⚙ $cmdLabel"))
+                        cachedCategories = mutableCats
                     }
+                    fireSettingsRevealHapticOnce()
+                }
+                val settingsIdx = cachedCategories.indexOfLast { it.id == "launcher_settings_virtual_id" }
+                if (settingsIdx >= 0 && !isCategoryVectorLocked && activeCatIndex != settingsIdx) {
+                    activeCatIndex = settingsIdx
+                    hudScrollOffset = 0f
+                    computeHudSlotBounds()
+                    scheduleDebouncedWidgetAttach()
                 }
             }
 
-            if (isInBottomZone && rawY >= bottomThresholdY - hysteresisPx) {
+            if (isInBottomZone && rawY >= effectiveBottomAnchorY - hysteresisPx) {
                 if (overScrollAnchorRawY < 0f) {
-                    overScrollAnchorRawY = maxOf(bottomThresholdY, rawY)
+                    overScrollAnchorRawY = effectiveBottomAnchorY
                 }
-                val pullDownPx = (effectiveRawY - bottomThresholdY).coerceAtLeast(0f)
+                val pullDownPx = (effectiveRawY - effectiveBottomAnchorY).coerceAtLeast(0f)
                 if (pullDownPx > overScrollBoundaryAccumulator) {
                     overScrollBoundaryAccumulator = pullDownPx
                 } else if (overScrollBoundaryAccumulator - pullDownPx > hysteresisPx) {
                     overScrollBoundaryAccumulator = pullDownPx
                 }
 
-                if (!settingsCategoryAppended) {
-                    if (overScrollBoundaryAccumulator >= revealThresholdPx) {
-                        revealHiddenCentralCommand(viaHold = false)
-                    } else if (bottomHoldRevealRunnable == null && !isCategoryVectorLocked) {
-                        // ~500ms hold-at-bottom detent on the bottommost category guarantees reachability near screen edges
-                        val holdTask = Runnable {
-                            bottomHoldRevealRunnable = null
-                            if (currentLayer == CruiseLayer.CATEGORY && !settingsCategoryAppended && !isCategoryVectorLocked && isCurrentlyTouched) {
-                                revealHiddenCentralCommand(viaHold = true)
-                            }
-                        }
-                        bottomHoldRevealRunnable = holdTask
-                        uiHandler.postDelayed(holdTask, 500L)
+                if (!isCategoryVectorLocked && overScrollBoundaryAccumulator >= revealThresholdPx) {
+                    if (!settingsCategoryAppended) {
+                        revealHiddenCentralCommand()
+                    } else {
+                        // User left the bottom zone and swiped down again in the same touch session: re-fire strong haptic
+                        fireSettingsRevealHapticOnce()
                     }
-                } else if (overScrollBoundaryAccumulator >= revealThresholdPx) {
-                    // User left the bottom zone and pulled down again in the same touch session: fire once
-                    fireSettingsRevealHapticOnce()
                 }
-            } else if (stabilizedNormY < 0.92f) {
+            } else if (stabilizedNormY < 0.92f || rawY < effectiveBottomAnchorY - hysteresisPx) {
                 overScrollBoundaryAccumulator = 0f
                 overScrollAnchorRawY = -1f
-                settingsRevealedByHold = false
-                if (activeCatIndex < baseCatCount - 1) {
+                if (activeCatIndex < baseCatCount) {
                     settingsRevealHapticFired = false
                 }
-                cancelBottomHoldReveal()
-            } else {
-                // Finger slid slightly above bottom threshold without leaving bottom zone: cancel pending hold detent
-                cancelBottomHoldReveal()
+            }
+
+            if (settingsCategoryAppended && overScrollBoundaryAccumulator <= revealThresholdPx * 0.25f && activeCatIndex < baseCatCount) {
+                settingsRevealHapticFired = false
             }
 
             val shapedProgress = shapeCategoryProgress(stabilizedNormY)
             val baseSlotSpan = (baseCatCount - 1).coerceAtLeast(0).toFloat()
             val extraSettingsSlotOffset = if (settingsCategoryAppended) {
-                if (settingsRevealedByHold && effectiveRawY >= bottomThresholdY - (hysteresisPx * 2f)) {
+                if (overScrollBoundaryAccumulator >= revealThresholdPx) {
                     1f
                 } else {
-                    settingsRevealedByHold = false
-                    // Smoothly glide from the bottommost category (0f) onto Central Command (1f) with hysteresis
-                    ((overScrollBoundaryAccumulator - revealThresholdPx * 0.35f) / glideSpanPx).coerceIn(0f, 1f)
+                    val glideStart = revealThresholdPx * 0.35f
+                    ((overScrollBoundaryAccumulator - glideStart) / (revealThresholdPx - glideStart).coerceAtLeast(1f)).coerceIn(0f, 1f)
                 }
             } else if (overScrollBoundaryAccumulator > 0f) {
-                // Subtle damped rubber-band tension before Central Command reveals
-                ((overScrollBoundaryAccumulator / revealThresholdPx).coerceIn(0f, 1f)) * 0.22f
+                // Subtle damped rubber-band tension before Central Command reveals on deliberate swipe-down
+                ((overScrollBoundaryAccumulator / revealThresholdPx).coerceIn(0f, 1f)) * 0.24f
             } else {
                 0f
             }
@@ -168,9 +148,10 @@ internal fun LightspeedCruiseOverlay.evaluateSpatialMetrics(rawX: Float, rawY: F
             val continuousSlotIndex = (shapedProgress * baseSlotSpan) + extraSettingsSlotOffset
             categoryVisualOffset = (hF / 2f) - (startYArea + (catLineH / 2f) + (continuousSlotIndex * catLineH))
 
-            // Vertical 14.dp hysteresis detent around the active category slot (18.dp for bottom/Central Command)
+            // Vertical hysteresis detent clamped to catLineH so small landscape rows never trap Central Command
             val isBottomOrSettingsActive = activeCatIndex >= baseCatCount - 1
-            val detentPx = (if (isBottomOrSettingsActive) 18f else 14f) * density
+            val rawDetentPx = (if (isBottomOrSettingsActive) 16f else 14f) * density
+            val detentPx = minOf(rawDetentPx, catLineH * 0.42f)
             var closestIndex = activeCatIndex.coerceIn(0, cachedCategories.lastIndex)
             var minDistance = Float.MAX_VALUE
             for (index in cachedCategories.indices) {
@@ -284,7 +265,11 @@ internal fun LightspeedCruiseOverlay.evaluateSpatialMetrics(rawX: Float, rawY: F
 
         val catId = cachedCategories.getOrNull(activeCatIndex)?.id ?: "comm"
         val gTop = getCategoryGridTop(catId)
-        val gBot = hF * 0.98f
+        val gBot = if (shouldShowCategoryCruiseRotatingTip()) {
+            getCategoryCruiseTipReserveTopY().coerceAtMost(hF * 0.98f)
+        } else {
+            hF * 0.98f
+        }
         val gScope = gBot - gTop
         val rowCount = if (cellH > 0f) (totalGridContentHeight / cellH).toInt().coerceAtLeast(1) else 1
 

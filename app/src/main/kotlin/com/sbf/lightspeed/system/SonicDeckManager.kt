@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.system
 
+import com.sbf.lightspeed.settings.blockScrimPassthrough
+import com.sbf.lightspeed.settings.overlayScrimDismiss
+
 import com.sbf.lightspeed.R
 
 import com.sbf.lightspeed.settings.verticalScrollWithEdgeFade
@@ -298,16 +301,18 @@ object SonicDeckManager {
         val isCapturing = com.sbf.lightspeed.settings.CentralCommandBackdropBlur.isCapturing
         val scrimAlpha = if (isCapturing) 0f else (snapshot.dimAmount * 0.85f).coerceIn(0.25f, 0.65f)
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = scrimAlpha))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss
-                ),
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = scrimAlpha))
+                    .overlayScrimDismiss(
+                        context = service,
+                        onTapOutside = onDismiss
+                    )
+            )
             AnimatedVisibility(
                 visible = isVisible && !isCapturing,
                 enter = fadeIn(tween(200)) + scaleIn(tween(250), initialScale = 0.94f),
@@ -319,7 +324,7 @@ object SonicDeckManager {
                         .fillMaxWidth(0.92f)
                         .wrapContentHeight()
                         .heightIn(max = 680.dp)
-                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+                        .blockScrimPassthrough(),
                     snapshotOverride = snapshot,
                     isFlyout = false,
                     useLightweightHudBlur = true

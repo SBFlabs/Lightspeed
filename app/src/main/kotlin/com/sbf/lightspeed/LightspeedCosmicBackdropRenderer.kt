@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Shader
+import android.os.SystemClock
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -15,23 +16,23 @@ internal class LightspeedCosmicBackdropRenderer {
 
     private val elementPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    // Galactic Nebula background shader cache
+    // Origin-centered Galactic Nebula background shader cache (rebuilt only on radius/color change, never per-frame)
     private var nebulaShader1Key: Long = Long.MIN_VALUE
     private var cachedNebulaShader1: RadialGradient? = null
 
-    // Galactic Nebula secondary animated blob (position quantized to 1px buckets)
+    // Origin-centered secondary animated blob shader cache
     private var nebulaShader2Key: Long = Long.MIN_VALUE
     private var cachedNebulaShader2: RadialGradient? = null
 
-    private fun nebulaKey(cx: Float, cy: Float, radius: Float, color: Int, alphaInt: Int): Long =
-        (cx.toBits().toLong() xor (cy.toBits().toLong() shl 16)) xor
-        (radius.toBits().toLong() shl 8) xor color.toLong() xor alphaInt.toLong()
+    private fun nebulaKey(radius: Float, color: Int): Long =
+        (radius.toBits().toLong() shl 32) xor (color.toLong() and 0xFFFFFFFFL)
 
     fun drawCosmicStarfield(canvas: Canvas, w: Float, h: Float, density: Float, alphaFactor: Float) {
         val starPaint = elementPaint
         starPaint.style = Paint.Style.FILL
+        starPaint.alpha = 255
 
-        val time = System.currentTimeMillis()
+        val time = SystemClock.uptimeMillis()
         val starCount = 42
         for (i in 0 until starCount) {
             val seedX = ((i * 137.5f) % w)
@@ -58,21 +59,23 @@ internal class LightspeedCosmicBackdropRenderer {
         m3Primary: Int,
         alphaFactor: Float
     ) {
-        val t = (System.currentTimeMillis() % 100000) / 1000.0
-        val alphaInt = (alphaFactor * 1000).toInt() // quantize to 0.1% steps
+        val t = (SystemClock.uptimeMillis() % 100000L) / 1000.0
+        val layerAlpha = (alphaFactor.coerceIn(0f, 1f) * 255f).toInt().coerceIn(0, 255)
+        if (layerAlpha <= 0) return
+
         val rP = Color.red(m3Primary)
         val gP = Color.green(m3Primary)
         val bP = Color.blue(m3Primary)
 
-        // Shader 1: static primary nebula blob — strictly uses active theme tint (no hardcoded purple/pink)
-        val key1 = nebulaKey(cx, cy, radius * 1.3f, m3Primary, alphaInt)
+        val r1 = (radius * 1.3f).coerceAtLeast(1f)
+        val key1 = nebulaKey(r1, m3Primary)
         if (key1 != nebulaShader1Key) {
             cachedNebulaShader1 = RadialGradient(
-                cx, cy, radius * 1.3f,
+                0f, 0f, r1,
                 intArrayOf(
-                    Color.argb((115 * alphaFactor).toInt(), rP, gP, bP),
-                    Color.argb((60 * alphaFactor).toInt(), (rP * 0.7f).toInt(), (gP * 0.8f).toInt(), bP),
-                    Color.argb((25 * alphaFactor).toInt(), (rP * 0.4f).toInt(), (gP * 0.5f).toInt(), (bP * 0.7f).toInt()),
+                    Color.argb(115, rP, gP, bP),
+                    Color.argb(60, (rP * 0.7f).toInt(), (gP * 0.8f).toInt(), bP),
+                    Color.argb(25, (rP * 0.4f).toInt(), (gP * 0.5f).toInt(), (bP * 0.7f).toInt()),
                     Color.argb(0, 4, 6, 12)
                 ),
                 floatArrayOf(0.0f, 0.35f, 0.70f, 1.0f),
@@ -80,22 +83,15 @@ internal class LightspeedCosmicBackdropRenderer {
             )
             nebulaShader1Key = key1
         }
-        elementPaint.style = Paint.Style.FILL
-        elementPaint.shader = cachedNebulaShader1
-        canvas.drawCircle(cx, cy, radius * 1.3f, elementPaint)
 
-        // Shader 2: animated offset blob — uses theme primary instead of hardcoded pink
-        val offX = (sin(t * 0.8) * 20.0).toFloat()
-        val offY = (cos(t * 0.6) * 15.0).toFloat()
-        val offXQ = offX.toInt().toFloat()  // 1px quantization
-        val offYQ = offY.toInt().toFloat()
-        val key2 = nebulaKey(cx + offXQ, cy + offYQ, radius * 0.9f, m3Primary, alphaInt)
+        val r2 = (radius * 0.9f).coerceAtLeast(1f)
+        val key2 = nebulaKey(r2, m3Primary)
         if (key2 != nebulaShader2Key) {
             cachedNebulaShader2 = RadialGradient(
-                cx + offX, cy + offY, radius * 0.9f,
+                0f, 0f, r2,
                 intArrayOf(
-                    Color.argb((65 * alphaFactor).toInt(), rP, gP, bP),
-                    Color.argb((28 * alphaFactor).toInt(), 200, 225, 255),
+                    Color.argb(65, rP, gP, bP),
+                    Color.argb(28, 200, 225, 255),
                     Color.argb(0, 0, 0, 0)
                 ),
                 floatArrayOf(0.0f, 0.5f, 1.0f),
@@ -103,8 +99,25 @@ internal class LightspeedCosmicBackdropRenderer {
             )
             nebulaShader2Key = key2
         }
+
+        elementPaint.style = Paint.Style.FILL
+        elementPaint.alpha = layerAlpha
+
+        elementPaint.shader = cachedNebulaShader1
+        canvas.save()
+        canvas.translate(cx, cy)
+        canvas.drawCircle(0f, 0f, r1, elementPaint)
+        canvas.restore()
+
+        val offX = (sin(t * 0.8) * 20.0).toFloat()
+        val offY = (cos(t * 0.6) * 15.0).toFloat()
         elementPaint.shader = cachedNebulaShader2
-        canvas.drawCircle(cx + offX, cy + offY, radius * 0.9f, elementPaint)
+        canvas.save()
+        canvas.translate(cx + offX, cy + offY)
+        canvas.drawCircle(0f, 0f, r2, elementPaint)
+        canvas.restore()
+
         elementPaint.shader = null
+        elementPaint.alpha = 255
     }
 }

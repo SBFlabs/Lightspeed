@@ -27,8 +27,8 @@ android {
         applicationId = "com.sbf.lightspeed"
         minSdk = 26
         targetSdk = 36
-        versionCode = 14
-        versionName = "1.4.1"
+        versionCode = 15
+        versionName = "1.4.2"
         manifestPlaceholders["appName"] = "Lightspeed"
     }
 
@@ -37,7 +37,7 @@ android {
             isEnable = true
             reset()
             include("arm64-v8a", "armeabi-v7a")
-            isUniversalApk = false
+            isUniversalApk = true
         }
     }
 
@@ -51,6 +51,8 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = false
+            // Keep the Universal APK ARM-only (strip x86/x86_64 native libs from AAR dependencies)
+            excludes += setOf("**/x86/**", "**/x86_64/**")
         }
     }
 

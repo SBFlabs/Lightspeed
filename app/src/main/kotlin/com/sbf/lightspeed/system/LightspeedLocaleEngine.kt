@@ -48,7 +48,8 @@ object LightspeedLocaleEngine {
         val englishName: String,
         val nativeName: String?,
         val locale: Locale,
-        val morphGlyphs: List<String>
+        val morphGlyphs: List<String>,
+        val isRtl: Boolean = false
     ) {
         EN("en", "EN", BadgeTone.NEUTRAL, "English", null, Locale.ENGLISH, listOf("A", "E", "W", "Z")),
         PT("pt", "PT", BadgeTone.NEUTRAL, "Portuguese", "Português · BR", Locale("pt", "BR"), listOf("Ç", "Ã", "Õ", "Ê")),
@@ -81,6 +82,14 @@ object LightspeedLocaleEngine {
     private val registry = ConcurrentHashMap<String, Int>()
 
     val state: LocaleState get() = _state
+
+    /** Compose layout direction dictated by Lightspeed's active language (independent of Android OS RTL/LTR). */
+    val activeLayoutDirection: androidx.compose.ui.unit.LayoutDirection
+        get() = if (_state.primary.isRtl) androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr
+
+    /** Android View layout direction constant matching [activeLayoutDirection]. */
+    val activeAndroidLayoutDirection: Int
+        get() = if (_state.primary.isRtl) android.view.View.LAYOUT_DIRECTION_RTL else android.view.View.LAYOUT_DIRECTION_LTR
 
     /** GitHub README matching the primary language (`EN` falls back to the root `README.md`). */
     fun readmeUrl(): String {

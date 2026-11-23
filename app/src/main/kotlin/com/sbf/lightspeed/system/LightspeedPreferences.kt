@@ -313,6 +313,9 @@ object LightspeedPreferences :
         editor.putString(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_COLOR_MODE_LEFT, mode)
         editor.putString(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_COLOR_MODE_RIGHT, mode)
 
+        // 6. Astrogation Airlock
+        editor.putString(KEY_CONSCIOUS_AIRLOCK_COLOR_MODE, mode)
+
         editor.apply()
 
         CockpitGimbalConfigCache.flush()
@@ -415,6 +418,7 @@ object LightspeedPreferences :
     const val KEY_CONSCIOUS_AIRLOCK_ENABLED = "pref_conscious_airlock_enabled"
     const val KEY_CONSCIOUS_DELAY_PACKAGES = "pref_conscious_delay_packages"
     const val KEY_CONSCIOUS_AIRLOCK_ABORT_MODE = "pref_conscious_airlock_abort_mode"
+    const val KEY_CONSCIOUS_AIRLOCK_COLOR_MODE = "pref_conscious_airlock_color_mode"
     const val AIRLOCK_ABORT_MODE_CLOSE_APP = "close_app"
     const val AIRLOCK_ABORT_MODE_GO_HOME = "go_home"
 
@@ -565,6 +569,11 @@ object LightspeedPreferences :
     const val KEY_TIMELINE_COUNTDOWN_CALENDAR_IDS = "pref_timeline_countdown_calendar_ids"
     const val KEY_TIMELINE_COUNTDOWN_SLOT_PREFIX = "pref_timeline_countdown_slot_"
     const val KEY_SCREEN_TIME_IGNORED_PACKAGES = "pref_screen_time_ignored_packages"
+    const val KEY_SCREEN_TIME_WEEK_CYCLE_MODE = "pref_screen_time_week_cycle_mode"
+    const val WEEK_CYCLE_SATURDAY = "saturday"
+    const val WEEK_CYCLE_SUNDAY = "sunday"
+    const val WEEK_CYCLE_MONDAY = "monday"
+    const val WEEK_CYCLE_MONTHLY_7DAY = "monthly_7day"
     const val KEY_VITALS_TEMP_UNIT_FAHRENHEIT = "pref_vitals_temp_unit_fahrenheit"
     const val KEY_VITALS_PEAK_CHARGE_WATTS = "pref_vitals_peak_charge_watts"
     const val KEY_VITALS_MIN_CHARGE_WATTS = "pref_vitals_min_charge_watts"

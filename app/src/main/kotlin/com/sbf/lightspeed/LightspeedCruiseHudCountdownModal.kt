@@ -1,53 +1,68 @@
 package com.sbf.lightspeed
 
-import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
-import android.view.MotionEvent
 import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.system.LightspeedCalendarCountdownEngine
-import com.sbf.lightspeed.system.LightspeedPreferences
-import com.sbf.lightspeed.system.defaultPrefs
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private var countdownActiveWheelIdx: Int = -1
-private var countdownWheelStartY: Float = 0f
-private var countdownWheelAccumDy: Float = 0f
-private var countdownWheelDidDrag: Boolean = false
-private val countdownWheelRects = Array(4) { RectF() }
-private val COUNTDOWN_WHEEL_MAX = intArrayOf(12, 29, 23, 59)
-private val COUNTDOWN_WHEEL_LABELS = arrayOf("MONTHS", "DAYS", "HOURS", "MINS")
-private var countdownModalSlotIndex: Int = 1
-private var countdownModalUsePerWidget: Boolean = false
-private var countdownModalSource: String = LightspeedCalendarCountdownEngine.SOURCE_MANUAL
-private val countdownModalCalendarIds = linkedSetOf<String>()
-private var countdownCalScrollOffset: Float = 0f
-private var countdownCalMaxScroll: Float = 0f
-private var countdownCalDragging: Boolean = false
-private var countdownCalDragLastY: Float = 0f
-private var countdownCalDidDrag: Boolean = false
-private val countdownSourceManualRect = RectF()
-private val countdownSourceCalRect = RectF()
-private val countdownScopeToggleRect = RectF()
-private val countdownCalGrantBtnRect = RectF()
-private val countdownCalListRect = RectF()
-private val countdownCalItemRects = linkedMapOf<String, RectF>()
-private var countdownModalInfoOpen: Boolean = false
-private val countdownInfoBtnRect = RectF()
-private val countdownInfoCardRect = RectF()
+internal const val COUNTDOWN_MODAL_WIDTH_DP = 324f
+internal const val COUNTDOWN_MODAL_HEIGHT_DP = 394f
 
-private fun wrapWheelValue(v: Int, maxInclusive: Int): Int {
+internal var countdownActiveWheelIdx: Int = -1
+internal var countdownWheelStartY: Float = 0f
+internal var countdownWheelAccumDy: Float = 0f
+internal var countdownWheelDidDrag: Boolean = false
+internal val countdownWheelRects = Array(4) { RectF() }
+internal val COUNTDOWN_WHEEL_MAX = intArrayOf(12, 29, 23, 59)
+private val COUNTDOWN_WHEEL_LABELS = arrayOf("MONTHS", "DAYS", "HOURS", "MINS")
+private val COUNTDOWN_PRESETS_ROW1 = arrayOf("TARGET", "VACATION", "LAUNCH")
+private val COUNTDOWN_PRESETS_ROW2 = arrayOf("GOAL", "EXAM", "✎ CUSTOM")
+internal var countdownModalSlotIndex: Int = 1
+internal var countdownModalUsePerWidget: Boolean = false
+internal var countdownModalSource: String = LightspeedCalendarCountdownEngine.SOURCE_MANUAL
+internal val countdownModalCalendarIds = linkedSetOf<String>()
+internal var countdownCalScrollOffset: Float = 0f
+internal var countdownCalMaxScroll: Float = 0f
+internal var countdownCalDragging: Boolean = false
+internal var countdownCalDragLastY: Float = 0f
+internal var countdownCalDidDrag: Boolean = false
+internal val countdownSourceManualRect = RectF()
+internal val countdownSourceCalRect = RectF()
+internal val countdownScopeToggleRect = RectF()
+internal val countdownCalGrantBtnRect = RectF()
+internal val countdownCalListRect = RectF()
+internal val countdownCalItemRects = linkedMapOf<String, RectF>()
+internal var countdownModalInfoOpen: Boolean = false
+internal val countdownInfoBtnRect = RectF()
+internal val countdownInfoCardRect = RectF()
+
+private val countdownMonoBoldTypeface by lazy { Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) }
+private val countdownEventDateFormat = SimpleDateFormat("EEE, MMM d · HH:mm", Locale.US)
+private val countdownTargetDateFormat = SimpleDateFormat("EEE, MMM d, yyyy · HH:mm", Locale.US)
+private val countdownTempDate = Date()
+private val countdownCalRectPool = HashMap<String, RectF>()
+private val countdownCalRowRect = RectF()
+private val countdownModalBoundsRect = RectF()
+private val countdownCloseRect = RectF()
+private val countdownPreviewRect = RectF()
+private val countdownCardRect = RectF()
+private val countdownWheelBoundsRect = RectF()
+private val countdownActionResetRect = RectF()
+private val countdownActionSaveRect = RectF()
+private val countdownScratchRect = RectF()
+
+internal fun wrapWheelValue(v: Int, maxInclusive: Int): Int {
     val span = maxInclusive + 1
     return ((v % span) + span) % span
 }
 
-private fun decomposeCountdownTarget(targetMs: Long, nowMs: Long): IntArray {
+internal fun decomposeCountdownTarget(targetMs: Long, nowMs: Long): IntArray {
     val diffMs = (targetMs - nowMs).coerceAtLeast(60_000L)
     val totalMins = (diffMs / 60_000L).toInt()
     val totalDays = totalMins / (24 * 60)
@@ -59,7 +74,7 @@ private fun decomposeCountdownTarget(targetMs: Long, nowMs: Long): IntArray {
     return intArrayOf(months, days, hours, mins)
 }
 
-private fun composeCountdownTarget(nowMs: Long, months: Int, days: Int, hours: Int, mins: Int): Long {
+internal fun composeCountdownTarget(nowMs: Long, months: Int, days: Int, hours: Int, mins: Int): Long {
     val totalDays = (months.coerceIn(0, 12) * 30L) + days.coerceIn(0, 29).toLong()
     val totalMs = (totalDays * 86_400_000L) +
         (hours.coerceIn(0, 23) * 3_600_000L) +
@@ -103,11 +118,11 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
     canvas.drawRect(0f, 0f, w, h, paint)
 
     // 2. Modal Card Bounds
-    val modalW = (324f * dp).coerceAtMost(w - 24f * dp)
-    val modalH = (394f * dp).coerceAtMost(h - 24f * dp)
+    val modalW = (COUNTDOWN_MODAL_WIDTH_DP * dp).coerceAtMost(w - 24f * dp)
+    val modalH = (COUNTDOWN_MODAL_HEIGHT_DP * dp).coerceAtMost(h - 24f * dp)
     val modalLeft = (w - modalW) / 2f
     val modalTop = (h - modalH) / 2f
-    val bounds = RectF(modalLeft, modalTop, modalLeft + modalW, modalTop + modalH)
+    val bounds = countdownModalBoundsRect.apply { set(modalLeft, modalTop, modalLeft + modalW, modalTop + modalH) }
 
     val snapshot = DeckThemeManager.getSnapshot(context)
     val tintColor = categoryAccentOverride() ?: snapshot.tintArgb.toInt()
@@ -133,7 +148,7 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
     canvas.drawText("◈ TARGET COUNTDOWN TIMER ◈", bounds.left + 14f * dp, bounds.top + 22f * dp, paint)
 
     // Close button [ ✕ ] and compact [ ! ] progress-math info badge
-    val closeRect = RectF(bounds.right - 30f * dp, bounds.top + 8f * dp, bounds.right - 8f * dp, bounds.top + 30f * dp)
+    val closeRect = countdownCloseRect.apply { set(bounds.right - 30f * dp, bounds.top + 8f * dp, bounds.right - 8f * dp, bounds.top + 30f * dp) }
     countdownInfoBtnRect.set(closeRect.left - 26f * dp, closeRect.top, closeRect.left - 4f * dp, closeRect.bottom)
     paint.style = Paint.Style.FILL
     paint.color = if (countdownModalInfoOpen) Color.argb(180, Color.red(accent), Color.green(accent), Color.blue(accent)) else Color.argb(42, Color.red(accent), Color.green(accent), Color.blue(accent))
@@ -191,7 +206,7 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
 
     val now = System.currentTimeMillis()
     val previewTop = modeRowTop + modeRowH + 7f * dp
-    val previewRect = RectF(bounds.left + 14f * dp, previewTop, bounds.right - 14f * dp, previewTop + 52f * dp)
+    val previewRect = countdownPreviewRect.apply { set(bounds.left + 14f * dp, previewTop, bounds.right - 14f * dp, previewTop + 52f * dp) }
     val actionY = bounds.bottom - 34f * dp
     val actionH = 25f * dp
     val actionW = (bounds.width() - 28f * dp - 10f * dp) / 2f
@@ -204,7 +219,7 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
         if (!hasPerm) {
             paint.style = Paint.Style.FILL
             paint.color = Color.argb(34, Color.red(accent), Color.green(accent), Color.blue(accent))
-            val cardRect = RectF(bounds.left + 14f * dp, previewTop + 14f * dp, bounds.right - 14f * dp, actionY - 20f * dp)
+            val cardRect = countdownCardRect.apply { set(bounds.left + 14f * dp, previewTop + 14f * dp, bounds.right - 14f * dp, actionY - 20f * dp) }
             canvas.drawRoundRect(cardRect, 10f * dp, 10f * dp, paint)
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = 0.9f * dp
@@ -252,7 +267,8 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
                 val evD = evDiff / 86_400_000L
                 val evH = (evDiff / 3_600_000L) % 24
                 val evM = (evDiff / 60_000L) % 60
-                val evDate = SimpleDateFormat("EEE, MMM d · HH:mm", Locale.US).format(Date(nextEv.startMs))
+                countdownTempDate.time = nextEv.startMs
+                val evDate = countdownEventDateFormat.format(countdownTempDate)
                 paint.typeface = Typeface.DEFAULT_BOLD
                 paint.textSize = 9.0f * dp
                 paint.color = accent
@@ -296,9 +312,12 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
             var cy = listTop - countdownCalScrollOffset
 
             fun drawCalRow(key: String, title: String, sub: String, dotColor: Int, selected: Boolean) {
-                val r = RectF(countdownCalListRect.left, cy, countdownCalListRect.right, cy + rowH - 3f * dp)
+                countdownCalRowRect.set(countdownCalListRect.left, cy, countdownCalListRect.right, cy + rowH - 3f * dp)
+                val r = countdownCalRowRect
                 if (r.bottom >= listTop && r.top <= listBot) {
-                    countdownCalItemRects[key] = RectF(r)
+                    val pooledRect = countdownCalRectPool.getOrPut(key) { RectF() }
+                    pooledRect.set(r)
+                    countdownCalItemRects[key] = pooledRect
                     paint.style = Paint.Style.FILL
                     paint.color = if (selected) Color.argb(56, Color.red(accent), Color.green(accent), Color.blue(accent)) else Color.argb(26, 255, 255, 255)
                     canvas.drawRoundRect(r, 6f * dp, 6f * dp, paint)
@@ -341,14 +360,16 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
             for (c in calendars) {
                 drawCalRow(c.id.toString(), c.displayName, c.accountName, c.color, c.id.toString() in countdownModalCalendarIds)
             }
-            LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+            LightspeedHudVectorIcons.applyScrollEdgeFeathering(
                 canvas = canvas,
                 left = countdownCalListRect.left,
                 top = countdownCalListRect.top,
                 right = countdownCalListRect.right,
                 bottom = countdownCalListRect.bottom,
-                featherTopPx = if (countdownCalScrollOffset > 0.5f) 14f * dp else 0f,
-                featherBottomPx = if (countdownCalScrollOffset < countdownCalMaxScroll - 0.5f) 16f * dp else 0f,
+                scrollOffset = countdownCalScrollOffset,
+                maxScroll = countdownCalMaxScroll,
+                featherTopPx = 14f * dp,
+                featherBottomPx = 16f * dp,
                 density = dp,
                 seed = 7373
             )
@@ -363,14 +384,16 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
                 val thumbY = listTop + ((countdownCalScrollOffset / countdownCalMaxScroll) * (listH - thumbH))
                 paint.style = Paint.Style.FILL
                 paint.color = Color.argb(55, 255, 255, 255)
-                canvas.drawRoundRect(RectF(sbX, listTop, sbX + sbW, listBot), 1.5f * dp, 1.5f * dp, paint)
+                countdownScratchRect.set(sbX, listTop, sbX + sbW, listBot)
+                canvas.drawRoundRect(countdownScratchRect, 1.5f * dp, 1.5f * dp, paint)
                 paint.color = accent
-                canvas.drawRoundRect(RectF(sbX, thumbY, sbX + sbW, thumbY + thumbH), 1.5f * dp, 1.5f * dp, paint)
+                countdownScratchRect.set(sbX, thumbY, sbX + sbW, thumbY + thumbH)
+                canvas.drawRoundRect(countdownScratchRect, 1.5f * dp, 1.5f * dp, paint)
             }
         }
 
         // Action Row for Calendar mode
-        val resetRect = RectF(bounds.left + 14f * dp, actionY, bounds.left + 14f * dp + actionW, actionY + actionH)
+        val resetRect = countdownActionResetRect.apply { set(bounds.left + 14f * dp, actionY, bounds.left + 14f * dp + actionW, actionY + actionH) }
         paint.style = Paint.Style.FILL
         paint.color = Color.argb(55, 230, 60, 60)
         canvas.drawRoundRect(resetRect, 6f * dp, 6f * dp, paint)
@@ -385,7 +408,7 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
         paint.color = Color.WHITE
         canvas.drawText("CLEAR", resetRect.centerX(), resetRect.centerY() + 3.2f * dp, paint)
 
-        val saveRect = RectF(bounds.left + 14f * dp + actionW + 10f * dp, actionY, bounds.right - 14f * dp, actionY + actionH)
+        val saveRect = countdownActionSaveRect.apply { set(bounds.left + 14f * dp + actionW + 10f * dp, actionY, bounds.right - 14f * dp, actionY + actionH) }
         paint.style = Paint.Style.FILL
         paint.color = Color.argb(190, Color.red(accent), Color.green(accent), Color.blue(accent))
         canvas.drawRoundRect(saveRect, 6f * dp, 6f * dp, paint)
@@ -416,7 +439,8 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
     val diffDays = diffMs / 86_400_000L
     val diffHours = (diffMs / 3_600_000L) % 24
     val diffMins = (diffMs / 60_000L) % 60
-    val dateStr = SimpleDateFormat("EEE, MMM d, yyyy · HH:mm", Locale.US).format(Date(countdownModalTargetMs))
+    countdownTempDate.time = countdownModalTargetMs
+    val dateStr = countdownTargetDateFormat.format(countdownTempDate)
 
     // Event title & Rename button in Preview Card
     paint.style = Paint.Style.FILL
@@ -430,7 +454,7 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
     // Small [ ✎ RENAME ] button in preview card
     val renameBtnW = 68f * dp
     val renameBtnH = 16f * dp
-    val renameBtnRect = RectF(previewRect.right - renameBtnW - 8f * dp, previewRect.top + 6f * dp, previewRect.right - 8f * dp, previewRect.top + 6f * dp + renameBtnH)
+    val renameBtnRect = countdownScratchRect.apply { set(previewRect.right - renameBtnW - 8f * dp, previewRect.top + 6f * dp, previewRect.right - 8f * dp, previewRect.top + 6f * dp + renameBtnH) }
     paint.style = Paint.Style.FILL
     paint.color = Color.argb(55, 255, 255, 255)
     canvas.drawRoundRect(renameBtnRect, 4f * dp, 4f * dp, paint)
@@ -468,12 +492,11 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
     val eventPillH = 19f * dp
     val eventColW = (bounds.width() - 28f * dp - 12f * dp) / 3f
 
-    val row1 = listOf("TARGET", "VACATION", "LAUNCH")
-    for (i in row1.indices) {
-        val preset = row1[i]
+    for (i in COUNTDOWN_PRESETS_ROW1.indices) {
+        val preset = COUNTDOWN_PRESETS_ROW1[i]
         val isSelected = countdownModalTitle.equals(preset, ignoreCase = true)
         val pLeft = bounds.left + 14f * dp + (i * (eventColW + 6f * dp))
-        val pRect = RectF(pLeft, eventRow1Y, pLeft + eventColW, eventRow1Y + eventPillH)
+        val pRect = countdownScratchRect.apply { set(pLeft, eventRow1Y, pLeft + eventColW, eventRow1Y + eventPillH) }
 
         paint.style = Paint.Style.FILL
         paint.color = if (isSelected) Color.argb(160, Color.red(accent), Color.green(accent), Color.blue(accent)) else Color.argb(35, 255, 255, 255)
@@ -492,12 +515,11 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
     }
 
     val eventRow2Y = eventRow1Y + eventPillH + 5f * dp
-    val row2 = listOf("GOAL", "EXAM", "✎ CUSTOM")
-    for (i in row2.indices) {
-        val label = row2[i]
+    for (i in COUNTDOWN_PRESETS_ROW2.indices) {
+        val label = COUNTDOWN_PRESETS_ROW2[i]
         val isSelected = (i < 2 && countdownModalTitle.equals(label, ignoreCase = true))
         val pLeft = bounds.left + 14f * dp + (i * (eventColW + 6f * dp))
-        val pRect = RectF(pLeft, eventRow2Y, pLeft + eventColW, eventRow2Y + eventPillH)
+        val pRect = countdownScratchRect.apply { set(pLeft, eventRow2Y, pLeft + eventColW, eventRow2Y + eventPillH) }
 
         paint.style = Paint.Style.FILL
         paint.color = if (isSelected) Color.argb(160, Color.red(accent), Color.green(accent), Color.blue(accent))
@@ -525,7 +547,7 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
     paint.typeface = Typeface.DEFAULT_BOLD
     paint.textSize = 7.4f * dp
     paint.color = Color.argb(165, 200, 220, 245)
-    canvas.drawText("SCROLL WHEELS TO SET COUNTDOWN", bounds.left + 14f * dp, wheelsCaptionY, paint)
+    canvas.drawText("SCROLL WHEELS TO SET TIME", bounds.left + 14f * dp, wheelsCaptionY, paint)
 
     val wheelsTop = wheelsCaptionY + 6f * dp
     val wheelsBot = (actionY - 10f * dp).coerceAtLeast(wheelsTop + 86f * dp)
@@ -534,7 +556,7 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
 
     for (i in 0..3) {
         val wLeft = bounds.left + 14f * dp + i * (wheelW + wheelGap)
-        val wRect = RectF(wLeft, wheelsTop, wLeft + wheelW, wheelsBot)
+        val wRect = countdownWheelBoundsRect.apply { set(wLeft, wheelsTop, wLeft + wheelW, wheelsBot) }
         countdownWheelRects[i].set(wRect)
         val isActive = (countdownActiveWheelIdx == i)
 
@@ -566,7 +588,8 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
         val bandBot = drumCy + rowStep * 0.48f
         paint.style = Paint.Style.FILL
         paint.color = Color.argb(38, Color.red(accent), Color.green(accent), Color.blue(accent))
-        canvas.drawRoundRect(RectF(wRect.left + 3f * dp, bandTop, wRect.right - 3f * dp, bandBot), 5f * dp, 5f * dp, paint)
+        countdownScratchRect.set(wRect.left + 3f * dp, bandTop, wRect.right - 3f * dp, bandBot)
+        canvas.drawRoundRect(countdownScratchRect, 5f * dp, 5f * dp, paint)
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = 0.8f * dp
         paint.color = Color.argb(135, Color.red(accent), Color.green(accent), Color.blue(accent))
@@ -585,7 +608,7 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
             val shown = wrapWheelValue(curVal + delta, maxVal)
             val itemCy = drumCy + delta * rowStep + dragVisualOffset
             val isCenter = (delta == 0)
-            paint.typeface = if (isCenter) Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) else Typeface.MONOSPACE
+            paint.typeface = if (isCenter) countdownMonoBoldTypeface else Typeface.MONOSPACE
             paint.textSize = if (isCenter) 16.5f * dp else 11.5f * dp
             paint.color = if (isCenter) Color.WHITE else Color.argb(105, 200, 220, 245)
             val fm = paint.fontMetrics
@@ -596,7 +619,7 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
 
     // 4. Action Row: [ CLEAR ]  [ ACTIVATE TARGET ]
     // Reset button
-    val resetRect = RectF(bounds.left + 14f * dp, actionY, bounds.left + 14f * dp + actionW, actionY + actionH)
+    val resetRect = countdownActionResetRect.apply { set(bounds.left + 14f * dp, actionY, bounds.left + 14f * dp + actionW, actionY + actionH) }
     paint.style = Paint.Style.FILL
     paint.color = Color.argb(55, 230, 60, 60)
     canvas.drawRoundRect(resetRect, 6f * dp, 6f * dp, paint)
@@ -613,7 +636,7 @@ internal fun LightspeedCruiseOverlay.drawCountdownModal(canvas: Canvas, paint: P
     canvas.drawText("CLEAR", resetRect.centerX(), resetRect.centerY() + 3.2f * dp, paint)
 
     // Save button
-    val saveRect = RectF(bounds.left + 14f * dp + actionW + 10f * dp, actionY, bounds.right - 14f * dp, actionY + actionH)
+    val saveRect = countdownActionSaveRect.apply { set(bounds.left + 14f * dp + actionW + 10f * dp, actionY, bounds.right - 14f * dp, actionY + actionH) }
     paint.style = Paint.Style.FILL
     paint.color = Color.argb(190, Color.red(accent), Color.green(accent), Color.blue(accent))
     canvas.drawRoundRect(saveRect, 6f * dp, 6f * dp, paint)
@@ -715,330 +738,4 @@ private fun drawCountdownProgressExplainerCard(
     paint.textSize = 7.6f * dp
     paint.color = Color.argb(175, Color.red(accent), Color.green(accent), Color.blue(accent))
     canvas.drawText("Tap anywhere on this card or ! to close", countdownInfoCardRect.centerX(), countdownInfoCardRect.bottom - 10f * dp, paint)
-}
-
-internal fun LightspeedCruiseOverlay.handleCountdownModalTouch(event: MotionEvent): Boolean {
-    if (!isCountdownModalOpen) return false
-    val dp = resources.displayMetrics.density
-    val w = width.toFloat()
-    val h = height.toFloat()
-
-    val modalW = (324f * dp).coerceAtMost(w - 24f * dp)
-    val modalH = (394f * dp).coerceAtMost(h - 24f * dp)
-    val modalLeft = (w - modalW) / 2f
-    val modalTop = (h - modalH) / 2f
-    val bounds = RectF(modalLeft, modalTop, modalLeft + modalW, modalTop + modalH)
-
-    val x = event.x
-    val y = event.y
-    val wheelStepPx = 22f * dp
-    val isCalMode = (countdownModalSource == LightspeedCalendarCountdownEngine.SOURCE_CALENDAR)
-
-    fun stepWheel(wheelIdx: Int, deltaSteps: Int) {
-        if (deltaSteps == 0) return
-        val now = System.currentTimeMillis()
-        val parts = decomposeCountdownTarget(countdownModalTargetMs, now)
-        val maxVal = COUNTDOWN_WHEEL_MAX[wheelIdx]
-        parts[wheelIdx] = wrapWheelValue(parts[wheelIdx] + deltaSteps, maxVal)
-        countdownModalTargetMs = composeCountdownTarget(now, parts[0], parts[1], parts[2], parts[3])
-        triggerHardwareHaptic(11, 60)
-        invalidate()
-    }
-
-    when (event.actionMasked) {
-        MotionEvent.ACTION_DOWN -> {
-            if (isCalMode && !countdownCalListRect.isEmpty && countdownCalListRect.contains(x, y)) {
-                countdownCalDragging = true
-                countdownCalDragLastY = y
-                countdownCalDidDrag = false
-                return true
-            }
-            if (!isCalMode) {
-                for (i in countdownWheelRects.indices) {
-                    if (countdownWheelRects[i].contains(x, y)) {
-                        countdownActiveWheelIdx = i
-                        countdownWheelStartY = y
-                        countdownWheelAccumDy = 0f
-                        countdownWheelDidDrag = false
-                        invalidate()
-                        return true
-                    }
-                }
-            }
-            return true
-        }
-        MotionEvent.ACTION_MOVE -> {
-            if (countdownCalDragging) {
-                val dy = y - countdownCalDragLastY
-                countdownCalDragLastY = y
-                if (kotlin.math.abs(dy) > 2f * dp) countdownCalDidDrag = true
-                if (countdownCalMaxScroll > 0f) {
-                    countdownCalScrollOffset = (countdownCalScrollOffset - dy * 1.25f).coerceIn(0f, countdownCalMaxScroll)
-                    invalidate()
-                }
-                return true
-            }
-            if (countdownActiveWheelIdx in 0..3) {
-                val dy = y - countdownWheelStartY
-                countdownWheelStartY = y
-                countdownWheelAccumDy += dy
-                if (kotlin.math.abs(countdownWheelAccumDy) >= wheelStepPx) {
-                    val steps = (-countdownWheelAccumDy / wheelStepPx).toInt()
-                    countdownWheelAccumDy += steps * wheelStepPx
-                    countdownWheelDidDrag = true
-                    stepWheel(countdownActiveWheelIdx, steps)
-                } else {
-                    if (kotlin.math.abs(dy) > 3f * dp) countdownWheelDidDrag = true
-                    invalidate()
-                }
-                return true
-            }
-            return true
-        }
-        MotionEvent.ACTION_CANCEL -> {
-            countdownCalDragging = false
-            countdownCalDidDrag = false
-            countdownActiveWheelIdx = -1
-            countdownWheelAccumDy = 0f
-            countdownWheelDidDrag = false
-            invalidate()
-            return true
-        }
-        MotionEvent.ACTION_UP -> {
-            if (countdownCalDragging) {
-                val wasDrag = countdownCalDidDrag
-                countdownCalDragging = false
-                countdownCalDidDrag = false
-                if (wasDrag) return true
-            }
-            if (countdownActiveWheelIdx in 0..3) {
-                val idx = countdownActiveWheelIdx
-                val wasDrag = countdownWheelDidDrag
-                countdownActiveWheelIdx = -1
-                countdownWheelAccumDy = 0f
-                countdownWheelDidDrag = false
-                if (!wasDrag) {
-                    val r = countdownWheelRects[idx]
-                    val midY = r.top + 15f * dp + (r.bottom - (r.top + 15f * dp)) * 0.5f
-                    if (y < midY - 10f * dp) stepWheel(idx, -1)
-                    else if (y > midY + 10f * dp) stepWheel(idx, +1)
-                    else invalidate()
-                } else {
-                    invalidate()
-                }
-                return true
-            }
-        }
-        else -> return true
-    }
-
-    // Tap outside to close
-    if (!bounds.contains(x, y)) {
-        isCountdownModalOpen = false
-        triggerHardwareHaptic(14, 70)
-        invalidate()
-        return true
-    }
-
-    // Close button & [ ! ] Info toggle
-    val closeRect = RectF(bounds.right - 30f * dp, bounds.top + 8f * dp, bounds.right - 8f * dp, bounds.top + 30f * dp)
-    if (closeRect.contains(x, y)) {
-        countdownModalInfoOpen = false
-        isCountdownModalOpen = false
-        triggerHardwareHaptic(14, 70)
-        invalidate()
-        return true
-    }
-    if (!countdownInfoBtnRect.isEmpty && countdownInfoBtnRect.contains(x, y)) {
-        countdownModalInfoOpen = !countdownModalInfoOpen
-        triggerHardwareHaptic(16, 80)
-        invalidate()
-        return true
-    }
-    if (countdownModalInfoOpen && !countdownInfoCardRect.isEmpty && countdownInfoCardRect.contains(x, y)) {
-        countdownModalInfoOpen = false
-        triggerHardwareHaptic(14, 70)
-        invalidate()
-        return true
-    }
-
-    // Mode & Scope toggles
-    if (countdownSourceManualRect.contains(x, y)) {
-        countdownModalSource = LightspeedCalendarCountdownEngine.SOURCE_MANUAL
-        triggerHardwareHaptic(16, 80)
-        invalidate()
-        return true
-    }
-    if (countdownSourceCalRect.contains(x, y)) {
-        countdownModalSource = LightspeedCalendarCountdownEngine.SOURCE_CALENDAR
-        triggerHardwareHaptic(16, 80)
-        invalidate()
-        return true
-    }
-    if (countdownScopeToggleRect.contains(x, y)) {
-        countdownModalUsePerWidget = !countdownModalUsePerWidget
-        triggerHardwareHaptic(16, 80)
-        invalidate()
-        return true
-    }
-
-    // Calendar Mode interactions
-    if (isCalMode) {
-        if (!countdownCalGrantBtnRect.isEmpty && countdownCalGrantBtnRect.contains(x, y)) {
-            triggerHardwareHaptic(18, 90)
-            isCountdownModalOpen = false
-            dismissOverlay()
-            try {
-                val intent = Intent(context, com.sbf.lightspeed.settings.ConsciousAirlockConfigActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    putExtra(
-                        com.sbf.lightspeed.settings.ConsciousAirlockConfigActivity.EXTRA_MODE,
-                        com.sbf.lightspeed.settings.ConsciousAirlockConfigActivity.MODE_REQUEST_CALENDAR_PERMISSION
-                    )
-                    putExtra(
-                        com.sbf.lightspeed.settings.ConsciousAirlockConfigActivity.EXTRA_RETURN_CATEGORY_ID,
-                        countdownModalCatId
-                    )
-                }
-                context.startActivity(intent)
-            } catch (_: Exception) {}
-            return true
-        }
-        for ((calKey, rect) in countdownCalItemRects) {
-            if (rect.contains(x, y)) {
-                if (calKey == "__ALL__") {
-                    countdownModalCalendarIds.clear()
-                } else {
-                    if (calKey in countdownModalCalendarIds) {
-                        countdownModalCalendarIds.remove(calKey)
-                    } else {
-                        countdownModalCalendarIds.add(calKey)
-                    }
-                }
-                LightspeedCalendarCountdownEngine.invalidateCaches()
-                triggerHardwareHaptic(16, 80)
-                invalidate()
-                return true
-            }
-        }
-    }
-
-    // Action Row (shared by Manual & Calendar modes)
-    val actionY = bounds.bottom - 34f * dp
-    val actionH = 25f * dp
-    val actionW = (bounds.width() - 28f * dp - 10f * dp) / 2f
-    val resetRect = RectF(bounds.left + 14f * dp, actionY, bounds.left + 14f * dp + actionW, actionY + actionH)
-    val saveRect = RectF(bounds.left + 14f * dp + actionW + 10f * dp, actionY, bounds.right - 14f * dp, actionY + actionH)
-
-    if (resetRect.contains(x, y)) {
-        LightspeedCalendarCountdownEngine.saveConfig(
-            context = context,
-            catId = countdownModalCatId,
-            slotIndex = countdownModalSlotIndex,
-            config = LightspeedCalendarCountdownEngine.CountdownConfig(
-                usePerWidget = countdownModalUsePerWidget,
-                enabled = false,
-                source = countdownModalSource,
-                title = countdownModalTitle,
-                targetMs = countdownModalTargetMs,
-                calendarIds = countdownModalCalendarIds.toSet()
-            )
-        )
-        isCountdownModalOpen = false
-        triggerHardwareHaptic(20, 100)
-        invalidate()
-        return true
-    }
-
-    if (saveRect.contains(x, y)) {
-        val nowMs = System.currentTimeMillis()
-        LightspeedCalendarCountdownEngine.saveConfig(
-            context = context,
-            catId = countdownModalCatId,
-            slotIndex = countdownModalSlotIndex,
-            config = LightspeedCalendarCountdownEngine.CountdownConfig(
-                usePerWidget = countdownModalUsePerWidget,
-                enabled = true,
-                source = countdownModalSource,
-                title = countdownModalTitle,
-                targetMs = countdownModalTargetMs,
-                calendarIds = countdownModalCalendarIds.toSet(),
-                startMs = nowMs
-            )
-        )
-        LightspeedCalendarCountdownEngine.invalidateCaches()
-        countdownModalInfoOpen = false
-        isCountdownModalOpen = false
-        triggerHardwareHaptic(22, 110)
-        invalidate()
-        return true
-    }
-
-    if (isCalMode) return true
-
-    // Rename Button or Preview Card Top Title Area (Manual Mode)
-    val previewTop = bounds.top + 60f * dp
-    val previewRect = RectF(bounds.left + 14f * dp, previewTop, bounds.right - 14f * dp, previewTop + 52f * dp)
-    val renameBtnW = 68f * dp
-    val renameBtnH = 16f * dp
-    val renameBtnRect = RectF(previewRect.right - renameBtnW - 8f * dp, previewRect.top + 6f * dp, previewRect.right - 8f * dp, previewRect.top + 6f * dp + renameBtnH)
-
-    val openCustomRenameAction = {
-        val intent = Intent(context, CockpitDialogActivity::class.java).apply {
-            action = CockpitDialogActivity.ACTION_TIMELINE_COUNTDOWN
-            putExtra(CockpitDialogActivity.EXTRA_CATEGORY_ID, countdownModalCatId)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-        }
-        isCountdownModalOpen = false
-        dismissOverlay()
-        context.startActivity(intent)
-    }
-
-    if (renameBtnRect.contains(x, y)) {
-        triggerHardwareHaptic(18, 90)
-        openCustomRenameAction()
-        return true
-    }
-
-    val eventCaptionY = previewRect.bottom + 10f * dp
-    val eventRow1Y = eventCaptionY + 5f * dp
-    val eventPillH = 19f * dp
-    val eventColW = (bounds.width() - 28f * dp - 12f * dp) / 3f
-
-    // Event Presets Row 1: ["TARGET", "VACATION", "LAUNCH"]
-    val row1 = listOf("TARGET", "VACATION", "LAUNCH")
-    for (i in row1.indices) {
-        val pLeft = bounds.left + 14f * dp + (i * (eventColW + 6f * dp))
-        val pRect = RectF(pLeft, eventRow1Y, pLeft + eventColW, eventRow1Y + eventPillH)
-        if (pRect.contains(x, y)) {
-            countdownModalTitle = row1[i]
-            triggerHardwareHaptic(16, 80)
-            invalidate()
-            return true
-        }
-    }
-
-    // Event Presets Row 2: ["GOAL", "EXAM", "✎ CUSTOM"]
-    val eventRow2Y = eventRow1Y + eventPillH + 5f * dp
-    val row2 = listOf("GOAL", "EXAM")
-    for (i in row2.indices) {
-        val pLeft = bounds.left + 14f * dp + (i * (eventColW + 6f * dp))
-        val pRect = RectF(pLeft, eventRow2Y, pLeft + eventColW, eventRow2Y + eventPillH)
-        if (pRect.contains(x, y)) {
-            countdownModalTitle = row2[i]
-            triggerHardwareHaptic(16, 80)
-            invalidate()
-            return true
-        }
-    }
-
-    val customBtnLeft = bounds.left + 14f * dp + (2 * (eventColW + 6f * dp))
-    val customBtnRect = RectF(customBtnLeft, eventRow2Y, customBtnLeft + eventColW, eventRow2Y + eventPillH)
-    if (customBtnRect.contains(x, y)) {
-        triggerHardwareHaptic(18, 90)
-        openCustomRenameAction()
-        return true
-    }
-
-    return true
 }

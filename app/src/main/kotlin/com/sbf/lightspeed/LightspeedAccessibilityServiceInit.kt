@@ -29,6 +29,8 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
     LightspeedIconManager.clearCache()
     CockpitGearRepository.prewarmGearCache(this)
     LightspeedIconManager.prewarmIcons(this)
+    com.sbf.lightspeed.system.display.LightspeedRefreshRateEngine.warmCacheAsync(this)
+    LightspeedShizukuBatteryDrainStore.prewarmAsync(applicationContext)
     LightspeedKeyEngine.startShizukuPowerMonitor(this)
     PowerLongPressTakeover.sync(this)
     LightspeedWatchdogEngine.initSentinel(this)
@@ -57,7 +59,7 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
                 val leftInset = Settings.Secure.getFloat(contentResolver, "back_gesture_inset_scale_left", 1.0f)
                 val rightInset = Settings.Secure.getFloat(contentResolver, "back_gesture_inset_scale_right", 1.0f)
                 if (leftInset > 0.05f || rightInset > 0.05f) {
-                    android.widget.Toast.makeText(this, "💡 Tip: Android's native back gestures can be neutralized in System Overrides.", android.widget.Toast.LENGTH_LONG).show()
+                    android.widget.Toast.makeText(this, "Tip: You can disable Android's native back gestures in System Overrides.", android.widget.Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "firstConnectEdge", e) }
         }, 3500L)
@@ -102,7 +104,8 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-            WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS
+            WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS or
+            WindowManager.LayoutParams.FLAG_SPLIT_TOUCH
 
     windowParams = WindowManager.LayoutParams(
         edgeWidthPx,

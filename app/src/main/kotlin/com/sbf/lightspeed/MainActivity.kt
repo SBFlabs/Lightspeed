@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import com.sbf.lightspeed.settings.MainSettingsScreen
+import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.ui.theme.DeckTheme
@@ -124,9 +125,9 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         defaultPrefs().edit()
-            .putBoolean("pref_sidebar_left_preview", false)
-            .putBoolean("pref_statusbar_preview", false)
-            .putBoolean("pref_sidebar_preview", false)
+            .putBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW, false)
+            .putBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, false)
+            .putBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, false)
             .apply()
         safeReloadPreferences()
     }

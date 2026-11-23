@@ -309,9 +309,9 @@ internal object ShizukuExecHelper {
             source = InputDevice.SOURCE_TOUCHSCREEN
         }
         return try {
-            injectMethod.invoke(inputManager, down, 0)
-            injectMethod.invoke(inputManager, up, 0)
-            true
+            val downOk = (injectMethod.invoke(inputManager, down, 0) as? Boolean) != false
+            val upOk = (injectMethod.invoke(inputManager, up, 0) as? Boolean) != false
+            downOk && upOk
         } catch (e: Exception) {
             Log.w(TAG, "Direct tap injection failed", e)
             invalidateInputManagerCache()

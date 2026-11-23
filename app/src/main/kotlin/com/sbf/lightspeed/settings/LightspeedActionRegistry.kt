@@ -98,6 +98,12 @@ object LightspeedActionRegistry {
         "system:central_command",
         "system:omniscient_audio",
 
+        // 5b. Native Android Settings Shortcuts
+        "system:native_wifi_settings",
+        "system:native_bluetooth_settings",
+        "system:native_battery_settings",
+        "system:native_digital_wellbeing",
+
         // 6. Display Wellness, Vista & Sonic Actions
         "system:smart_pixels_toggle",
         "system:eye_care_toggle",

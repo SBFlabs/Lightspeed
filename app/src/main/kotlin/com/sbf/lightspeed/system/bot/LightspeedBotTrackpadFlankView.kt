@@ -72,6 +72,29 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
     private var refreshJob: Job? = null
     private var cachedHasStepsFlags = listOf(false, false, false)
 
+    internal fun clearCachedFlagForBot(botId: Int) {
+        refreshJob?.cancel()
+        val updated = cachedHasStepsFlags.toMutableList()
+        for (arm in 1..3) {
+            if (resolveBotId(isLeft, arm) == botId && (arm - 1) in updated.indices) {
+                updated[arm - 1] = false
+            }
+        }
+        cachedHasStepsFlags = updated
+        invalidate()
+    }
+
+    internal fun cancelLinger() {
+        mainHandler.removeCallbacks(lingerRunnable)
+    }
+
+    internal fun cancelPendingTaps() {
+        mainHandler.removeCallbacks(pendingTapExecuteRunnable)
+        pendingTapArm = null
+        mainHandler.removeCallbacks(armHoldRunnable)
+        mainHandler.removeCallbacks(domeHoldRunnable)
+    }
+
     internal fun refreshHasStepsFlags() {
         val appContext = context.applicationContext
         refreshJob?.cancel()
@@ -268,7 +291,8 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
         }
 
         val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-        val finalFlags = if (passThrough) (baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) else baseFlags
+        val effectivePassThrough = passThrough || isInjectingPassThrough || LightspeedBotTrackpadOverlay.isPlaybackPassThroughActive
+        val finalFlags = if (effectivePassThrough) (baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) else baseFlags
 
         return WindowManager.LayoutParams(
             w, h, WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
@@ -284,9 +308,11 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
     }
 
     private fun deploy() {
+        if (LightspeedBotTrackpadOverlay.isSuppressedByOverlayHost()) return
         activeFlankIsLeft = isLeft
         if (isDeployed) return
         isDeployed = true; isCursorActive = true; deployProgress = 1f
+        LightspeedBotTrackpadOverlay.advanceTrackpadTip()
         refreshHasStepsFlags()
         mainHandler.removeCallbacks(lingerRunnable)
         if (isAttachedToWindow) {
@@ -303,6 +329,7 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
     internal fun retractInternal() = retract()
 
     internal fun extendLingerIfDeployed() {
+        if (LightspeedBotTrackpadOverlay.isSuppressedByOverlayHost()) return
         if (isDeployed) {
             activeFlankIsLeft = isLeft
             isCursorActive = true
@@ -314,9 +341,9 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
     }
 
     private fun retract() {
+        cancelPendingTaps()
+        cancelLinger()
         if (!isDeployed) return
-        mainHandler.removeCallbacks(armHoldRunnable)
-        mainHandler.removeCallbacks(domeHoldRunnable)
         if (isStreamingShizukuDrag) {
             val upNow = SystemClock.uptimeMillis()
             val dt = streamedDownTime
@@ -332,7 +359,7 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
         isDomeHoldActive = false
         // Keep the shared cursor alive if the opposite flank is still deployed.
         val other = if (isLeft) rightFlankView else leftFlankView
-        if (other != null && other.isDeployed) {
+        if (!LightspeedBotTrackpadOverlay.isSuppressedByOverlayHost() && other != null && other.isDeployed) {
             activeFlankIsLeft = other.isLeft
             isCursorActive = true
         } else {
@@ -357,8 +384,12 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         // Ignore synthetic injected touch events (from cursor tap/swipe/loop or Shizuku IInputManager)
-        // so the cursor never triggers the trackpad dome in a self-tapping loop.
-        if (isInjectingPassThrough || event.deviceId <= 0) {
+        // or events while suspended/editing/recording/playing back so trackpad never traps touches.
+        if (isInjectingPassThrough ||
+            event.deviceId <= 0 ||
+            LightspeedBotTrackpadOverlay.isSuppressedByOverlayHost() ||
+            LightspeedBotTrackpadOverlay.isPlaybackPassThroughActive
+        ) {
             return false
         }
         val now = SystemClock.uptimeMillis()
@@ -418,6 +449,7 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
+                if (holdFiredForCurrentTouch) return true
                 val dx = event.rawX - lastTouchX; val dy = event.rawY - lastTouchY
                 lastTouchX = event.rawX; lastTouchY = event.rawY
                 val totalMove = hypot((event.rawX - downRawX).toDouble(), (event.rawY - downRawY).toDouble()).toFloat()
@@ -479,8 +511,15 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
                         )
                         if (arm != null && totalMove <= (22f * density)) {
                             if (isSecondPressEdit) {
+                                deployedOnThisTouch = false
                                 isSecondPressEdit = false
+                                isDragging = false
+                                isDragCandidate = false
+                                domeHoldEngaged = false
+                                isDomeHoldActive = false
+                                hoveredArm = null
                                 executeArmTapHoldEdit(context, isLeft, arm) { retract() }
+                                return true
                             } else {
                                 pendingTapArm = arm
                                 pendingTapUptime = now

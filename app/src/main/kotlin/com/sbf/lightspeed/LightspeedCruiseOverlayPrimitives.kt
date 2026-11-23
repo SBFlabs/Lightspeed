@@ -8,6 +8,9 @@ import android.graphics.RectF
 import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 
+private val pinnedEdgeDockPath = Path()
+private val pinnedEdgeDockRadii = FloatArray(8)
+
 internal fun LightspeedCruiseOverlay.drawCruiseCentralPill(canvas: Canvas, m3Primary: Int) {
     val isLeft = isOpenedFromLeftFlank
     val isGlowEnabled = if (isLeft) renderCacheLeftGlowEnabled else renderCacheGlowEnabled
@@ -136,7 +139,11 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
     // Ambient radial spotlight centered on currently focused app icon's (X, Y) coordinate
     val catId = cachedCategories.getOrNull(activeCatIndex)?.id ?: "comm"
     val gTop = getCategoryGridTop(catId)
-    val gBot = h * 0.98f
+    val gBot = if (shouldShowCategoryCruiseRotatingTip()) {
+        getCategoryCruiseTipReserveTopY().coerceAtMost(h * 0.98f)
+    } else {
+        (h * 0.98f)
+    }
     val gScope = gBot - gTop
     // Self-heal stale app grid coordinates whenever widget height or overlay size changed
     val firstPlacedTop = placedAppsList.firstOrNull()?.bounds?.top
@@ -147,25 +154,39 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
         categoryGridCache[catId] = ArrayList(placedAppsList)
         categoryHeightCache[catId] = totalGridContentHeight
     }
-    val scroll = if (totalGridContentHeight <= gScope) 0f else viewportScrollOffset
-
-    val focusedPlaced = placedAppsList.find { it.app == activeItem }
-    if (focusedPlaced != null) {
-        val (spotX, spotY) = resolvePlacedItemIconCenter(focusedPlaced)
-        drawGalacticNebula(canvas, spotX, spotY, 150f * density, focusAccent, 0.75f)
-    }
+    val gridMaxScroll = kotlin.math.max(0f, totalGridContentHeight - gScope)
+    val scroll = if (gridMaxScroll <= 0.5f) 0f else viewportScrollOffset.coerceIn(0f, gridMaxScroll)
 
     val hasInspector = activeCategoryHudItems.any { it.type == LightspeedCruiseHudPods.MODE_APP_AND_CAT }
     val hideGridLabels = hasInspector && currentLayer == CruiseLayer.GRID && !isStickyPinned
 
     textPaint.textAlign = Paint.Align.CENTER
     textPaint.textSize = 11f * density
-    val gridLayerCount = canvas.saveLayer(0f, gTop, w, gBot, null)
+    val topAlpha = LightspeedHudVectorIcons.computeEdgeFeatherStrength(scroll, density)
+    val bottomAlpha = LightspeedHudVectorIcons.computeEdgeFeatherStrength(gridMaxScroll - scroll, density)
+    val featherTopPx = 18f * density
+    val featherBottomPx = 22f * density
+    val needsFeatherLayer = gridMaxScroll > 0.5f && (topAlpha > 0.004f || bottomAlpha > 0.004f)
+    val gridLayerCount = if (needsFeatherLayer) {
+        canvas.saveLayer(0f, gTop, w, gBot, null)
+    } else {
+        canvas.save()
+    }
     canvas.clipRect(0f, gTop, w, gBot)
+
+    // Draw focused halo and tile inside the feathered scroll layer so both fade smoothly at edges.
+    val focusedPlaced = placedAppsList.find { it.app == activeItem }
+    if (focusedPlaced != null) {
+        val (spotX, rawSpotY) = resolvePlacedItemIconCenter(focusedPlaced)
+        val spotY = rawSpotY + (viewportScrollOffset - scroll)
+        drawGalacticNebula(canvas, spotX, spotY, 150f * density, focusAccent, 0.75f)
+    }
+
     canvas.translate(0f, -scroll)
-    for (item in placedAppsList) {
-        val b = item.bounds; val isSel = activeItem == item.app
+    fun drawGridTile(item: PlacedItem, isSel: Boolean) {
+        val b = item.bounds
         if (isSel) {
+            highlightPaint.shader = null
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(160, Color.red(themePanel), Color.green(themePanel), Color.blue(themePanel))
             canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 18f, 18f, highlightPaint)
@@ -233,19 +254,30 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
             }
         }
     }
+    for (item in placedAppsList) {
+        if (item !== focusedPlaced) {
+            drawGridTile(item, isSel = false)
+        }
+    }
+    if (focusedPlaced != null) {
+        drawGridTile(focusedPlaced, isSel = true)
+    }
     canvas.translate(0f, scroll)
-    val gridMaxScroll = kotlin.math.max(0f, totalGridContentHeight - (gBot - gTop))
-    LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
-        canvas = canvas,
-        left = 0f,
-        top = gTop,
-        right = w,
-        bottom = gBot,
-        featherTopPx = if (scroll > 0.5f) 18f * density else 0f,
-        featherBottomPx = if (scroll < gridMaxScroll - 0.5f) 22f * density else 0f,
-        density = density,
-        seed = 4242
-    )
+    if (needsFeatherLayer) {
+        LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+            canvas = canvas,
+            left = 0f,
+            top = gTop,
+            right = w,
+            bottom = gBot,
+            featherTopPx = featherTopPx,
+            featherBottomPx = featherBottomPx,
+            density = density,
+            seed = 4242,
+            topAlpha = topAlpha,
+            bottomAlpha = bottomAlpha
+        )
+    }
     canvas.restoreToCount(gridLayerCount)
 
     drawCategoryTopHudStrip(canvas, w, density, 1f)
@@ -314,22 +346,24 @@ internal fun LightspeedCruiseOverlay.drawPinnedEdgeSwitcher(canvas: Canvas) {
     val stripTop = pinnedEdgeSwitcherRect.top
     val stripBot = pinnedEdgeSwitcherRect.bottom
     val innerCornerR = stripW * 0.5f
-    val radii = if (isOpenedFromLeftFlank) {
-        floatArrayOf(0f, 0f, innerCornerR, innerCornerR, 0f, 0f, 0f, 0f)
+    pinnedEdgeDockRadii.fill(0f)
+    if (isOpenedFromLeftFlank) {
+        pinnedEdgeDockRadii[2] = innerCornerR
+        pinnedEdgeDockRadii[3] = innerCornerR
     } else {
-        floatArrayOf(innerCornerR, innerCornerR, 0f, 0f, 0f, 0f, 0f, 0f)
+        pinnedEdgeDockRadii[0] = innerCornerR
+        pinnedEdgeDockRadii[1] = innerCornerR
     }
-    val dockPath = Path().apply {
-        addRoundRect(pinnedEdgeSwitcherRect, radii, Path.Direction.CW)
-    }
+    pinnedEdgeDockPath.reset()
+    pinnedEdgeDockPath.addRoundRect(pinnedEdgeSwitcherRect, pinnedEdgeDockRadii, Path.Direction.CW)
 
     elementPaint.style = Paint.Style.FILL
     elementPaint.color = Color.argb(185, 10, 14, 24)
-    canvas.drawPath(dockPath, elementPaint)
+    canvas.drawPath(pinnedEdgeDockPath, elementPaint)
     elementPaint.style = Paint.Style.STROKE
     elementPaint.strokeWidth = 1.1f * density
     elementPaint.color = Color.argb(145, Color.red(focusAccent), Color.green(focusAccent), Color.blue(focusAccent))
-    canvas.drawPath(dockPath, elementPaint)
+    canvas.drawPath(pinnedEdgeDockPath, elementPaint)
 
     val count = cachedCategories.size
     val innerTop = stripTop + 6f * density

@@ -71,6 +71,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.settings.DeckGlassCardSurface
+import com.sbf.lightspeed.settings.blockScrimPassthrough
+import com.sbf.lightspeed.settings.overlayScrimDismiss
 import com.sbf.lightspeed.settings.ensureReadableContrast
 import com.sbf.lightspeed.settings.resolveOpticalColors
 import com.sbf.lightspeed.system.LightspeedHapticEngine
@@ -706,20 +708,32 @@ fun TacticalWidgetPickerModal(
     onSelectProvider: (AppWidgetProviderInfo) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val activeSnapshot = LocalDeckTheme.current
     val backdropDim = activeSnapshot.dimAmount.coerceIn(0.32f, 0.72f)
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = backdropDim))
-            .clickable(onClick = onDismiss),
+            .background(Color.Black.copy(alpha = backdropDim)),
         contentAlignment = Alignment.Center
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .overlayScrimDismiss(
+                    context = context,
+                    onTapOutside = onDismiss,
+                    onLongPressOutside = {
+                        onDismiss()
+                        com.sbf.lightspeed.system.LightspeedOverlayDismissCoordinator.dismissAll(context)
+                    }
+                )
+        )
         DeckGlassCardSurface(
             modifier = modifier
                 .fillMaxWidth(0.95f)
                 .fillMaxHeight(0.90f)
-                .clickable(enabled = false, onClick = {})
+                .blockScrimPassthrough()
         ) {
             Box(modifier = Modifier.padding(14.dp)) {
                 TacticalWidgetAccordionPicker(

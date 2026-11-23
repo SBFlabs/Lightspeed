@@ -10,12 +10,16 @@ import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
+import kotlin.math.roundToInt
 
 /**
  * Geometric Canvas Path vector icons & boundary feathering helpers for the Category Cruise HUD
  * and App Long-Press Menu. Strictly zero keyboard Unicode/emojis.
  */
 object LightspeedHudVectorIcons {
+
+    const val DEFAULT_EDGE_FEATHER_RAMP_DP = 20f
+    private const val EDGE_FEATHER_EPSILON = 0.004f
 
     private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -158,6 +162,56 @@ object LightspeedHudVectorIcons {
     }
 
     /**
+     * Maps distance in pixels from a scrollable edge (0px..[rampDp]) to a smooth [0f..1f] fade strength.
+     */
+    fun computeEdgeFeatherStrength(
+        edgeDistancePx: Float,
+        density: Float,
+        rampDp: Float = DEFAULT_EDGE_FEATHER_RAMP_DP
+    ): Float {
+        if (edgeDistancePx <= 0f) return 0f
+        val rampPx = (rampDp * density).coerceAtLeast(1f)
+        return (edgeDistancePx / rampPx).coerceIn(0f, 1f)
+    }
+
+    /**
+     * Convenience wrapper that computes smooth progressive top/bottom alpha ramps from
+     * [scrollOffset] and [maxScroll] before delegating to [applyVerticalEdgeFeathering].
+     */
+    fun applyScrollEdgeFeathering(
+        canvas: Canvas,
+        left: Float,
+        top: Float,
+        right: Float,
+        bottom: Float,
+        scrollOffset: Float,
+        maxScroll: Float,
+        featherTopPx: Float,
+        featherBottomPx: Float,
+        density: Float,
+        seed: Int = 1337,
+        rampDp: Float = DEFAULT_EDGE_FEATHER_RAMP_DP
+    ) {
+        if (maxScroll <= 0.5f) return
+        val topAlpha = computeEdgeFeatherStrength(scrollOffset, density, rampDp)
+        val bottomAlpha = computeEdgeFeatherStrength(maxScroll - scrollOffset, density, rampDp)
+        if (topAlpha <= EDGE_FEATHER_EPSILON && bottomAlpha <= EDGE_FEATHER_EPSILON) return
+        applyVerticalEdgeFeathering(
+            canvas = canvas,
+            left = left,
+            top = top,
+            right = right,
+            bottom = bottom,
+            featherTopPx = featherTopPx,
+            featherBottomPx = featherBottomPx,
+            density = density,
+            seed = seed,
+            topAlpha = topAlpha,
+            bottomAlpha = bottomAlpha
+        )
+    }
+
+    /**
      * Applies PorterDuff.Mode.DST_OUT vertical alpha-gradient feathering AND a subtle
      * procedural pixel-dither / stardust diffusion band at the top and/or bottom of a hardware layer.
      */
@@ -170,40 +224,49 @@ object LightspeedHudVectorIcons {
         featherTopPx: Float,
         featherBottomPx: Float,
         density: Float,
-        seed: Int = 1337
+        seed: Int = 1337,
+        topAlpha: Float = 1f,
+        bottomAlpha: Float = 1f
     ) {
         val w = right - left
         val h = bottom - top
         if (w <= 4f || h <= 4f) return
 
+        val topStrength = topAlpha.coerceIn(0f, 1f)
+        val botStrength = bottomAlpha.coerceIn(0f, 1f)
+
         // 1. Top edge vertical fade + stardust dither
-        if (featherTopPx > 2f && featherTopPx < h * 0.6f) {
+        if (featherTopPx > 2f && topStrength > EDGE_FEATHER_EPSILON && featherTopPx < h * 0.6f) {
             val fTop = top
             val fBot = top + featherTopPx
+            val maxA = (255f * topStrength).roundToInt().coerceIn(0, 255)
+            val midA = (140f * topStrength).roundToInt().coerceIn(0, 255)
             featherOutPaint.shader = LinearGradient(
                 left, fTop, left, fBot,
-                intArrayOf(Color.BLACK, Color.argb(140, 0, 0, 0), Color.TRANSPARENT),
+                intArrayOf(Color.argb(maxA, 0, 0, 0), Color.argb(midA, 0, 0, 0), Color.TRANSPARENT),
                 floatArrayOf(0f, 0.42f, 1f),
                 Shader.TileMode.CLAMP
             )
             canvas.drawRect(left, fTop, right, fBot, featherOutPaint)
             featherOutPaint.shader = null
-            drawProceduralDitherBand(canvas, left, fTop, right, fBot, density, fadeOutUp = true, seed = seed)
+            drawProceduralDitherBand(canvas, left, fTop, right, fBot, density, fadeOutUp = true, seed = seed, strength = topStrength)
         }
 
         // 2. Bottom edge vertical fade + stardust dither
-        if (featherBottomPx > 2f && featherBottomPx < h * 0.6f) {
+        if (featherBottomPx > 2f && botStrength > EDGE_FEATHER_EPSILON && featherBottomPx < h * 0.6f) {
             val fTop = bottom - featherBottomPx
             val fBot = bottom
+            val maxA = (255f * botStrength).roundToInt().coerceIn(0, 255)
+            val midA = (140f * botStrength).roundToInt().coerceIn(0, 255)
             featherOutPaint.shader = LinearGradient(
                 left, fTop, left, fBot,
-                intArrayOf(Color.TRANSPARENT, Color.argb(140, 0, 0, 0), Color.BLACK),
+                intArrayOf(Color.TRANSPARENT, Color.argb(midA, 0, 0, 0), Color.argb(maxA, 0, 0, 0)),
                 floatArrayOf(0f, 0.58f, 1f),
                 Shader.TileMode.CLAMP
             )
             canvas.drawRect(left, fTop, right, fBot, featherOutPaint)
             featherOutPaint.shader = null
-            drawProceduralDitherBand(canvas, left, fTop, right, fBot, density, fadeOutUp = false, seed = seed + 97)
+            drawProceduralDitherBand(canvas, left, fTop, right, fBot, density, fadeOutUp = false, seed = seed + 97, strength = botStrength)
         }
     }
 
@@ -215,7 +278,8 @@ object LightspeedHudVectorIcons {
         bottom: Float,
         density: Float,
         fadeOutUp: Boolean,
-        seed: Int
+        seed: Int,
+        strength: Float = 1f
     ) {
         val w = right - left
         val bandH = (bottom - top).coerceAtLeast(1f)
@@ -229,7 +293,8 @@ object LightspeedHudVectorIcons {
             val px = left + rx * w
             val py = top + ry * bandH
             val edgeProximity = if (fadeOutUp) (1f - ry) else ry
-            val alpha = (edgeProximity * 165f).toInt().coerceIn(20, 185)
+            val alpha = (edgeProximity * 165f * strength).toInt().coerceIn(0, 185)
+            if (alpha <= 0) continue
             ditherOutPaint.color = Color.argb(alpha, 0, 0, 0)
             val r = (0.75f + (i % 3) * 0.45f) * density
             canvas.drawCircle(px, py, r, ditherOutPaint)

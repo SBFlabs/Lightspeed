@@ -54,6 +54,7 @@ object LightspeedVocabulary {
         NAVIGATION,
         MEDIA_CONTROLS,
         SHIP_MAINTENANCE,
+        ANDROID_NATIVE,
 
         // Hardware inputs
         SUB_LIGHT_THRUSTERS,       // Volume buttons
@@ -122,6 +123,7 @@ object LightspeedVocabulary {
         Key.NAVIGATION to R.string.vocab_vessel_navigation,
         Key.MEDIA_CONTROLS to R.string.vocab_vessel_media_controls,
         Key.SHIP_MAINTENANCE to R.string.vocab_vessel_ship_maintenance,
+        Key.ANDROID_NATIVE to R.string.sub_android_native,
         Key.SUB_LIGHT_THRUSTERS to R.string.vocab_vessel_sub_light_thrusters,
         Key.HULL_RESONATOR to R.string.vocab_vessel_hull_resonator,
         Key.IGNITION_OVERRIDE to R.string.vocab_vessel_ignition_override,
@@ -178,6 +180,7 @@ object LightspeedVocabulary {
         Key.NAVIGATION to R.string.vocab_clear_navigation,
         Key.MEDIA_CONTROLS to R.string.vocab_clear_media_controls,
         Key.SHIP_MAINTENANCE to R.string.vocab_clear_ship_maintenance,
+        Key.ANDROID_NATIVE to R.string.sub_android_native,
         Key.SUB_LIGHT_THRUSTERS to R.string.vocab_clear_sub_light_thrusters,
         Key.HULL_RESONATOR to R.string.vocab_clear_hull_resonator,
         Key.IGNITION_OVERRIDE to R.string.vocab_clear_ignition_override,

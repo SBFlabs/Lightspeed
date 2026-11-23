@@ -1,7 +1,8 @@
 package com.sbf.lightspeed
 
 import android.view.MotionEvent
-import com.sbf.lightspeed.system.defaultPrefs
+import android.view.ViewConfiguration
+import kotlin.math.hypot
 
 /**
  * Main touch event dispatcher for [LightspeedCruiseOverlay].
@@ -16,8 +17,53 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(
     superCall: () -> Boolean
 ): Boolean {
     val y = event.y
-    currentTouchY = if (event.action == MotionEvent.ACTION_UP ||
-        event.action == MotionEvent.ACTION_CANCEL) -1f else y
+    currentTouchY = if (event.actionMasked == MotionEvent.ACTION_UP ||
+        event.actionMasked == MotionEvent.ACTION_CANCEL) -1f else y
+
+    if (allTipsOverlaySurface != null) {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                allTipsState.dismissArmed = true
+                allTipsState.touchDownX = event.x
+                allTipsState.touchDownY = event.y
+                allTipsState.lastTouchY = event.y
+                allTipsState.dragged = false
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (allTipsState.dismissArmed && allTipsState.maxScroll > 0f) {
+                    val dy = event.y - allTipsState.lastTouchY
+                    allTipsState.lastTouchY = event.y
+                    if (!allTipsState.dragged &&
+                        hypot((event.x - allTipsState.touchDownX).toDouble(), (event.y - allTipsState.touchDownY).toDouble()) > ViewConfiguration.get(context).scaledTouchSlop
+                    ) {
+                        allTipsState.dragged = true
+                    }
+                    if (allTipsState.dragged) {
+                        allTipsState.scrollOffset = (allTipsState.scrollOffset - dy).coerceIn(0f, allTipsState.maxScroll)
+                        invalidate()
+                    }
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                if (allTipsState.dismissArmed) {
+                    val wasDrag = allTipsState.dragged
+                    allTipsState.dismissArmed = false
+                    allTipsState.dragged = false
+                    if (!wasDrag) {
+                        allTipsOverlaySurface = null
+                        allTipsState.reset()
+                        triggerHardwareHaptic(14, 70)
+                        invalidate()
+                    }
+                }
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                allTipsState.dismissArmed = false
+                allTipsState.dragged = false
+            }
+        }
+        return true
+    }
 
     if (isScreenTimeInfoBubbleOpen || isBatterySpanInfoBubbleOpen) {
         if (event.actionMasked == MotionEvent.ACTION_UP) {
@@ -37,7 +83,7 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(
         return handleCockpitHangarTouch(event)
     }
 
-    if (isStickyPinned || isHudEditMode || isHudTuneModalOpen || currentLayer == CruiseLayer.STICKY_PIN) {
+    if ((!isCruising && (isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN)) || isHudEditMode || isHudTuneModalOpen) {
         return handleStickyPinTouch(event)
     }
 

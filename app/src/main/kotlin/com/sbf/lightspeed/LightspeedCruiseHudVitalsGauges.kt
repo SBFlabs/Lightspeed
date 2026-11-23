@@ -206,21 +206,34 @@ internal fun LightspeedCruiseOverlay.drawCockpitDualSegmentBar(
     secondRatio: Float,
     firstColor: Int,
     secondColor: Int,
-    density: Float
+    density: Float,
+    fillFraction: Float = 1f
 ) {
     val totalW = (right - left).coerceAtLeast(20f * density)
     val segments = 16
     val gap = 2f * density
     val segW = ((totalW - gap * (segments - 1)) / segments).coerceAtLeast(2f * density)
     val sumRatio = (firstRatio + secondRatio).coerceAtLeast(0f)
-    val firstSegs = if (sumRatio <= 0f) 0 else ((firstRatio / sumRatio) * segments).roundToInt().coerceIn(0, segments)
+    val clampedFill = fillFraction.coerceIn(0f, 1f)
+    val totalFilledSegs = if (sumRatio <= 0f || clampedFill <= 0f) {
+        0
+    } else {
+        (clampedFill * segments).roundToInt().coerceIn(1, segments)
+    }
+    val firstSegs = when {
+        totalFilledSegs <= 0 -> 0
+        firstRatio <= 0f -> 0
+        secondRatio <= 0f -> totalFilledSegs
+        totalFilledSegs == 1 -> if (firstRatio >= secondRatio) 1 else 0
+        else -> ((firstRatio / sumRatio) * totalFilledSegs).roundToInt().coerceIn(1, totalFilledSegs - 1)
+    }
     highlightPaint.style = Paint.Style.FILL
     for (i in 0 until segments) {
         val sx = left + i * (segW + gap)
         highlightPaint.color = when {
-            sumRatio <= 0f -> Color.argb(38, 255, 255, 255)
             i < firstSegs -> firstColor
-            else -> secondColor
+            i < totalFilledSegs -> secondColor
+            else -> Color.argb(38, 255, 255, 255)
         }
         cockpitScratchRect.set(sx, top, sx + segW, bottom)
         canvas.drawRoundRect(cockpitScratchRect, 1.5f * density, 1.5f * density, highlightPaint)

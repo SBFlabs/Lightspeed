@@ -395,7 +395,7 @@ object LightspeedShortcutManager {
             }
             else -> {
                 val cleanLabel = decode(parsed.label)
-                if (cleanLabel.isNotBlank() && !cleanLabel.contains("#Intent;")) {
+                if (cleanLabel.isNotBlank() && !cleanLabel.contains("#Intent;") && !cleanLabel.startsWith("shortcut:")) {
                     return cleanLabel
                 }
                 if (parsed.packageName.isNotBlank()) {
@@ -403,6 +403,12 @@ object LightspeedShortcutManager {
                         val pm = context.packageManager
                         pm.getApplicationLabel(pm.getApplicationInfo(parsed.packageName, 0)).toString()
                     } catch (_: Exception) { parsed.packageName }
+                }
+                if (parsed.intentUri.isNotBlank()) {
+                    runCatching { Intent.parseUri(parsed.intentUri, Intent.URI_INTENT_SCHEME) }.getOrNull()?.let { intent ->
+                        intent.data?.host?.takeIf { it.isNotBlank() }?.let { return it }
+                        intent.component?.shortClassName?.substringAfterLast('.')?.takeIf { it.isNotBlank() }?.let { return it }
+                    }
                 }
                 return "Shortcut"
             }

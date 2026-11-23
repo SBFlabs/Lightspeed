@@ -15,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.UnfoldMore
-import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -70,7 +69,13 @@ fun PickerSystemHeaderRow(
     ) {
         val title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SYSTEM_ACTIONS)
         Text(
-            text = "⚡ $title (${item.count})",
+            text = "⚙️",
+            fontSize = 14.sp,
+            style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = "$title (${item.count})",
             color = LightspeedStyle.colors.textPrimary,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
@@ -414,15 +419,27 @@ fun PickerCustomizationOptionRow(
                     lineHeight = 15.sp
                 )
             )
-            Text(
-                text = item.subtitle,
-                color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.55f),
-                fontSize = 10.sp,
-                style = TextStyle(
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                    lineHeight = 12.sp
+            if (item.subtitle.isNotEmpty()) {
+                Text(
+                    text = item.subtitle,
+                    color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.55f),
+                    fontSize = 10.sp,
+                    style = TextStyle(
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        lineHeight = 12.sp
+                    )
                 )
-            )
+            }
+            if (!item.actionHint.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = item.actionHint,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = (if (item.isSelected) dynamicSecondary else LightspeedStyle.colors.textSecondary).copy(alpha = 0.75f),
+                    letterSpacing = 0.4.sp
+                )
+            }
         }
         if (isMethodOption && assignedCount > 0) {
             Spacer(modifier = Modifier.width(6.dp))

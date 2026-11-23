@@ -220,12 +220,16 @@ private fun LightspeedCruiseOverlay.handleHudTabTap(
             context.defaultPrefs().edit()
                 .putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_LAUNCH_SPARK_STYLE, sparkId)
                 .apply()
-            // Brief live preview on the center icon focal area
-            deepSpaceRenderer.reactorRenderer.startWarp(bounds.centerX(), bounds.top - 24f * dp)
-            uiHandler.postDelayed({
+            sparkPreviewCancelRunnable?.let { uiHandler.removeCallbacks(it) }
+            val focalY = (rect.top - 22f * dp).coerceAtLeast(bounds.top + 28f * dp)
+            deepSpaceRenderer.reactorRenderer.startWarp(rect.centerX(), focalY, durationMs = 280f)
+            val cancelTask = Runnable {
+                sparkPreviewCancelRunnable = null
                 deepSpaceRenderer.reactorRenderer.cancelWarp()
                 invalidate()
-            }, 140L)
+            }
+            sparkPreviewCancelRunnable = cancelTask
+            uiHandler.postDelayed(cancelTask, 300L)
             invalidate()
             postInvalidateOnAnimation()
             return

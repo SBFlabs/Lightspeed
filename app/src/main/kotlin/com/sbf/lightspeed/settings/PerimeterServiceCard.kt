@@ -154,12 +154,7 @@ fun PerimeterServiceCard(
                 Switch(
                     checked = isServiceEnabled,
                     onCheckedChange = onToggleService,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = lsColors.textPrimary,
-                        checkedTrackColor = successGreen,
-                        uncheckedThumbColor = lsColors.textSecondary,
-                        uncheckedTrackColor = Color.DarkGray
-                    ),
+                    colors = deckSwitchColors(checkedTrackColor = successGreen),
                     modifier = Modifier.height(28.dp)
                 )
             }

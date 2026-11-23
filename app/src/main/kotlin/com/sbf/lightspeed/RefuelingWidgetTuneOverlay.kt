@@ -2,6 +2,7 @@ package com.sbf.lightspeed
 
 import com.sbf.lightspeed.settings.verticalScrollWithEdgeFade
 
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,27 +20,34 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import com.sbf.lightspeed.settings.DeckButton
 import com.sbf.lightspeed.settings.DeckDialog
 import com.sbf.lightspeed.settings.DeckGlassCardSurface
 import com.sbf.lightspeed.settings.DeckSignatureSliderRow
+import com.sbf.lightspeed.settings.blockScrimPassthrough
 import com.sbf.lightspeed.settings.deckGlassSurface
+import com.sbf.lightspeed.settings.overlayScrimDismiss
 import com.sbf.lightspeed.settings.resolveOpticalColors
+import com.sbf.lightspeed.system.LightspeedOverlayDismissCoordinator
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 import kotlin.math.roundToInt
@@ -125,37 +133,47 @@ fun RefuelingWidgetTuneModal(
     onResetSpec: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     val activeDensity = LocalDensity.current
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
         CompositionLocalProvider(LocalDensity provides activeDensity) {
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            dialogWindow?.setLayout(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT
+            )
+        }
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.24f))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss
-                )
-                .systemBarsPadding()
-                .displayCutoutPadding()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.24f))
+                    .overlayScrimDismiss(
+                        context = context,
+                        onTapOutside = onDismiss,
+                        onLongPressOutside = {
+                            onDismiss()
+                            LightspeedOverlayDismissCoordinator.dismissAll(context)
+                        }
+                    )
+            )
             DeckGlassCardSurface(
                 isFlyout = true,
                 modifier = Modifier
+                    .systemBarsPadding()
+                    .displayCutoutPadding()
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
                     .fillMaxWidth()
                     .widthIn(max = 520.dp)
                     .heightIn(max = 540.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {}
-                    )
+                    .blockScrimPassthrough()
             ) {
                 RefuelingWidgetTuneBody(
                     widgetLabel = widgetLabel,

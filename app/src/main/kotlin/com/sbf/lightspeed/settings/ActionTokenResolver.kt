@@ -63,8 +63,12 @@ object ActionTokenResolver {
         "system:gravity_override_landscape"                    -> "system:gravity_override_landscape"
         "system:gravity_override_sensor_portrait", "system:orientation_sensor_portrait", "orientation_sensor_portrait" -> "system:gravity_override_sensor_portrait"
         "system:central_command", "central_command"             -> "system:central_command"
-        "action:shields_down", "action:cold_shutdown", "cold_shutdown", "shields_down", "system:shields_down" -> "system:shields_down"
+        "system:shields_down" -> "system:shields_down"
         "action:pass_through_touch", "pass_through_touch", "system:pass_through_touch" -> "system:pass_through_touch"
+        "system:native_wifi_settings", "native_wifi_settings" -> "system:native_wifi_settings"
+        "system:native_bluetooth_settings", "native_bluetooth_settings" -> "system:native_bluetooth_settings"
+        "system:native_battery_settings", "native_battery_settings" -> "system:native_battery_settings"
+        "system:native_digital_wellbeing", "native_digital_wellbeing" -> "system:native_digital_wellbeing"
         "action:sonic_deck", "sonic_deck" -> "system:omniscient_audio"
         "action:vista_deck", "vista_deck" -> "system:vista_deck"
         "action:circle_to_search", "circle_to_search", "system:circle_to_search" -> "system:circle_to_search"
@@ -148,6 +152,10 @@ object ActionTokenResolver {
             token == "system:perimeter_watchdog" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.PERIMETER_DEFENSE)
             token == "system:core_watchdog" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_WATCHDOG)
             token == "system:battery_exemption" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.BATTERY_EXEMPTION)
+            token == "system:native_wifi_settings" -> lsString(R.string.act_native_wifi)
+            token == "system:native_bluetooth_settings" -> lsString(R.string.act_native_bluetooth)
+            token == "system:native_battery_settings" -> lsString(R.string.act_native_battery)
+            token == "system:native_digital_wellbeing" -> lsString(R.string.act_native_wellbeing)
             token == "system:central_command" -> lsString(R.string.act_central_command)
             token == "system:omniscient_audio" || token == "system:audio_dock" || token == "system:sonic_deck" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SONIC_DECK)
             token == "system:vista_deck" || token == "system:display_dock" || token == "action:vista_deck" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.VISTA_DECK)

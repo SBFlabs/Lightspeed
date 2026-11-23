@@ -219,12 +219,7 @@ fun SystemOverrideDeckContents(
                     isShizukuActive = ElevatedTaskCloser.isShizukuActive
                 },
                 modifier = Modifier.padding(start = 8.dp),
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = lsColors.textPrimary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primary,
-                    uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
-                    uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f)
-                )
+                colors = deckSwitchColors()
             )
         }
 

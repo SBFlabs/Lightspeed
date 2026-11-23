@@ -209,6 +209,7 @@ object LightspeedPreferencesDefaults {
         editor.putString(LightspeedPreferences.KEY_HUD_COLOR_MODE, LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION)
         editor.putString(LightspeedPreferences.KEY_COCKPIT_COLOR_MODE, LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION)
         editor.putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_COLOR_MODE, LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC)
+        editor.putString(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_COLOR_MODE, LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12)
         editor.putString(LightspeedPreferences.KEY_POPUP_STYLE, LightspeedPreferences.POPUP_STYLE_NATIVE)
 
         // 5. Pre-assigned Default Actions (Unified Right)

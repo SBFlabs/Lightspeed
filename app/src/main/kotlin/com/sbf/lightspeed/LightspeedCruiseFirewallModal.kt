@@ -258,14 +258,16 @@ internal fun LightspeedCruiseOverlay.drawFirewallManagerModal(
     drawAccordionSection("allowed", "ALLOWED INTERNET APPS", firewallAllowedAccordionOpen, allowedList, accent, "BLOCK")
     drawAccordionSection("offline", "OFFLINE APPS (NO NET PERM)", firewallOfflineAccordionOpen, offlineList, Color.rgb(34, 197, 94), "OFFLINE")
 
-    LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+    LightspeedHudVectorIcons.applyScrollEdgeFeathering(
         canvas = canvas,
         left = listLeft,
         top = listTop,
         right = listRight,
         bottom = listBottom,
-        featherTopPx = if (firewallModalScrollOffset > 0.5f) 18f * dp else 0f,
-        featherBottomPx = if (firewallModalScrollOffset < firewallModalMaxScroll - 0.5f) 20f * dp else 0f,
+        scrollOffset = firewallModalScrollOffset,
+        maxScroll = firewallModalMaxScroll,
+        featherTopPx = 18f * dp,
+        featherBottomPx = 20f * dp,
         density = dp,
         seed = 8303
     )

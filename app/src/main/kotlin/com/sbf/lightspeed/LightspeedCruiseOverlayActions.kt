@@ -36,12 +36,15 @@ internal fun LightspeedCruiseOverlay.launchLauncherSettings() {
 
 internal fun LightspeedCruiseOverlay.dismissOverlay() {
     stopGearAutoRepeat()
+    sparkPreviewCancelRunnable?.let { uiHandler.removeCallbacks(it) }
+    sparkPreviewCancelRunnable = null
+    deepSpaceRenderer.reactorRenderer.cancelWarp()
     uiHandler.removeCallbacks(hudLiveRefreshRunnable)
     uiHandler.removeCallbacks(neutralToCategoryRunnable)
     uiHandler.removeCallbacks(holdTimerRunnable)
-    cancelBottomHoldReveal()
-    settingsRevealedByHold = false
     settingsRevealHapticFired = false
+    pendingHoldReleaseScrollAction = null
+    categoryTipRotatedForSession = false
     LightspeedCruiseHudPods.resetHudEntranceState()
     longPressHangarBayRunnable?.let { removeCallbacks(it) }
     longPressCogRunnable?.let { removeCallbacks(it) }
@@ -61,10 +64,17 @@ internal fun LightspeedCruiseOverlay.dismissOverlay() {
     isTouchingFocusedCog = false
     isStickyPinned = false
     isCruising = false
+    cruiseMultiTouch.reset()
+    allTipsOverlaySurface = null
+    allTipsState.reset()
+    isTouchingHangarTip = false
+    categoryCruiseTipHitRect.setEmpty()
+    deepSpaceRenderer.hangarTipRect.setEmpty()
     categoryScrubbingEngaged = false
     maxVerticalDisplacement = 0f
     currentLayer = CruiseLayer.HIDDEN
     activeItem = null; activeCatIndex = -1; viewportScrollOffset = 0f; categoryVisualOffset = 0f; hudScrollOffset = 0f
+    cachedHudBoundCatId = null
     categoryIconJob?.cancel()
     categoryIconJob = null
     applicationIconCache.clear()
@@ -117,8 +127,13 @@ fun LightspeedCruiseOverlay.setFlankLaunchBehavior(isLeft: Boolean, behavior: St
     com.sbf.lightspeed.system.CockpitGearRepository.setFlankLaunchBehavior(context, isLeft, behavior)
 }
 
-fun LightspeedCruiseOverlay.startCruiseFromFlank(isLeft: Boolean, startRawX: Float, startRawY: Float) {
-    performStartCruiseFromFlank(isLeft, startRawX, startRawY)
+fun LightspeedCruiseOverlay.startCruiseFromFlank(
+    isLeft: Boolean,
+    startRawX: Float,
+    startRawY: Float,
+    pointerId: Int = MotionEvent.INVALID_POINTER_ID
+) {
+    performStartCruiseFromFlank(isLeft, startRawX, startRawY, pointerId)
 }
 
 fun LightspeedCruiseOverlay.handleFlankTouchEvent(isLeft: Boolean, event: MotionEvent): Boolean {

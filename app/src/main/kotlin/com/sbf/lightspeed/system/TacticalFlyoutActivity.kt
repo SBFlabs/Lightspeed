@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.system
 
+import com.sbf.lightspeed.settings.blockScrimPassthrough
+import com.sbf.lightspeed.settings.overlayScrimDismiss
+
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
@@ -93,18 +96,21 @@ fun TacticalFlyoutContent(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.88f))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) {
-                isVisible = false
-                onDismiss()
-            },
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.88f))
+                .overlayScrimDismiss(
+                    context = context,
+                    onTapOutside = {
+                        isVisible = false
+                        onDismiss()
+                    }
+                )
+        )
         val activeSnapshot = LocalDeckTheme.current
         val shape = RoundedCornerShape(activeSnapshot.cornerRadiusDp.dp)
 
@@ -123,10 +129,7 @@ fun TacticalFlyoutContent(
                         isBlurAvailable = true,
                         isFlyout = true
                     )
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { /* prevent click through */ }
+                    .blockScrimPassthrough()
             ) {
                 Column(
                     modifier = Modifier

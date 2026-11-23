@@ -61,25 +61,23 @@ class ConsciousAirlockConfigActivity : ComponentActivity() {
         setContent {
             LightspeedTheme(forceDark = true) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.65f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { finish() }
-                        ),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.65f))
+                            .overlayScrimDismiss(
+                                context = this@ConsciousAirlockConfigActivity,
+                                onTapOutside = { finish() }
+                            )
+                    )
+                    Box(
+                        modifier = Modifier
                             .fillMaxWidth(0.92f)
                             .widthIn(max = 380.dp)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {}
-                            )
+                            .blockScrimPassthrough()
                     ) {
                         DeckGlassCardSurface(
                             modifier = Modifier.fillMaxWidth()
@@ -110,7 +108,7 @@ class ConsciousAirlockConfigActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         val catId = returnCategoryId
-        if (!catId.isNullOrBlank()) {
+        if (!catId.isNullOrBlank() && !com.sbf.lightspeed.system.LightspeedOverlayDismissCoordinator.shouldSuppressReopen()) {
             com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reopenCategoryCruise(catId)
         }
     }

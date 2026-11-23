@@ -509,10 +509,10 @@ object LightspeedHapticEngine {
     }
 
     /**
-     * Unmistakable two-beat unlock waveform ("tuk-TUK") fired once when the hidden
-     * `⚙ Central Command` entry reveals at the bottom of Category Cruise.
-     * Distinct from single-beat [cruiseCategoryTick] and [cruiseLayerJump] even when
-     * triggered right after the bottommost category tick.
+     * Unmistakable strong two-beat punch waveform ("THUMP-THUMP") fired when the user
+     * deliberately swipes down past the bottommost category to reveal `⚙ Central Command`.
+     * Stronger and longer than standard [cruiseCategoryTick] and [cruiseLayerJump] pulses,
+     * with amplitude-control and OEM vibration-attribute support across all Android devices.
      */
     fun cruiseSettingsReveal(context: Context) {
         val prefs = context.defaultPrefs()
@@ -527,17 +527,54 @@ object LightspeedHapticEngine {
         val scale = getSystemScale(context)
         if (scale <= 0f) return
         val vib = getVibrator(context) ?: return
+        if (!vib.hasVibrator()) return
         try {
-            val beat1Ms = (22L * scale).toLong().coerceIn(16L, 38L)
-            val gapMs = 44L
-            val beat2Ms = (38L * scale).toLong().coerceIn(26L, 62L)
-            val amp1 = (205 * scale).toInt().coerceIn(130, 240)
-            val amp2 = (255 * scale).toInt().coerceIn(180, 255)
-            val timings = longArrayOf(0L, beat1Ms, gapMs, beat2Ms)
-            val amplitudes = intArrayOf(0, amp1, 0, amp2)
-            vib.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
+            val profileDurMult = when (normalized) {
+                "heavy" -> 1.2f
+                "soft_low_freq", "soft" -> 0.85f
+                else -> 1.0f
+            }
+            val beat1Ms = (32L * scale * profileDurMult).toLong().coerceIn(24L, 52L)
+            val gapMs = 46L
+            val beat2Ms = (56L * scale * profileDurMult).toLong().coerceIn(44L, 86L)
+            val amp1 = when (normalized) {
+                "soft_low_freq", "soft" -> (175 * scale).toInt().coerceIn(135, 220)
+                else -> (235 * scale).toInt().coerceIn(185, 255)
+            }
+            val amp2 = when (normalized) {
+                "soft_low_freq", "soft" -> (225 * scale).toInt().coerceIn(175, 255)
+                else -> 255
+            }
+            val effect = if (vib.hasAmplitudeControl()) {
+                VibrationEffect.createWaveform(
+                    longArrayOf(0L, beat1Ms, gapMs, beat2Ms),
+                    intArrayOf(0, amp1, 0, amp2),
+                    -1
+                )
+            } else {
+                VibrationEffect.createWaveform(
+                    longArrayOf(0L, beat1Ms.coerceAtLeast(34L), gapMs, beat2Ms.coerceAtLeast(56L)),
+                    -1
+                )
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val attrs = VibrationAttributes.Builder()
+                    .setUsage(VibrationAttributes.USAGE_HARDWARE_FEEDBACK)
+                    .build()
+                vib.vibrate(effect, attrs)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val audioAttrs = AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .build()
+                @Suppress("DEPRECATION")
+                vib.vibrate(effect, audioAttrs)
+            } else {
+                @Suppress("DEPRECATION")
+                vib.vibrate(effect)
+            }
         } catch (_: Exception) {
-            pulseClick(context, normalized)
+            heavyClick(context)
         }
     }
 

@@ -53,6 +53,27 @@ import com.sbf.lightspeed.settings.resolveCanvasPalette
 
 private val cachedHudHeaderRect = RectF()
 
+internal val CATEGORY_CRUISE_TIP_RES_IDS = intArrayOf(
+    R.string.cc_tip_1,
+    R.string.cc_tip_2,
+    R.string.cc_tip_3,
+    R.string.cc_tip_4,
+    R.string.cc_tip_5,
+    R.string.cc_tip_6,
+    R.string.cc_tip_7
+)
+internal const val CATEGORY_CRUISE_TIP_COUNT: Int = 7
+
+internal fun LightspeedCruiseOverlay.getHangarBottomInsetPx(): Float {
+    val insets = rootWindowInsets ?: return 0f
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        insets.getInsetsIgnoringVisibility(android.view.WindowInsets.Type.navigationBars()).bottom.toFloat()
+    } else {
+        @Suppress("DEPRECATION")
+        insets.systemWindowInsetBottom.toFloat()
+    }
+}
+
 internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () -> Unit) {
         if (activeGearSetIndex >= totalGearSetsCount) { activeGearSetIndex = 0 }
         // No per-frame prefs I/O — use render cache updated by prefChangeListener
@@ -76,6 +97,7 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                     screenW = width.toFloat(),
                     screenH = height.toFloat(),
                     density = resources.displayMetrics.density,
+                    bottomInsetPx = getHangarBottomInsetPx(),
                     m3Primary = m3Primary,
                     m3Secondary = m3Secondary,
                     isOpenedFromLeftFlank = isOpenedFromLeftFlank,
@@ -88,7 +110,8 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                     resolveCleanAppLabel = ::resolveCleanAppLabel,
                     getAppsForActiveGear = ::getAppsForActiveGear,
                     getFlankLaunchBehavior = ::getFlankLaunchBehavior,
-                    onIconResolved = ::postInvalidate
+                    onIconResolved = ::postInvalidate,
+                    hangarTipIndex = hangarTipIndex.coerceAtLeast(0)
                 )
             )
             drawCruiseCentralPill(canvas, m3Primary)
@@ -149,7 +172,7 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
         if (currentLayer == CruiseLayer.CATEGORY) {
             val density = resources.displayMetrics.density
             val catAccent = categoryFocusAccentColor(m3Primary)
-            val decelerationFactor = sin(((System.currentTimeMillis() - entranceStartTime) / 220f).coerceIn(0f, 1f) * PI / 2.0).toFloat()
+            val decelerationFactor = sin(((android.os.SystemClock.uptimeMillis() - entranceStartTime) / 220f).coerceIn(0f, 1f) * PI / 2.0).toFloat()
             
             // 1. Deep Space Astrogation Void Backdrop
             canvas.drawColor(Color.argb((205 * decelerationFactor).toInt(), 4, 6, 12))
@@ -165,6 +188,8 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                 val startYArea = h * 0.25f; val endYArea = h * 0.75f
                 val baseCatCount = cachedCategories.count { it.id != "launcher_settings_virtual_id" }.coerceAtLeast(1)
                 val catLineH = ((endYArea - startYArea) / baseCatCount) * categorySpacingScale()
+                val boldTypeface = overlayTypeface(isBold = true)
+                val regularTypeface = overlayTypeface(isBold = false)
 
                 cachedCategories.forEachIndexed { idx, cat ->
                     val centerY = startYArea + (idx * catLineH) + (catLineH / 2f) + categoryVisualOffset
@@ -216,7 +241,7 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                     val currentTextSize = 13f * density + (baseTargetSize - 13f * density) * focusFactor
                     catTextPaint.textSize = currentTextSize
                     catTextPaint.textAlign = if (isOpenedFromLeftFlank) Paint.Align.LEFT else Paint.Align.RIGHT
-                    catTextPaint.typeface = overlayTypeface(isBold = focusFactor > 0.6f)
+                    catTextPaint.typeface = if (focusFactor > 0.6f) boldTypeface else regularTypeface
 
                     // Color interpolation: Dim starlight (#9EA7B8) to white for unselected categories,
                     // or shared chromatic accent on the focused category across all color engines.
@@ -243,7 +268,7 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                         val measuredLabelW = catTextPaint.measureText(labelText)
                         val beaconAlpha = ((focusFactor - 0.25f) / 0.75f).coerceIn(0f, 1f)
                         textPaint.textAlign = if (isOpenedFromLeftFlank) Paint.Align.LEFT else Paint.Align.RIGHT
-                        textPaint.typeface = overlayTypeface(isBold = true)
+                        textPaint.typeface = boldTypeface
                         textPaint.textSize = (currentTextSize * 0.75f).coerceAtLeast(8.5f * density)
                         // In Hybrid or M3 mode: Only the focused category's star receives the accent color.
                         // Non-focused stars keep standard 12-theme white.
@@ -270,7 +295,9 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
             drawCruiseGridLayer(canvas, w, h)
         }
 
-        drawHyperdriveWarpSurge(canvas, m3Primary, resources.displayMetrics.density)
+        if (!isEditModeOpen) {
+            drawHyperdriveWarpSurge(canvas, m3Primary, resources.displayMetrics.density)
+        }
         drawCruiseCentralPill(canvas, m3Primary)
         if (deepSpaceRenderer.isWarpLaunching) {
             postInvalidateOnAnimation()

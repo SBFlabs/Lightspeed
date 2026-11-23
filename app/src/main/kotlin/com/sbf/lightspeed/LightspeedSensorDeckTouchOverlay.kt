@@ -107,6 +107,7 @@ class LightspeedSensorDeckTouchOverlay(
     private var isDownwardPullFired = false
     private var lastTapTime = 0L
     private var pendingTapRunnable: Runnable? = null
+    private var pendingHoldReleaseAction: String? = null
 
     private fun isNotificationShadeOrQsActive(): Boolean {
         val lsService = service as? LightspeedAccessibilityService
@@ -327,6 +328,11 @@ class LightspeedSensorDeckTouchOverlay(
                 scrubAccumulator = 0f
                 triggerHaptic(35, 180)
                 initScrubStateAndHud(activeScrubType)
+            } else if (action == "system:scroll_to_top" || action == "system:scroll_to_bottom") {
+                // Defer swipe-scroll dispatch until pointer lifts so physical touch does not cancel dispatchGesture()
+                isHoldFired = true
+                pendingHoldReleaseAction = action
+                triggerHaptic(40, 200)
             } else {
                 isHoldFired = true
                 triggerHaptic(40, 200)
@@ -370,6 +376,7 @@ class LightspeedSensorDeckTouchOverlay(
             MotionEvent.ACTION_DOWN -> {
                 com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prewarmForGesture(context)
                 isDownwardPullFired = false
+                pendingHoldReleaseAction = null
                 latestRawX = event.rawX
                 latestRawY = event.rawY
                 val nowDown = SystemClock.uptimeMillis()
@@ -530,6 +537,11 @@ class LightspeedSensorDeckTouchOverlay(
                     isHoldFired = false
                     isSecondTapInSequence = false
                     lastTapTime = 0L
+                    val deferredAction = pendingHoldReleaseAction
+                    pendingHoldReleaseAction = null
+                    if (deferredAction != null) {
+                        uiHandler.postDelayed({ performActionByName(deferredAction) }, 35L)
+                    }
                     return true
                 }
 
@@ -555,6 +567,7 @@ class LightspeedSensorDeckTouchOverlay(
                 uiHandler.removeCallbacks(holdRunnable)
                 pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
                 pendingTapRunnable = null
+                pendingHoldReleaseAction = null
                 isDownwardPullFired = false
                 if (isScrubbing) {
                     isScrubbing = false

@@ -11,6 +11,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.provider.Settings
+import android.widget.Toast
 import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.system.LightspeedNotificationListener
 import com.sbf.lightspeed.system.LightspeedPreferences
@@ -93,6 +94,12 @@ internal fun LightspeedCruiseOverlay.computeHudSlotBounds() {
     val isTablet = (minOf(w, h) / dp) >= 600f
     val cat = cachedCategories.getOrNull(activeCatIndex)
     val catId = cat?.id ?: "comm"
+    cachedHudBoundCatId = catId
+    cachedHudBoundLayer = currentLayer
+    cachedHudBoundEditMode = isHudEditMode
+    cachedHudBoundLeftFlank = isOpenedFromLeftFlank
+    cachedHudBoundW = width
+    cachedHudBoundH = height
 
     val allItems = CategoryHudManager.getHudItems(context, catId, isLandscape)
     val isCruiseLayer = (currentLayer == CruiseLayer.CATEGORY)
@@ -129,10 +136,15 @@ internal fun LightspeedCruiseOverlay.computeHudSlotBounds() {
     hudContentBounds.set(overallBounds)
 
     val maxAllowedHudHeight = if (isHudEditMode) h * 0.88f else h * 0.48f
-    val hudBottomLimit = if (isFarSplit || isHudEditMode) {
+    val rawHudBottomLimit = if (isFarSplit || isHudEditMode) {
         (h * 0.94f).coerceAtLeast(topY + 120f * dp)
     } else {
         minOf(topY + maxAllowedHudHeight, h * 0.58f)
+    }
+    val hudBottomLimit = if (shouldShowCategoryCruiseRotatingTip()) {
+        minOf(rawHudBottomLimit, getCategoryCruiseTipReserveTopY() - 4f * dp).coerceAtLeast(topY + 120f * dp)
+    } else {
+        rawHudBottomLimit
     }
     val visibleBottom = if (overallBounds.bottom > hudBottomLimit) {
         hudBottomLimit
@@ -239,7 +251,12 @@ internal fun LightspeedCruiseOverlay.refreshHudAndAppGridLayout() {
         categoryGridCache[catId] = ArrayList(placedAppsList)
         categoryHeightCache[catId] = totalGridContentHeight
         val gTop = getCategoryGridTop(catId)
-        val gScope = (height.toFloat() * 0.98f - gTop).coerceAtLeast(1f)
+        val gBot = if (shouldShowCategoryCruiseRotatingTip()) {
+            getCategoryCruiseTipReserveTopY().coerceAtMost(height.toFloat() * 0.98f)
+        } else {
+            height.toFloat() * 0.98f
+        }
+        val gScope = (gBot - gTop).coerceAtLeast(1f)
         val maxAppScroll = kotlin.math.max(0f, totalGridContentHeight - gScope)
         viewportScrollOffset = viewportScrollOffset.coerceIn(0f, maxAppScroll)
     }
@@ -339,6 +356,29 @@ internal fun LightspeedCruiseOverlay.handleSingleHudCardTap(
                 return true
             }
 
+            val wkHit = screenTimeWkBarRects[slotIndex]
+            if (wkHit != null && !wkHit.isEmpty && RectF(wkHit).apply { inset(-3f * cardDp, -4f * cardDp) }.contains(x, y)) {
+                val nextMode = LightspeedCruiseHudPods.cycleWeekCycleMode(context)
+                triggerHardwareHaptic(16, 80)
+                Toast.makeText(
+                    context,
+                    lsString(R.string.hud_wk_cycle_toast, LightspeedCruiseHudPods.weekCycleFullLabel(nextMode)),
+                    Toast.LENGTH_SHORT
+                ).show()
+                invalidate()
+                return true
+            }
+
+            val wellbeingHit = screenTimeWellbeingBtnRects[slotIndex]
+            if (wellbeingHit != null && !wellbeingHit.isEmpty && RectF(wellbeingHit).apply { inset(-3f * cardDp, -3f * cardDp) }.contains(x, y)) {
+                triggerHardwareHaptic(20, 100)
+                dismissOverlay()
+                uiHandler.postDelayed({
+                    com.sbf.lightspeed.system.NativeSettingsLauncher.openDigitalWellbeing(context)
+                }, 50L)
+                return true
+            }
+
             // Consume non-interactive taps inside the widget's bounds so pinned view stays open.
             return true
         }
@@ -348,7 +388,8 @@ internal fun LightspeedCruiseOverlay.handleSingleHudCardTap(
             val bMode = LightspeedCruiseHudPods.getBatteryMode(context, catId, slotIndex)
             if (y <= chipRowBottom) {
                 val hasSpan = (bMode == "apps" || bMode == "system")
-                val infoHit = if (hasSpan) hudChipInfoRects[slotIndex]?.takeIf { !it.isEmpty } else null
+                val hasInfo = (bMode == "apps" || bMode == "system")
+                val infoHit = if (hasInfo) hudChipInfoRects[slotIndex]?.takeIf { !it.isEmpty } else null
                 val viewHit = hudChipPrimaryRects[slotIndex]?.takeIf { !it.isEmpty }
                     ?: RectF(bounds.right - 90f * cardDp, bounds.top, bounds.right - 12f * cardDp, chipRowBottom)
                 val spanHit = hudChipSecondaryRects[slotIndex]?.takeIf { !it.isEmpty }
@@ -359,7 +400,7 @@ internal fun LightspeedCruiseOverlay.handleSingleHudCardTap(
                     batterySpanInfoBubbleRect.set(infoHit)
                     val curSpan = LightspeedCruiseHudPods.getBatterySpan(context, catId, slotIndex)
                     batterySpanInfoKey = if (bMode == "system") {
-                        if (curSpan == "today") "today" else "7d"
+                        if (LightspeedCruiseHudPods.SYSTEM_SPAN_OPTIONS.any { it.first == curSpan }) curSpan else "today"
                     } else curSpan
                     batterySpanInfoMode = bMode
                     isBatterySpanInfoBubbleOpen = !isBatterySpanInfoBubbleOpen
@@ -376,6 +417,13 @@ internal fun LightspeedCruiseOverlay.handleSingleHudCardTap(
                     invalidate()
                     return true
                 }
+            } else if ((bMode == "apps" || bMode == "chart") && vitalsBatterySettingsBtnRects[slotIndex]?.let { !it.isEmpty && RectF(it).apply { inset(-4f * cardDp, -4f * cardDp) }.contains(x, y) } == true) {
+                triggerHardwareHaptic(20, 100)
+                dismissOverlay()
+                uiHandler.postDelayed({
+                    com.sbf.lightspeed.system.NativeSettingsLauncher.openBatteryUsage(context)
+                }, 50L)
+                return true
             } else if (bMode == "vitals" && vitalsIntStorageBarRects[slotIndex]?.let { !it.isEmpty && it.contains(x, y) } == true) {
                 triggerHardwareHaptic(20, 100)
                 openVitalsTaskManagerModal(initialTab = "storage", storageVolumeFilter = "INT")
@@ -389,10 +437,36 @@ internal fun LightspeedCruiseOverlay.handleSingleHudCardTap(
                 triggerHardwareHaptic(20, 100)
                 openVitalsTaskManagerModal(initialTab = initTab)
                 return true
-            } else if (bMode == "system" && y <= bounds.top + 64f * cardDp) {
-                triggerHardwareHaptic(20, 100)
-                openVitalsTaskManagerModal(initialTab = "wakelocks")
-                return true
+            } else if (bMode == "system") {
+                val mappedNetSpan = LightspeedNetworkUsageAnalyzer.mapSystemHudSpanToAnalyzerSpan(
+                    LightspeedCruiseHudPods.getBatterySpan(context, catId, slotIndex)
+                )
+                if (vitalsCellularRowRects[slotIndex]?.let { !it.isEmpty && it.contains(x, y) } == true) {
+                    triggerHardwareHaptic(20, 100)
+                    openVitalsTaskManagerModal(
+                        initialTab = "network",
+                        networkTransportFilter = "CELL",
+                        networkSpanKey = mappedNetSpan
+                    )
+                    return true
+                } else if (vitalsWifiRowRects[slotIndex]?.let { !it.isEmpty && it.contains(x, y) } == true) {
+                    triggerHardwareHaptic(20, 100)
+                    openVitalsTaskManagerModal(
+                        initialTab = "network",
+                        networkTransportFilter = "WIFI",
+                        networkSpanKey = mappedNetSpan
+                    )
+                    return true
+                } else if (y <= bounds.top + 64f * cardDp) {
+                    triggerHardwareHaptic(20, 100)
+                    openVitalsTaskManagerModal(initialTab = "wakelocks")
+                    return true
+                } else {
+                    LightspeedCruiseHudPods.refreshTelemetryAsync(context, force = true, activeCategoryId = catId, activeModes = setOf(LightspeedCruiseHudPods.MODE_LS_BATTERY_SYSTEM))
+                    triggerHardwareHaptic(14, 70)
+                    invalidate()
+                    return true
+                }
             } else if (bMode == "chart" && y >= bounds.top + 100f * cardDp && x <= bounds.centerX()) {
                 triggerHardwareHaptic(20, 100)
                 openVitalsTaskManagerModal(initialTab = "cpu")
@@ -439,6 +513,7 @@ internal fun LightspeedCruiseOverlay.handleSingleHudCardTap(
                 }
                 return true
             }
+
             // Consume non-interactive taps inside the widget's bounds so pinned view stays open.
             return true
         }
@@ -492,7 +567,15 @@ internal fun LightspeedCruiseOverlay.drawCategoryTopHudStrip(
     val catId = cat?.id ?: "comm"
     val isLandscape = width > height
 
-    computeHudSlotBounds()
+    if (cachedHudBoundCatId != catId ||
+        cachedHudBoundLayer != currentLayer ||
+        cachedHudBoundEditMode != isHudEditMode ||
+        cachedHudBoundLeftFlank != isOpenedFromLeftFlank ||
+        cachedHudBoundW != width ||
+        cachedHudBoundH != height
+    ) {
+        computeHudSlotBounds()
+    }
 
     if (activeCategoryHudItems.isEmpty() && !isHudEditMode) {
         updateCategoryAppWidgetView()
@@ -528,7 +611,7 @@ internal fun LightspeedCruiseOverlay.drawCategoryTopHudStrip(
             !isAppWidgetReadyAndVisible(item.widgetId)
     }
     if (LightspeedCruiseHudPods.isDigitFlipActive() || hasPendingAndroidWidget) {
-        postInvalidateDelayed(33L)
+        postInvalidateOnAnimation()
     }
 
     val snapshot = DeckThemeManager.getSnapshot(context)
@@ -545,15 +628,29 @@ internal fun LightspeedCruiseOverlay.drawCategoryTopHudStrip(
         if (isOpenedFromLeftFlank) w else (w * 0.5f)
     } else w
     val hudTopLimit = getSafeHudTopOffset()
-    val hudBottomLimit = if (isFarSplit || isHudEditMode) {
+    val rawHudBottomLimit = if (isFarSplit || isHudEditMode) {
         height.toFloat() * 0.94f
     } else if (hudMaxScroll > 0f) {
         hudStripRect.bottom + 2f * dp
     } else {
         hudStripRect.bottom + 10f * dp
     }
+    val hudBottomLimit = if (shouldShowCategoryCruiseRotatingTip()) {
+        minOf(rawHudBottomLimit, getCategoryCruiseTipReserveTopY() - 4f * dp)
+    } else {
+        rawHudBottomLimit
+    }
 
-    val hudLayerCount = canvas.saveLayer(hudStartX, hudTopLimit, hudEndX, hudBottomLimit, null)
+    val topAlpha = LightspeedHudVectorIcons.computeEdgeFeatherStrength(hudScrollOffset, dp)
+    val bottomAlpha = LightspeedHudVectorIcons.computeEdgeFeatherStrength(hudMaxScroll - hudScrollOffset, dp)
+    val featherTopPx = 16f * dp
+    val featherBottomPx = 18f * dp
+    val needsHudFeatherLayer = hudMaxScroll > 2f && (topAlpha > 0.004f || bottomAlpha > 0.004f)
+    val hudLayerCount = if (needsHudFeatherLayer) {
+        canvas.saveLayer(hudStartX, hudTopLimit, hudEndX, hudBottomLimit, null)
+    } else {
+        canvas.save()
+    }
     canvas.clipRect(hudStartX, hudTopLimit, hudEndX, hudBottomLimit)
     canvas.translate(0f, -hudScrollOffset)
 
@@ -586,17 +683,19 @@ internal fun LightspeedCruiseOverlay.drawCategoryTopHudStrip(
         }
     }
     canvas.translate(0f, hudScrollOffset)
-    if (hudMaxScroll > 2f) {
+    if (needsHudFeatherLayer) {
         LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
             canvas = canvas,
             left = hudStartX,
             top = hudTopLimit,
             right = hudEndX,
             bottom = hudBottomLimit,
-            featherTopPx = if (hudScrollOffset > 0.5f) 16f * dp else 0f,
-            featherBottomPx = if (hudScrollOffset < hudMaxScroll - 0.5f) 18f * dp else 0f,
+            featherTopPx = featherTopPx,
+            featherBottomPx = featherBottomPx,
             density = dp,
-            seed = 7331
+            seed = 7331,
+            topAlpha = topAlpha,
+            bottomAlpha = bottomAlpha
         )
     }
     canvas.restoreToCount(hudLayerCount)

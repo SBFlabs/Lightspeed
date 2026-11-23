@@ -222,6 +222,7 @@ fun SliderCalibrationFlyoutDialog(
         )
     }
 
+    val scrimContext = LocalContext.current
     val activeDensity = LocalDensity.current
     Dialog(
         onDismissRequest = onDismiss,
@@ -229,11 +230,32 @@ fun SliderCalibrationFlyoutDialog(
     ) {
         CompositionLocalProvider(LocalDensity provides activeDensity) {
         val activeSnapshot = LocalDeckTheme.current
+        val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        androidx.compose.runtime.SideEffect {
+            dialogWindow?.setLayout(
+                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                android.view.WindowManager.LayoutParams.MATCH_PARENT
+            )
+            dialogWindow?.setDimAmount(activeSnapshot.dimAmount)
+        }
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .overlayScrimDismiss(
+                        context = scrimContext,
+                        onTapOutside = onDismiss
+                    )
+            )
         DeckGlassCardSurface(
             modifier = Modifier
                 .fillMaxWidth(0.80f)
                 .widthIn(max = 350.dp)
-                .wrapContentHeight(),
+                .wrapContentHeight()
+                .blockScrimPassthrough(),
             snapshotOverride = activeSnapshot,
             isFlyout = true
         ) {
@@ -414,10 +436,7 @@ fun SliderCalibrationFlyoutDialog(
                         Switch(
                             checked = isTapToJumpEnabled,
                             onCheckedChange = onTapToJumpChanged,
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                            ),
+                            colors = deckSwitchColors(),
                             modifier = Modifier.scale(0.8f)
                         )
                     }
@@ -658,6 +677,7 @@ fun SliderCalibrationFlyoutDialog(
                     }
                 }
             }
+        }
         }
         }
     }

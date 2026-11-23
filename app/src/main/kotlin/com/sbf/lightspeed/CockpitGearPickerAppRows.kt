@@ -1,6 +1,7 @@
 package com.sbf.lightspeed
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -12,8 +13,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Shortcut
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,9 +32,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedShortcutManager
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import kotlinx.coroutines.Dispatchers
@@ -108,24 +111,37 @@ fun PickerAppHeaderRow(
                 Image(
                     bitmap = iconBmp!!.asImageBitmap(),
                     contentDescription = null,
-                    modifier = Modifier.size(26.dp).padding(end = 8.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .size(26.dp)
-                        .padding(end = 8.dp)
-                        .background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.12f), RoundedCornerShape(6.dp)),
+                        .background(
+                            if (item.packageName == "other") dynamicPrimary.copy(alpha = 0.16f)
+                            else LightspeedStyle.colors.textPrimary.copy(alpha = 0.12f),
+                            RoundedCornerShape(6.dp)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = item.appName.firstOrNull()?.uppercase() ?: "?",
-                        color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.6f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (item.packageName == "other") {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.Shortcut,
+                            contentDescription = null,
+                            tint = dynamicPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    } else {
+                        Text(
+                            text = item.appName.firstOrNull()?.uppercase() ?: "?",
+                            color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.6f),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
+            Spacer(modifier = Modifier.width(8.dp))
 
             Column(
                 modifier = Modifier
@@ -133,28 +149,18 @@ fun PickerAppHeaderRow(
                     .fillMaxHeight(),
                 verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (item.isPinned) {
-                        Icon(
-                            imageVector = Icons.Outlined.PushPin,
-                            contentDescription = "Pinned",
-                            tint = LightspeedStyle.colors.accentGold,
-                            modifier = Modifier.size(14.dp).padding(end = 4.dp)
-                        )
-                    }
-                    Text(
-                        text = item.appName,
-                        color = if (isAppSelected) dynamicPrimary else if (item.isPinned) LightspeedTokens.StatusGoldBright else LightspeedStyle.colors.textPrimary,
-                        fontSize = 13.5.sp,
-                        fontWeight = if (isAppSelected || item.isPinned) FontWeight.Bold else FontWeight.SemiBold,
-                        style = TextStyle(
-                            platformStyle = PlatformTextStyle(includeFontPadding = false),
-                            lineHeight = 16.sp
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                Text(
+                    text = item.appName,
+                    color = if (isAppSelected) dynamicPrimary else if (item.isPinned) LightspeedTokens.StatusGoldBright else LightspeedStyle.colors.textPrimary,
+                    fontSize = 13.5.sp,
+                    fontWeight = if (isAppSelected || item.isPinned) FontWeight.Bold else FontWeight.SemiBold,
+                    style = TextStyle(
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        lineHeight = 16.sp
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 if (hasShortcuts) {
                     Text(
                         text = "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}",
@@ -226,6 +232,11 @@ fun PickerSubHeaderRow(
     dynamicSecondary: Color,
     onClick: () -> Unit
 ) {
+    val leadingEmoji = when (item.kind) {
+        SubHeaderKind.APP_SHORTCUTS -> "📱"
+        SubHeaderKind.HOME_SHORTCUTS -> "🏠"
+        SubHeaderKind.DEEP_ACTIVITIES -> "⚡"
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -235,6 +246,12 @@ fun PickerSubHeaderRow(
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Text(
+            text = leadingEmoji,
+            fontSize = 13.sp,
+            style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+        )
+        Spacer(modifier = Modifier.width(7.dp))
         Text(
             text = item.label,
             color = dynamicSecondary,
@@ -252,6 +269,44 @@ fun PickerSubHeaderRow(
                 .size(18.dp)
                 .rotate(if (item.isExpanded) 180f else 0f)
         )
+    }
+}
+
+private fun formatReadableShortcutSubtitle(context: Context, item: PickerRowItem.ShortcutAction): String {
+    if (item.isPlugin) return lsString(R.string.picker_shortcut_wizard_sub)
+    val parsed = LightspeedShortcutManager.parseToken(item.token)
+    val pkgLabel = parsed.packageName.takeIf { it.isNotBlank() && it != "other" }?.let { pkg ->
+        try {
+            val pm = context.packageManager
+            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+        } catch (_: Exception) {
+            pkg
+        }
+    } ?: ""
+
+    return when (parsed.type) {
+        "activity" -> {
+            val shortAct = parsed.activityName.substringAfterLast('.').ifBlank {
+                lsString(R.string.picker_sub_deep_activity_label)
+            }
+            if (pkgLabel.isNotBlank()) "$pkgLabel · $shortAct" else shortAct
+        }
+        "intent" -> {
+            val parsedIntent = if (parsed.intentUri.isNotBlank()) {
+                runCatching { Intent.parseUri(parsed.intentUri, Intent.URI_INTENT_SCHEME) }.getOrNull()
+            } else null
+            val host = parsedIntent?.data?.host?.takeIf { it.isNotBlank() }
+            val shortCls = parsedIntent?.component?.shortClassName?.substringAfterLast('.')?.takeIf { it.isNotBlank() }
+            when {
+                host != null -> "${lsString(R.string.picker_sub_web_link)} · $host"
+                pkgLabel.isNotBlank() && shortCls != null -> "$pkgLabel · $shortCls"
+                pkgLabel.isNotBlank() -> "$pkgLabel · ${lsString(R.string.picker_sub_custom_intent)}"
+                shortCls != null -> shortCls
+                else -> lsString(R.string.picker_sub_custom_intent)
+            }
+        }
+        "pinned", "home_shortcut" -> pkgLabel.ifBlank { lsString(R.string.picker_sub_home_shortcut_label) }
+        else -> pkgLabel.ifBlank { lsString(R.string.picker_sub_custom_shortcut_label) }
     }
 }
 
@@ -300,18 +355,29 @@ fun PickerShortcutActionRow(
             Image(
                 bitmap = shortcutBmp!!.asImageBitmap(),
                 contentDescription = null,
-                modifier = Modifier.size(22.dp).padding(end = 8.dp)
+                modifier = Modifier.size(22.dp)
             )
         } else {
             Box(
                 modifier = Modifier
                     .size(22.dp)
-                    .padding(end = 8.dp)
-                    .background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.10f), RoundedCornerShape(4.dp))
-            )
+                    .background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.10f), RoundedCornerShape(4.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.Shortcut,
+                    contentDescription = null,
+                    tint = if (isChecked) dynamicPrimary else LightspeedStyle.colors.textSecondary.copy(alpha = 0.65f),
+                    modifier = Modifier.size(14.dp)
+                )
+            }
         }
+        Spacer(modifier = Modifier.width(8.dp))
         val displayLabel = remember(item.token) {
             LightspeedShortcutManager.resolveLabel(context, item.token)
+        }
+        val subtitleLabel = remember(item.token, item.isPlugin) {
+            formatReadableShortcutSubtitle(context, item)
         }
         Column(
             modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -330,8 +396,8 @@ fun PickerShortcutActionRow(
                 )
             )
             Text(
-                text = if (item.isPlugin) "Shortcut Creator Wizard" else item.token,
-                color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.40f),
+                text = subtitleLabel,
+                color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.55f),
                 fontSize = 10.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

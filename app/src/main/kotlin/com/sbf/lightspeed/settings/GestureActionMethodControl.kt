@@ -115,10 +115,6 @@ fun GestureActionMethodControl(
                             val assignedStr = lsString(R.string.meth_apps_assigned, assignedCount)
                             if (opt.subtitle.isNotEmpty()) "${opt.subtitle} • $assignedStr"
                             else assignedStr
-                        } else if (isEnabled) {
-                            val lpStr = lsString(R.string.meth_long_press_assign)
-                            if (opt.subtitle.isNotEmpty()) "${opt.subtitle} • $lpStr"
-                            else lpStr
                         } else {
                             opt.subtitle
                         }
@@ -128,6 +124,16 @@ fun GestureActionMethodControl(
                                 fontSize = 10.sp,
                                 color = if (!isEnabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                                 else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (isEnabled) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = lsString(R.string.meth_long_press_assign),
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = (if (isSelected) MaterialTheme.colorScheme.primary else lsColors.textSecondary).copy(alpha = 0.75f),
+                                letterSpacing = 0.4.sp
                             )
                         }
                     }

@@ -47,6 +47,8 @@ import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import com.sbf.lightspeed.settings.DeckCard
 import com.sbf.lightspeed.settings.DeckGlassCardSurface
 import com.sbf.lightspeed.settings.DeckThemeManager
+import com.sbf.lightspeed.settings.blockScrimPassthrough
+import com.sbf.lightspeed.settings.overlayScrimDismiss
 import com.sbf.lightspeed.system.*
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
@@ -106,17 +108,24 @@ class LightspeedFolderModalActivity : ComponentActivity() {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Transparent)
-                            .clickable { finish() }
-                            .padding(horizontal = 24.dp, vertical = 48.dp),
+                            .background(Color.Transparent),
                         contentAlignment = Alignment.Center
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .overlayScrimDismiss(
+                                    context = this@LightspeedFolderModalActivity,
+                                    onTapOutside = { finish() }
+                                )
+                        )
                         DeckGlassCardSurface(
                             modifier = Modifier
+                                .padding(horizontal = 24.dp, vertical = 48.dp)
                                 .fillMaxWidth()
                                 .widthIn(max = 420.dp)
                                 .wrapContentHeight()
-                                .clickable(enabled = false) {},
+                                .blockScrimPassthrough(),
                             isFlyout = true
                         ) {
                             Column(

@@ -121,7 +121,9 @@ class CockpitGearPickerActivity : ComponentActivity() {
         LightspeedShortcutManager.temporaryPickerCache.clear()
         val setId = intent.getStringExtra("SET_ID")
         val isSingleSelect = !intent.getStringExtra("SINGLE_SELECT_PREF_KEY").isNullOrBlank()
-        if (!isSingleSelect && !setId.isNullOrBlank()) {
+        if (!isSingleSelect && !setId.isNullOrBlank() &&
+            !com.sbf.lightspeed.system.LightspeedOverlayDismissCoordinator.shouldSuppressReopen()
+        ) {
             val setIndex = setId.toIntOrNull() ?: -1
             if (setIndex >= 0) {
                 try {

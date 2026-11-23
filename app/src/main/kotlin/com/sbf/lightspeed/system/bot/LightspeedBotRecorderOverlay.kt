@@ -11,6 +11,7 @@ import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.SystemClock
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -110,7 +111,8 @@ object LightspeedBotRecorderOverlay {
         val service = LightspeedAccessibilityService.instance ?: return
         val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
         windowManager = wm
-        hide()
+        LightspeedBotTrackpadOverlay.setSuspendedForDialog(true)
+        hide(restoreTrackpad = false)
 
         recordedSteps.clear()
         val nowInit = SystemClock.uptimeMillis()
@@ -119,16 +121,30 @@ object LightspeedBotRecorderOverlay {
         isForwardingTouch = false
 
         // Scan underlying screen elements and lock scope BEFORE adding our overlay window
-        val (scopePkg, scopeWin) = LightspeedBotEngine.resolveActiveScope(service)
-        LightspeedBotEngine.recordingScopePkg = scopePkg
-        LightspeedBotEngine.recordingScopeWindow = scopeWin
-        lockedScopeLabel = LightspeedBotEngine.getActiveScopeDisplayLabel(service)
-        isScopeLocked = scopePkg != "global" && scopePkg.isNotBlank() && scopeWin.isNotBlank() && scopeWin != "Main"
+        val (livePkg, liveWin) = LightspeedBotEngine.resolveActiveScope(service)
+        if (LightspeedBotEngine.recordingScopePkg.isBlank() || LightspeedBotEngine.recordingScopePkg == "global") {
+            if (livePkg != "global" && livePkg.isNotBlank()) {
+                LightspeedBotEngine.recordingScopePkg = livePkg
+                LightspeedBotEngine.recordingScopeWindow = liveWin
+            }
+        } else if (livePkg != "global" && livePkg == LightspeedBotEngine.recordingScopePkg && liveWin != "Main") {
+            LightspeedBotEngine.recordingScopeWindow = liveWin
+        }
+        val scopePkg = LightspeedBotEngine.recordingScopePkg
+        val scopeWin = LightspeedBotEngine.recordingScopeWindow
+        val scopeType = LightspeedBotEngine.recordingScopeType
+        lockedScopeLabel = LightspeedBotEngine.getScopeDisplayLabel(service, scopePkg, scopeWin, scopeType)
+        isScopeLocked = if (scopeType == LightspeedBotContract.SCOPE_THIS_WINDOW) {
+            scopePkg != "global" && scopePkg.isNotBlank() && scopeWin.isNotBlank() && scopeWin != "Main"
+        } else {
+            scopePkg != "global" && scopePkg.isNotBlank()
+        }
         detectedTargets = LightspeedBotScreenScanner.scanScreenTargets(service)
 
         val density = service.resources.displayMetrics.density
-        val screenW = service.resources.displayMetrics.widthPixels.toFloat().coerceAtLeast(1f)
-        val screenH = service.resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
+        val (dispW, dispH) = LightspeedBotGestureDispatcher.resolveDisplayBounds(service)
+        val screenW = dispW.toFloat().coerceAtLeast(1f)
+        val screenH = dispH.toFloat().coerceAtLeast(1f)
         val root = FrameLayout(service)
 
         // 0. Smart Target Highlight Canvas Layer
@@ -300,6 +316,7 @@ object LightspeedBotRecorderOverlay {
         var downX = 0f
         var downY = 0f
         var downTime = 0L
+        var hasActiveGestureDown = false
 
         var isDraggingPod = false
         var podTouchStartX = 0f
@@ -319,6 +336,7 @@ object LightspeedBotRecorderOverlay {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     if (podRect.contains(rx, ry)) {
+                        hasActiveGestureDown = false
                         isDraggingPod = true
                         podTouchStartX = event.rawX
                         podTouchStartY = event.rawY
@@ -328,6 +346,7 @@ object LightspeedBotRecorderOverlay {
                         return@setOnTouchListener true
                     }
                     isDraggingPod = false
+                    hasActiveGestureDown = true
                     downX = event.rawX
                     downY = event.rawY
                     downTime = SystemClock.uptimeMillis()
@@ -355,6 +374,7 @@ object LightspeedBotRecorderOverlay {
                 MotionEvent.ACTION_UP -> {
                     if (isDraggingPod) {
                         isDraggingPod = false
+                        hasActiveGestureDown = false
                         if (!hasMovedPod) {
                             val saveRect = Rect()
                             saveBtn.getGlobalVisibleRect(saveRect)
@@ -381,6 +401,11 @@ object LightspeedBotRecorderOverlay {
                         return@setOnTouchListener true
                     }
 
+                    if (!hasActiveGestureDown) {
+                        return@setOnTouchListener true
+                    }
+                    hasActiveGestureDown = false
+
                     val now = SystemClock.uptimeMillis()
                     if (now - lastStepRecordedUptime < 80L) {
                         return@setOnTouchListener true
@@ -392,14 +417,12 @@ object LightspeedBotRecorderOverlay {
 
                     val upX = event.rawX
                     val upY = event.rawY
-                    val duration = (now - downTime).coerceIn(40L, 1200L)
-                    val delay = if (recordedSteps.isEmpty()) 0L else (now - lastActionUptime).coerceIn(120L, 5000L)
+                    val moveDist = kotlin.math.hypot((upX - downX).toDouble(), (upY - downY).toDouble()).toFloat()
+                    val isSwipe = moveDist > (12f * density).coerceAtLeast(24f)
+                    val duration = if (isSwipe) (now - downTime).coerceIn(80L, 3000L) else (now - downTime).coerceIn(40L, 2500L)
+                    val delay = if (recordedSteps.isEmpty()) 0L else (downTime - lastActionUptime).coerceIn(50L, 5000L)
                     lastActionUptime = now
                     lastStepRecordedUptime = now
-
-                    val dx = kotlin.math.abs(upX - downX)
-                    val dy = kotlin.math.abs(upY - downY)
-                    val isSwipe = dx > 30f || dy > 30f
 
                     passGestureAndRecordStep(
                         service = service,
@@ -419,6 +442,7 @@ object LightspeedBotRecorderOverlay {
                 }
                 MotionEvent.ACTION_CANCEL -> {
                     isDraggingPod = false
+                    hasActiveGestureDown = false
                     true
                 }
                 else -> true
@@ -443,13 +467,15 @@ object LightspeedBotRecorderOverlay {
         try {
             wm.addView(root, params)
             overlayView = root
+            LightspeedBotTrackpadOverlay.setPendingRecordingLaunch(false)
         } catch (_: Exception) {
             LightspeedBotEngine.stopRecording(context)
         }
     }
 
-    fun hide() {
+    fun hide(restoreTrackpad: Boolean = true) {
         isForwardingTouch = false
+        recordedSteps.clear()
         overlayView?.let { v ->
             try { windowManager?.removeView(v) } catch (_: Exception) {}
             overlayView = null
@@ -461,7 +487,14 @@ object LightspeedBotRecorderOverlay {
         targetsCanvasView = null
         isScopeLocked = false
         lockedScopeLabel = ""
-        LightspeedBotTrackpadOverlay.refreshMacroButtonsState()
+        if (restoreTrackpad) {
+            LightspeedBotTrackpadOverlay.setPendingRecordingLaunch(false)
+            if (!BotMacroEditorDialog.isActive) {
+                LightspeedBotTrackpadOverlay.setSuspendedForDialog(false)
+            } else {
+                LightspeedBotTrackpadOverlay.refreshMacroButtonsState()
+            }
+        }
     }
 
     /**
@@ -495,7 +528,7 @@ object LightspeedBotRecorderOverlay {
         val lp = root.layoutParams as? WindowManager.LayoutParams ?: return
         isForwardingTouch = true
 
-        // Check pre-scanned smart UI target at touch point first
+        // Check pre-scanned smart UI target at touch point only for non-swipe taps when UI detection is ON
         val matchedTarget = if (!isSwipe && smartDetectEnabled) {
             LightspeedBotScreenScanner.findTargetAtPoint(detectedTargets, downX, downY)
         } else null
@@ -520,72 +553,83 @@ object LightspeedBotRecorderOverlay {
                 null
             }
 
-            // Prefer interactive leaf widget (Button, ImageButton, ImageView, TextView) over parent layout containers
-            val effectiveTarget = if (matchedTarget != null && LightspeedBotScreenScanner.isLayoutContainer(matchedTarget.className) &&
+            // Prefer interactive leaf widget over parent layout containers; skip smart binding when UI detect is OFF
+            val effectiveTarget = if (!isSwipe && smartDetectEnabled && matchedTarget != null &&
+                LightspeedBotScreenScanner.isLayoutContainer(matchedTarget.className) &&
                 hitNode != null && !LightspeedBotScreenScanner.isLayoutContainer(hitNode.className?.toString())
             ) {
                 null
-            } else {
+            } else if (!isSwipe && smartDetectEnabled) {
                 matchedTarget
+            } else {
+                null
             }
 
-            val targetNode = if (effectiveTarget == null) hitNode else null
-            val viewId = effectiveTarget?.viewIdResourceName ?: targetNode?.viewIdResourceName
-            val text = effectiveTarget?.text ?: targetNode?.text?.toString()
-            val contentDesc = effectiveTarget?.contentDescription ?: targetNode?.contentDescription?.toString()
-            val cls = effectiveTarget?.className ?: targetNode?.className?.toString()
-
-            // Only lock scope on Step 1 if not already locked! NEVER overwrite once locked.
-            val tappedPkg = targetNode?.packageName?.toString() ?: effectiveTarget?.packageName
-            val ownPkg = service.packageName
-            if (!isScopeLocked && !tappedPkg.isNullOrBlank() && tappedPkg != ownPkg && tappedPkg != "com.android.systemui" &&
-                !com.sbf.lightspeed.system.LightspeedForegroundTracker.isInputMethodPackage(service, tappedPkg)
-            ) {
-                LightspeedBotEngine.recordingScopePkg = tappedPkg
+            // Lock scope on Step 1 if not already locked, never binding to own/system/IME packages
+            val tappedPkg = hitNode?.packageName?.toString()
+                ?: effectiveTarget?.packageName
+                ?: rootNode?.packageName?.toString()
+            if (!isScopeLocked && !LightspeedBotScreenScanner.isOwnOrSystemPackage(service, tappedPkg)) {
+                val safePkg = tappedPkg!!
+                LightspeedBotEngine.recordingScopePkg = safePkg
                 val winId = LightspeedBotScreenScanner.resolveActiveWindowId(service)
                 LightspeedBotEngine.recordingScopeWindow = winId
-                lockedScopeLabel = LightspeedBotEngine.getActiveScopeDisplayLabel(service)
+                lockedScopeLabel = LightspeedBotEngine.getScopeDisplayLabel(
+                    service,
+                    safePkg,
+                    winId,
+                    LightspeedBotEngine.recordingScopeType
+                )
                 isScopeLocked = true
                 windowBadgeView?.text = "🔒 $lockedScopeLabel"
             }
 
             val pkg = LightspeedBotEngine.recordingScopePkg
             val winId = LightspeedBotEngine.recordingScopeWindow
-            val tapX = effectiveTarget?.bounds?.centerX()?.toFloat() ?: downX
-            val tapY = effectiveTarget?.bounds?.centerY()?.toFloat() ?: downY
+            val stepPkg = if (LightspeedBotEngine.recordingScopeType == LightspeedBotContract.SCOPE_GLOBAL) {
+                null
+            } else {
+                pkg.takeIf { it.isNotBlank() && it != "global" }
+            }
 
-            val hasElementMeta = !viewId.isNullOrBlank() || !contentDesc.isNullOrBlank() || !text.isNullOrBlank()
-            val isElementBound = !isSwipe && hasElementMeta
+            val isElementBound = !isSwipe && smartDetectEnabled &&
+                (effectiveTarget != null || LightspeedBotScreenScanner.isActionableElementNode(hitNode))
+
+            val targetNode = if (isElementBound && effectiveTarget == null) hitNode else null
+            val viewId = if (isElementBound) (effectiveTarget?.viewIdResourceName ?: targetNode?.viewIdResourceName) else null
+            val text = if (isElementBound) (effectiveTarget?.text ?: targetNode?.text?.toString()) else null
+            val contentDesc = if (isElementBound) (effectiveTarget?.contentDescription ?: targetNode?.contentDescription?.toString()) else null
+            val cls = if (isElementBound) (effectiveTarget?.className ?: targetNode?.className?.toString()) else hitNode?.className?.toString()
+
+            val tapX = if (isElementBound) (effectiveTarget?.bounds?.centerX()?.toFloat() ?: downX) else downX
+            val tapY = if (isElementBound) (effectiveTarget?.bounds?.centerY()?.toFloat() ?: downY) else downY
 
             val step = if (isSwipe) {
                 BotStep(
                     stepType = BotStep.TYPE_SWIPE,
-                    xRatio = downX / screenW,
-                    yRatio = downY / screenH,
-                    endXRatio = upX / screenW,
-                    endYRatio = upY / screenH,
+                    xRatio = (downX / screenW).coerceIn(0f, 1f),
+                    yRatio = (downY / screenH).coerceIn(0f, 1f),
+                    endXRatio = (upX / screenW).coerceIn(0f, 1f),
+                    endYRatio = (upY / screenH).coerceIn(0f, 1f),
                     delayMs = delay,
                     durationMs = duration,
-                    viewIdResourceName = viewId,
-                    text = text,
-                    contentDescription = contentDesc,
                     className = cls,
-                    packageName = pkg,
+                    packageName = stepPkg,
                     useElementTarget = false,
                     windowId = winId
                 )
             } else {
                 BotStep(
                     stepType = BotStep.TYPE_TAP,
-                    xRatio = tapX / screenW,
-                    yRatio = tapY / screenH,
+                    xRatio = (tapX / screenW).coerceIn(0f, 1f),
+                    yRatio = (tapY / screenH).coerceIn(0f, 1f),
                     delayMs = delay,
                     durationMs = duration,
                     viewIdResourceName = viewId,
                     text = text,
                     contentDescription = contentDesc,
                     className = cls,
-                    packageName = pkg,
+                    packageName = stepPkg,
                     useElementTarget = isElementBound,
                     windowId = winId
                 )
@@ -594,18 +638,16 @@ object LightspeedBotRecorderOverlay {
             recordedSteps.add(step)
             recIndicatorView?.text = "● REC (${recordedSteps.size})"
             saveButtonView?.text = "⏹ SAVE (${recordedSteps.size})"
+            Log.i(
+                "LightspeedBotRecorder",
+                "Recorded step #${recordedSteps.size} for Bot $botId: type=${step.stepType} elem=$isElementBound pkg=$stepPkg " +
+                    "pos=(${step.xRatio},${step.yRatio})->(${step.endXRatio},${step.endYRatio}) dur=${step.durationMs}ms delay=${step.delayMs}ms"
+            )
 
-            if (isSwipe) {
-                LightspeedBotEngine.injectSwipeOrDispatch(service, downX, downY, upX, upY, duration)
-            } else {
-                LightspeedBotEngine.injectTapOrDispatch(service, tapX, tapY)
-            }
-
-            // Immediately restore touch interception within 80ms for multi-step recording
-            val settleMs = (if (isSwipe) duration else 30L) + 50L
-            root.postDelayed({
+            val dispW = screenW.toInt().coerceAtLeast(1)
+            val dispH = screenH.toInt().coerceAtLeast(1)
+            val onForwardFinished: (Boolean) -> Unit = { _ ->
                 if (overlayView === root) {
-                    // Re-scan active window for new Burger Menu / Dialog / Menu items before restoring touchable overlay
                     detectedTargets = LightspeedBotScreenScanner.scanScreenTargets(service)
                     targetsCanvasView?.invalidate()
                     try {
@@ -615,7 +657,33 @@ object LightspeedBotRecorderOverlay {
                 }
                 lastStepRecordedUptime = SystemClock.uptimeMillis()
                 isForwardingTouch = false
-            }, settleMs)
-        }, 35L)
+            }
+
+            if (isSwipe) {
+                LightspeedBotGestureDispatcher.dispatchSwipeAsync(
+                    service = service,
+                    startX = downX,
+                    startY = downY,
+                    endX = upX,
+                    endY = upY,
+                    durationMs = duration,
+                    screenW = dispW,
+                    screenH = dispH,
+                    label = "RecorderForwardSwipe#${recordedSteps.size}",
+                    onFinished = onForwardFinished
+                )
+            } else {
+                LightspeedBotGestureDispatcher.dispatchTapAsync(
+                    service = service,
+                    x = tapX,
+                    y = tapY,
+                    durationMs = duration,
+                    screenW = dispW,
+                    screenH = dispH,
+                    label = "RecorderForwardTap#${recordedSteps.size}",
+                    onFinished = onForwardFinished
+                )
+            }
+        }, 40L)
     }
 }

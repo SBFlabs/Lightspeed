@@ -22,10 +22,11 @@ private val vitalsInfoBtnTempRect = RectF()
 private val vitalsMonoBoldTypeface: Typeface by lazy { Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) }
 
 private val VITALS_TASK_TABS = listOf(
-    "cpu" to "CPU & HEAT",
+    "cpu" to "CPU",
     "wakelocks" to "WAKELOCK",
-    "ram" to "RAM & SWAP",
-    "storage" to "STORAGE"
+    "ram" to "RAM",
+    "storage" to "STORAGE",
+    "network" to "NETWORK"
 )
 
 internal var vitalsActiveTabKey: String = "cpu"
@@ -37,7 +38,9 @@ internal fun LightspeedCruiseOverlay.hasExternalStorageVolume(): Boolean {
 
 internal fun LightspeedCruiseOverlay.openVitalsTaskManagerModal(
     initialTab: String = "cpu",
-    storageVolumeFilter: String? = null
+    storageVolumeFilter: String? = null,
+    networkTransportFilter: String? = null,
+    networkSpanKey: String? = null
 ) {
     val prefs = context.defaultPrefs()
     vitalsStorageSortKey = prefs.getString(LightspeedPreferences.KEY_VITALS_STORAGE_SORT_KEY, "total") ?: "total"
@@ -47,6 +50,19 @@ internal fun LightspeedCruiseOverlay.openVitalsTaskManagerModal(
         ?: prefs.getString(LightspeedPreferences.KEY_VITALS_STORAGE_VOLUME_FILTER, "ALL")
         ?: "ALL"
     vitalsStorageVolumeFilter = if (hasExternalStorageVolume()) requestedVolFilter else "ALL"
+    val hasCellular = LightspeedNetworkUsageAnalyzer.hasCellularCapability(context)
+    if (networkTransportFilter != null) {
+        vitalsNetworkState.transportFilter = if (!hasCellular && networkTransportFilter == "CELL") {
+            "ALL"
+        } else {
+            networkTransportFilter
+        }
+    } else if (!hasCellular && vitalsNetworkState.transportFilter == "CELL") {
+        vitalsNetworkState.transportFilter = "ALL"
+    }
+    if (networkSpanKey != null) {
+        vitalsNetworkState.spanKey = networkSpanKey
+    }
 
     val snap = LightspeedCruiseHudPods.latestBatterySnapshot
     LightspeedVitalsHistoryStore.recordSampleIfDue(
@@ -72,6 +88,15 @@ internal fun LightspeedCruiseOverlay.switchVitalsTaskTab(tabKey: String, forceRe
     vitalsStorageNewlyResolvedMs.clear()
     vitalsStoragePrevSummarySum = -1L
     vitalsStorageDragY = -1f
+    if (tabKey == "network") {
+        if (!LightspeedNetworkUsageAnalyzer.hasCellularCapability(context) &&
+            vitalsNetworkState.transportFilter == "CELL"
+        ) {
+            vitalsNetworkState.transportFilter = "ALL"
+        }
+        loadVitalsNetworkTabAsync(forceRefresh = forceRefresh)
+        return
+    }
     if (tabKey == "storage") {
         val hasUsageNow = com.sbf.lightspeed.system.LightspeedUsageStats.hasUsageAccess(context)
         val cached = if (forceRefresh) null else LightspeedStorageAnalyzer.getCachedIfFresh(hasUsageNow, vitalsStorageShowSystemApps)
@@ -401,10 +426,10 @@ internal fun LightspeedCruiseOverlay.drawVitalsTaskManagerModal(
         )
     }
 
-    // 4-Mode Switcher Tabs right beneath Header: [ CPU & HEAT ] [ WAKELOCK ] [ RAM & SWAP ] [ STORAGE ]
+    // 5-Mode Switcher Tabs right beneath Header: [ CPU ] [ WAKELOCK ] [ RAM ] [ STORAGE ] [ NETWORK ]
     val tabTop = top + 39f * dp
     val tabH = 26f * dp
-    val tabGap = 4f * dp
+    val tabGap = 3f * dp
     val tabW = (modalW - padX * 2f - tabGap * (VITALS_TASK_TABS.size - 1)) / VITALS_TASK_TABS.size
     for ((idx, tab) in VITALS_TASK_TABS.withIndex()) {
         val (tKey, tLabel) = tab
@@ -427,7 +452,7 @@ internal fun LightspeedCruiseOverlay.drawVitalsTaskManagerModal(
 
         textPaint.textAlign = Paint.Align.CENTER
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        textPaint.textSize = (tabW / 10.2f).coerceIn(8.6f * dp, 9.8f * dp)
+        textPaint.textSize = (tabW / 7.4f).coerceIn(7.6f * dp, 9.2f * dp)
         textPaint.color = if (isSel) Color.BLACK else Color.WHITE
         val tFm = textPaint.fontMetrics
         canvas.drawText(tLabel, tRect.centerX(), tRect.centerY() - ((tFm.descent + tFm.ascent) / 2f), textPaint)
@@ -436,6 +461,19 @@ internal fun LightspeedCruiseOverlay.drawVitalsTaskManagerModal(
     if (vitalsActiveTabKey == "storage") {
         vitalsSpanPillRects.clear()
         drawVitalsStorageTabContent(
+            canvas = canvas,
+            startTop = tabTop + tabH + 4f * dp,
+            padX = padX,
+            modalW = modalW,
+            accent = accent,
+            dp = dp
+        )
+        return
+    }
+
+    if (vitalsActiveTabKey == "network") {
+        vitalsSpanPillRects.clear()
+        drawVitalsNetworkTabContent(
             canvas = canvas,
             startTop = tabTop + tabH + 4f * dp,
             padX = padX,
@@ -629,14 +667,16 @@ internal fun LightspeedCruiseOverlay.drawVitalsTaskManagerModal(
             curY += rowH
         }
     }
-    LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+    LightspeedHudVectorIcons.applyScrollEdgeFeathering(
         canvas = canvas,
         left = listLeft,
         top = listTop,
         right = listRight,
         bottom = listBottom,
-        featherTopPx = if (vitalsModalScrollOffset > 0.5f) 18f * dp else 0f,
-        featherBottomPx = if (vitalsModalScrollOffset < vitalsModalMaxScroll - 0.5f) 20f * dp else 0f,
+        scrollOffset = vitalsModalScrollOffset,
+        maxScroll = vitalsModalMaxScroll,
+        featherTopPx = 18f * dp,
+        featherBottomPx = 20f * dp,
         density = dp,
         seed = 8101
     )

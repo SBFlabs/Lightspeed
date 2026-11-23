@@ -217,11 +217,10 @@ fun CentralCommandTypographyMenu(
             modifier = Modifier
                 .fillMaxSize()
                 .background(colorScheme.scrim.copy(alpha = 0.28f * morphProgress.coerceIn(0f, 1f)))
-                .clickable(
+                .overlayScrimDismiss(
+                    context = context,
                     enabled = expanded,
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss
+                    onTapOutside = onDismiss
                 )
         )
 
@@ -255,6 +254,7 @@ fun CentralCommandTypographyMenu(
                 .width(targetPanelWidthDp)
                 .widthIn(max = maxFlyoutDp)
                 .heightIn(max = maxPanelHeightDp)
+                .blockScrimPassthrough()
         ) {
             DeckGlassCardSurface(
                 modifier = Modifier.fillMaxWidth(),

@@ -149,6 +149,12 @@ internal fun LightspeedCruiseOverlay.resolveAndDispatchHoldGesture(zone: TouchZo
                 }
             }
             invalidate()
+        } else if (actionValue == "system:scroll_to_top" || actionValue == "system:scroll_to_bottom") {
+            // Defer swipe-scroll dispatch until pointer lifts so physical touch does not cancel dispatchGesture()
+            isHoldFired = true
+            pendingHoldReleaseScrollAction = actionValue
+            com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorHold(context)
+            macroTrackingActive = false
         } else if (actionValue != "none") {
             isHoldFired = true
             if (holdEquivalent != hostGesture) {

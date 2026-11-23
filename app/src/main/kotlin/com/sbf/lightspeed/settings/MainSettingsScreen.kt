@@ -95,6 +95,15 @@ fun MainSettingsScreen() {
     var mountMatrixDeck by rememberSaveable {
         mutableStateOf(initialPhase == "READY")
     }
+    val hadInitialLaunchGate by rememberSaveable {
+        mutableStateOf(
+            initialGate != CentralCommandLaunchGate.NONE ||
+                initialPhase == "CORE_SETUP"
+        )
+    }
+    var supporterReminderCheckedThisSession by rememberSaveable {
+        mutableStateOf(false)
+    }
     var slideSettled by remember { mutableStateOf(false) }
     LaunchedEffect(isVisible) {
         if (isVisible && !slideSettled) {
@@ -108,13 +117,26 @@ fun MainSettingsScreen() {
     var showWhatsNewMorph by rememberSaveable { mutableStateOf(false) }
     var replayWelcomeFromGuidebook by rememberSaveable { mutableStateOf(false) }
     var coreSetupPreviewMode by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(launchGatePhase) {
-        if (launchGatePhase == "READY" && supporterReminderBadge == null) {
+    var showSupporterInfinityDialog by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(launchGatePhase, showWhatsNewMorph, showSupporterInfinityDialog) {
+        if (launchGatePhase == "READY" &&
+            !hadInitialLaunchGate &&
+            !supporterReminderCheckedThisSession &&
+            supporterReminderBadge == null &&
+            !showWhatsNewMorph &&
+            !showSupporterInfinityDialog
+        ) {
             kotlinx.coroutines.delay(650L)
-            supporterReminderBadge = SupporterReminderController.checkAndConsumeReminderReason(context)
+            if (launchGatePhase == "READY" &&
+                !showWhatsNewMorph &&
+                !showSupporterInfinityDialog &&
+                supporterReminderBadge == null
+            ) {
+                supporterReminderCheckedThisSession = true
+                supporterReminderBadge = SupporterReminderController.checkAndConsumeReminderReason(context)
+            }
         }
     }
-    var showSupporterInfinityDialog by rememberSaveable { mutableStateOf(false) }
     val initialTargetSection = remember { (context as? android.app.Activity)?.intent?.getStringExtra("target_section") }
     val initialTargetTab = remember { (context as? android.app.Activity)?.intent?.getIntExtra("target_tab", if (initialTargetSection != null) 1 else -1) ?: -1 }
     var targetJumpTab by remember { mutableIntStateOf(initialTargetTab) }
@@ -165,14 +187,16 @@ fun MainSettingsScreen() {
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clickable { dismissAction() }
+        modifier = Modifier.fillMaxSize()
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = animatedScrimAlpha))
+                .overlayScrimDismiss(
+                    context = context,
+                    onTapOutside = { dismissAction() }
+                )
         )
         Box(
             modifier = Modifier
@@ -200,7 +224,7 @@ fun MainSettingsScreen() {
                         .onGloballyPositioned { coords ->
                             typographyRootTopLeft = coords.positionInWindow()
                         }
-                        .clickable(enabled = false) {}
+                        .blockScrimPassthrough()
                 ) {
                     var refreshKey by remember { mutableStateOf(0) }
                     var toggleAllTrigger by remember { mutableStateOf(0) }

@@ -1,0 +1,5 @@
+🔑 v1.4.3 — Infinity Vault Restoration
+
+• Fixed offline verification for issued supporter Infinity keys (including LSINF-2PU3-22LQ).
+• Removed case-corrupting uppercase conversion on RSA-2048 key entry/paste and added uppercase-safe Base32 RSA key support.
+• Added instant live UI and overlay unlock propagation across all themes, flight decks, gear sets, and trackpad styles.

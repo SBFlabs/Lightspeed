@@ -5,6 +5,12 @@ All notable changes to the Lightspeed Gesture Launcher & Workspace are documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-11-24 — 🔑 Infinity Vault Restoration
+
+### Fixed
+- **Supporter Infinity Key Verification & Case-Sensitive Paste (`LightspeedInfinityManager.kt`, `LightspeedInfinityDialog.kt`):** Restored offline verification for issued `v1.0.0` supporter batch keys (including `LSINF-2PU3-22LQ`) via zero-secret SHA-256 digest matching, removed `.uppercase()` input/paste mutation that corrupted case-sensitive Base64URL RSA-2048 keys, added uppercase-safe Base32 RSA-2048 key support, and normalized clipboard whitespace/Unicode dashes.
+- **Instant Reactive Unlock Across All Surfaces (`LightspeedInfinityManager.kt`, `FlightControlDeckComponents.kt`, `StyleLabPreviewDialog.kt`, `CyberneticTrackpadCalibration.kt`, `LightspeedWhatsNewOverlay.kt`):** Added a live `unlockEpoch` state flow and immediate accessibility/trackpad overlay reload on activation so unlocked themes, gear sets, and trackpad styles refresh instantly without reopening screens.
+
 ## [1.4.2] - 2026-11-23 — 🛰️ Telemetry Conduit & Multi-Touch Cruise
 
 ### Added

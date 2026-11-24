@@ -198,7 +198,8 @@ fun CentralCommandWhatsNewMorphPanel(
     onOpenInfinityUnlock: () -> Unit
 ) {
     val lsColors = LightspeedStyle.colors
-    val isUnlocked = remember { LightspeedInfinityManager.isUnlocked(context) }
+    val unlockEpoch by LightspeedInfinityManager.unlockEpoch.collectAsState()
+    val isUnlocked = remember(unlockEpoch) { LightspeedInfinityManager.isUnlocked(context) }
     var showingWelcomePage by remember(startOnWelcome) { mutableStateOf(startOnWelcome) }
     var lastWelcomeBackPressMs by remember { mutableLongStateOf(0L) }
 
@@ -405,7 +406,8 @@ fun LightspeedSupporterReminderDialog(
 ) {
     val lsColors = LightspeedStyle.colors
     val prefs = remember { context.defaultPrefs() }
-    val isUnlocked = remember { LightspeedInfinityManager.isUnlocked(context) }
+    val unlockEpoch by LightspeedInfinityManager.unlockEpoch.collectAsState()
+    val isUnlocked = remember(unlockEpoch) { LightspeedInfinityManager.isUnlocked(context) }
     val isUpdateBanner = milestoneBadge.contains("UPDATE", ignoreCase = true) ||
         milestoneBadge.contains("v${BuildConfig.VERSION_NAME}", ignoreCase = true)
     var doNotShowAgain by remember {

@@ -5,8 +5,12 @@ import android.content.SharedPreferences
 import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.nio.charset.StandardCharsets
 import java.security.KeyFactory
+import java.security.MessageDigest
 import java.security.PublicKey
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
@@ -34,6 +38,19 @@ object LightspeedInfinityManager {
     private const val MAX_FAILED_ATTEMPTS = 3
 
     private const val ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+    private const val BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+    private val WHITESPACE_REGEX = Regex("\\s+")
+    private val UNICODE_DASH_REGEX = Regex("[\u2010-\u2015\u2212]")
+    private val BASE32_PATTERN = Regex("^[A-Za-z2-7]+=*$")
+    private val ISSUED_SHORT_CODE_SHA256 = setOf(
+        "7c0eccabe6e9a117c8433b5f3409b9a1270437801861a665b8e1b876a590903f"
+    )
+
+    @Volatile
+    private var cachedUnlocked: Boolean? = null
+
+    private val _unlockEpoch = MutableStateFlow(0)
+    val unlockEpoch: StateFlow<Int> = _unlockEpoch.asStateFlow()
 
     /**
      * RSA-2048 Public Key (X.509 DER SubjectPublicKeyInfo encoded in Base64).
@@ -54,8 +71,10 @@ object LightspeedInfinityManager {
     }
 
     fun isUnlocked(context: Context): Boolean {
-        val vault = getVault(context)
-        return vault.getBoolean(KEY_UNLOCKED, false)
+        cachedUnlocked?.let { if (it) return true }
+        val unlocked = getVault(context).getBoolean(KEY_UNLOCKED, false)
+        cachedUnlocked = unlocked
+        return unlocked
     }
 
     fun getActiveCode(context: Context): String? {
@@ -95,13 +114,19 @@ object LightspeedInfinityManager {
 
     /**
      * Validates and activates an entered code.
-     * Code format: LSINF-<SERIAL>-<BASE64URL_SIGNATURE>
+     * Supports:
+     * - RSA-2048 Base32 keys: LSINF-<8-CHAR-SERIAL>-<BASE32_SIGNATURE>
+     * - RSA-2048 Base64URL keys: LSINF-<8-CHAR-SERIAL>-<BASE64URL_SIGNATURE>
+     * - Issued v1.0.0 supporter keys verified by SHA-256 hash: LSINF-<4-CHAR>-<4-CHAR>
      * Returns true if activation succeeded, false otherwise.
      */
     fun validateAndUnlock(context: Context, rawCode: String): Boolean {
         if (isLockedOut(context)) return false
 
-        val clean = rawCode.trim().replace(" ", "")
+        val clean = rawCode.trim()
+            .trim('"', '\'', '`')
+            .replace(WHITESPACE_REGEX, "")
+            .replace(UNICODE_DASH_REGEX, "-")
         // Split with limit 3 to preserve signature which may contain dashes
         val parts = clean.split("-", limit = 3)
         if (parts.size != 3 || !parts[0].equals("LSINF", ignoreCase = true)) {
@@ -109,36 +134,57 @@ object LightspeedInfinityManager {
             return false
         }
 
-        val serial = parts[1].uppercase()
-        val signatureB64 = parts[2]
-
-        if (serial.length != 8) {
-            registerFailure(context)
-            return false
-        }
-
-        for (c in serial) {
-            if (!ALPHABET.contains(c)) {
+        // Handle issued v1.0.0 4+4 supporter batch codes safely without exposing legacy signing secrets
+        if (parts[1].length == 4 && parts[2].length == 4) {
+            val canonicalShort = "LSINF-${parts[1].uppercase()}-${parts[2].uppercase()}"
+            val digest = sha256Hex("LIGHTSPEED_INF_V2:$canonicalShort")
+            return if (digest in ISSUED_SHORT_CODE_SHA256) {
+                unlockSuccess(context, canonicalShort)
+                true
+            } else {
                 registerFailure(context)
-                return false
+                false
             }
         }
 
-        val isValid = verifySignature(serial, signatureB64)
-        if (isValid) {
-            // Success! Save to vault and reset failed attempts
-            getVault(context).edit()
-                .putBoolean(KEY_UNLOCKED, true)
-                .putString(KEY_ACTIVE_CODE, clean)
-                .putInt(KEY_FAILED_ATTEMPTS, 0)
-                .putLong(KEY_LOCKOUT_TIMESTAMP, 0L)
-                .apply()
-            LightspeedHapticEngine.triggerConfirmation(context)
-            return true
-        } else {
+        val serial = parts[1].uppercase()
+        val signaturePart = parts[2]
+
+        if (serial.length != 8 || serial.any { !ALPHABET.contains(it) }) {
             registerFailure(context)
             return false
         }
+
+        val isValid = if (signaturePart.length in 400..420 && BASE32_PATTERN.matches(signaturePart)) {
+            verifyBase32Signature(serial, signaturePart)
+        } else {
+            verifySignature(serial, signaturePart)
+        }
+        return if (isValid) {
+            unlockSuccess(context, "LSINF-$serial-$signaturePart")
+            true
+        } else {
+            registerFailure(context)
+            false
+        }
+    }
+
+    private fun unlockSuccess(context: Context, storedCode: String) {
+        cachedUnlocked = true
+        getVault(context).edit()
+            .putBoolean(KEY_UNLOCKED, true)
+            .putString(KEY_ACTIVE_CODE, storedCode)
+            .putInt(KEY_FAILED_ATTEMPTS, 0)
+            .putLong(KEY_LOCKOUT_TIMESTAMP, 0L)
+            .apply()
+        _unlockEpoch.value = _unlockEpoch.value + 1
+        LightspeedHapticEngine.triggerConfirmation(context)
+        try {
+            com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences()
+        } catch (_: Exception) { }
+        try {
+            com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.reload(context)
+        } catch (_: Exception) { }
     }
 
     private fun registerFailure(context: Context) {
@@ -151,8 +197,12 @@ object LightspeedInfinityManager {
         editor.apply()
     }
 
+    private fun verifyBase32Signature(serial: String, signatureB32: String): Boolean {
+        val signatureBytes = decodeBase32(signatureB32) ?: return false
+        return verifySignatureBytes(serial, signatureBytes)
+    }
+
     private fun verifySignature(serial: String, signatureB64: String): Boolean {
-        val key = publicKey ?: return false
         return try {
             // Normalize URL-safe base64 padding
             var safeB64 = signatureB64
@@ -161,6 +211,16 @@ object LightspeedInfinityManager {
                 safeB64 += "=".repeat(4 - rem)
             }
             val signatureBytes = Base64.decode(safeB64, Base64.URL_SAFE or Base64.NO_WRAP)
+            verifySignatureBytes(serial, signatureBytes)
+        } catch (e: Exception) {
+            Log.w(TAG, "Signature verification failed", e)
+            false
+        }
+    }
+
+    private fun verifySignatureBytes(serial: String, signatureBytes: ByteArray): Boolean {
+        val key = publicKey ?: return false
+        return try {
             val verifier = Signature.getInstance("SHA256withRSA")
             verifier.initVerify(key)
             verifier.update(serial.toByteArray(StandardCharsets.UTF_8))
@@ -169,6 +229,35 @@ object LightspeedInfinityManager {
             Log.w(TAG, "Signature verification failed", e)
             false
         }
+    }
+
+    private fun decodeBase32(input: String): ByteArray? {
+        val clean = input.trim().trimEnd('=').uppercase()
+        if (clean.isEmpty()) return null
+        val out = ByteArray((clean.length * 5) / 8)
+        var buffer = 0
+        var bitsLeft = 0
+        var outIndex = 0
+        for (c in clean) {
+            val valBits = BASE32_ALPHABET.indexOf(c)
+            if (valBits < 0) return null
+            buffer = (buffer shl 5) or valBits
+            bitsLeft += 5
+            if (bitsLeft >= 8) {
+                out[outIndex++] = ((buffer shr (bitsLeft - 8)) and 0xFF).toByte()
+                bitsLeft -= 8
+            }
+        }
+        return if (outIndex == out.size) out else out.copyOf(outIndex)
+    }
+
+    private fun sha256Hex(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(StandardCharsets.UTF_8))
+        val hex = StringBuilder(digest.size * 2)
+        for (b in digest) {
+            hex.append(String.format("%02x", b.toInt() and 0xFF))
+        }
+        return hex.toString()
     }
 
     private fun getVault(context: Context): SharedPreferences {

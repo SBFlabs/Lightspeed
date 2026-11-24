@@ -44,7 +44,8 @@ fun LightspeedInfinityDialog(
     val lsColors = LightspeedStyle.colors
     var codeInput by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isUnlocked by remember { mutableStateOf(LightspeedInfinityManager.isUnlocked(context)) }
+    val unlockEpoch by LightspeedInfinityManager.unlockEpoch.collectAsState()
+    var isUnlocked by remember(unlockEpoch) { mutableStateOf(LightspeedInfinityManager.isUnlocked(context)) }
 
     DeckDialog(
         onDismissRequest = onDismiss
@@ -104,9 +105,9 @@ fun LightspeedInfinityDialog(
                     val activeKey = LightspeedInfinityManager.getActiveCode(context) ?: "ACTIVE"
                     var revealKey by remember { mutableStateOf(false) }
                     val displayKey = if (revealKey) {
-                        activeKey
+                        if (activeKey.length > 26) "${activeKey.take(16)}...${activeKey.takeLast(6)}" else activeKey
                     } else {
-                        if (activeKey.startsWith("LSINF-")) "LSINF-••••••••-••••" else "••••••••••••"
+                        if (activeKey.startsWith("LSINF-")) "LSINF-••••-••••" else "••••••••••••"
                     }
                     Row(
                         modifier = Modifier
@@ -128,6 +129,8 @@ fun LightspeedInfinityDialog(
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -246,10 +249,10 @@ fun LightspeedInfinityDialog(
                         OutlinedTextField(
                             value = codeInput,
                             onValueChange = {
-                                codeInput = it.uppercase()
+                                codeInput = it
                                 errorMessage = null
                             },
-                            placeholder = { Text("LSINF-XXXXXXXX-...", fontSize = 11.sp, color = lsColors.textDisabled) },
+                            placeholder = { Text("LSINF-XXXX-...", fontSize = 11.sp, color = lsColors.textDisabled) },
                             singleLine = true,
                             modifier = Modifier.weight(1f),
                             textStyle = androidx.compose.ui.text.TextStyle(
@@ -272,7 +275,7 @@ fun LightspeedInfinityDialog(
                                 val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                                 val clip = cb?.primaryClip?.getItemAt(0)?.text?.toString()
                                 if (!clip.isNullOrBlank()) {
-                                    codeInput = clip.trim().uppercase()
+                                    codeInput = clip.trim()
                                     errorMessage = null
                                 }
                             },

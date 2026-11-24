@@ -126,7 +126,10 @@ fun TrackpadGeometrySubSection(
                 }
             }
 
-            val isInfinity = com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)
+            val unlockEpoch by com.sbf.lightspeed.system.LightspeedInfinityManager.unlockEpoch.collectAsState()
+            val isInfinity = remember(unlockEpoch) {
+                com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)
+            }
             fun promptInfinity() {
                 LightspeedHapticEngine.triggerWarning(context)
                 try {

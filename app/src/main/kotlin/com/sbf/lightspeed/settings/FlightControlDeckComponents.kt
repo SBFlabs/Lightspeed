@@ -157,7 +157,10 @@ fun FlightControlDeckCard(
             HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val isInfinityUnlocked = com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)
+                val unlockEpoch by com.sbf.lightspeed.system.LightspeedInfinityManager.unlockEpoch.collectAsState()
+                val isInfinityUnlocked = remember(unlockEpoch) {
+                    com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)
+                }
                 DeckStylePickerGrid(
                     context = context,
                     isInfinityUnlocked = isInfinityUnlocked,

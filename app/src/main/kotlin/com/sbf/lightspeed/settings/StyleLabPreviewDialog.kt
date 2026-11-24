@@ -97,7 +97,10 @@ fun StyleLabPreviewDialog(
             ThemeCustomizationManager.getCustomization(context, base.styleId).toSnapshot(base)
         }
     }
-    val isInfinityUnlocked = com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)
+    val unlockEpoch by com.sbf.lightspeed.system.LightspeedInfinityManager.unlockEpoch.collectAsState()
+    val isInfinityUnlocked = remember(unlockEpoch) {
+        com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)
+    }
     val activeDensity = LocalDensity.current
 
     Dialog(

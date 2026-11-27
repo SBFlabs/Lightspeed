@@ -1,0 +1,7 @@
+🎙️ v1.5.0 — Sonic Horizon & System Deck Continuum
+
+• Graduated Sonic & Vista Decks onto HUD Strip with Unified System Deck Continuum.
+• 100% offline 48 kHz stereo Neural Voice Isolation 2.0 via native C++ DSP.
+• Full Arabic localization + independent RTL / Left-Handed Layout toggle.
+• Pass-through dual-thruster Telemetry Micro-HUD & 5 Alpha-Shade Signature HUDs.
+• Live theme/shape previews, Direct Call action, and 1:1 hardware Eye Care sync.

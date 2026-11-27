@@ -73,6 +73,7 @@ object LightspeedVocabulary {
         BATTERY_EXEMPTION,         // Universal battery exemption control deck
         SONIC_DECK,                // Multi-app sound mixer & sovereign focus manager
         VISTA_DECK,                // Display wellness, brightness & visual optics deck
+        ASTROGATION_AIRLOCK,       // Mindful app delay gate & 20-20-20 eye rest
 
         // Flight control
         MASTER_FLIGHT,
@@ -138,6 +139,7 @@ object LightspeedVocabulary {
         Key.BATTERY_EXEMPTION to R.string.vocab_vessel_battery_exemption,
         Key.SONIC_DECK to R.string.vocab_vessel_sonic_deck,
         Key.VISTA_DECK to R.string.vocab_vessel_vista_deck,
+        Key.ASTROGATION_AIRLOCK to R.string.vocab_vessel_astrogation_airlock,
         Key.SYSTEM_OVERRIDES to R.string.vocab_vessel_system_overrides,
         Key.MASTER_FLIGHT to R.string.vocab_vessel_master_flight,
         Key.FLIGHT_DECK to R.string.vocab_vessel_flight_deck,
@@ -195,6 +197,7 @@ object LightspeedVocabulary {
         Key.BATTERY_EXEMPTION to R.string.vocab_clear_battery_exemption,
         Key.SONIC_DECK to R.string.vocab_clear_sonic_deck,
         Key.VISTA_DECK to R.string.vocab_clear_vista_deck,
+        Key.ASTROGATION_AIRLOCK to R.string.vocab_clear_astrogation_airlock,
         Key.CORE_COOLING to R.string.vocab_clear_core_cooling,
         Key.MASTER_FLIGHT to R.string.vocab_clear_master_flight,
         Key.FLIGHT_DECK to R.string.vocab_clear_flight_deck,

@@ -60,6 +60,22 @@ object LightspeedBotTrackpadOverlay {
     internal var isPlaybackPassThroughActive = false
         private set
 
+    internal fun dispatchArbiterTouch(isLeft: Boolean, event: MotionEvent): Boolean {
+        val view = if (isLeft) leftFlankView else rightFlankView
+        return view?.handleArbiterTouchEvent(event) ?: false
+    }
+
+    internal fun hasLiveRetractedFlankView(isLeft: Boolean): Boolean {
+        val view = if (isLeft) leftFlankView else rightFlankView
+        return view != null && view.isAttachedToWindow && view.visibility == View.VISIBLE && !view.isDeployed
+    }
+
+    internal fun collectVisibleOverlayViews(): List<View> = listOfNotNull(
+        leftFlankView?.takeIf { it.isDeployed },
+        rightFlankView?.takeIf { it.isDeployed },
+        cursorCanvasView?.takeIf { isCursorActive }
+    ).filter { it.isAttachedToWindow && it.visibility == View.VISIBLE }
+
     internal fun isSuppressedByOverlayHost(): Boolean {
         return isSuspendedForDialog ||
             isLaunchingMacroEditor ||
@@ -306,6 +322,7 @@ object LightspeedBotTrackpadOverlay {
             isCursorActive = false
             invalidateCursor()
         }
+        com.sbf.lightspeed.touch.LightspeedEdgeArbiter.notifyGeometryChanged()
     }
 
     private fun removeOverlayViewsOnMainThread() {

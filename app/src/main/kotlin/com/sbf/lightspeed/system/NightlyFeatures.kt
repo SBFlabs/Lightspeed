@@ -69,6 +69,16 @@ object NightlyFeatures {
         get() = BuildConfig.DEBUG
 
     /**
+     * 20-20-20 Eye Rest Timer inside Astrogation Airlock (Central Command -> HUD Strip).
+     * Tagged as Nightly-Only while active screen-time reminder behavior is unfinished;
+     * carries a visible [NIGHTLY] badge in debug builds and is completely hidden/disabled in Stable.
+     */
+    const val IS_EYE_REST_TIMER_TAGGED_NIGHTLY = true
+
+    val isEyeRestTimerEnabled: Boolean
+        get() = !IS_EYE_REST_TIMER_TAGGED_NIGHTLY || BuildConfig.DEBUG
+
+    /**
      * Returns an inventory of all experimental features and their active gating status.
      * Used for pre-release audits and compliance verification.
      */
@@ -115,6 +125,13 @@ object NightlyFeatures {
                 isNightlyOnly = true,
                 isEnabledInCurrentBuild = isCoreSetupGateTesterEnabled,
                 badge = if (BuildConfig.DEBUG) BADGE_SUFFIX.trim() else "HIDDEN_IN_STABLE"
+            ),
+            NightlyFeatureItem(
+                name = "20-20-20 Eye Rest Timer",
+                description = "Periodic 20s eye rest reminder toggle inside Astrogation Airlock (HudAstrogationAirlockSection)",
+                isNightlyOnly = IS_EYE_REST_TIMER_TAGGED_NIGHTLY,
+                isEnabledInCurrentBuild = isEyeRestTimerEnabled,
+                badge = if (IS_EYE_REST_TIMER_TAGGED_NIGHTLY) (if (BuildConfig.DEBUG) BADGE_SUFFIX.trim() else "HIDDEN_IN_STABLE") else "STABLE"
             )
         )
     }

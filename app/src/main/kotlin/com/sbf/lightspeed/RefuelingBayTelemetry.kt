@@ -43,7 +43,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import java.util.Locale
 import kotlin.math.abs
@@ -71,7 +73,7 @@ internal fun rememberRefuelingBatteryTelemetry(context: Context): RefuelingBatte
     var voltageMv by remember { mutableIntStateOf(0) }
     var currentMa by remember { mutableIntStateOf(0) }
     var timeRemainingMinutes by remember { mutableLongStateOf(-1L) }
-    var chargeTypeLabel by remember { mutableStateOf("Standard Charge") }
+    var chargeTier by remember { mutableStateOf("standard") }
 
     val recentDrawSamples = remember { mutableListOf<Int>() }
 
@@ -104,12 +106,12 @@ internal fun rememberRefuelingBatteryTelemetry(context: Context): RefuelingBatte
                     val rawWattage = (voltageMv / 1000f) * (currentUa / 1_000_000f)
                     wattage = if (isCharging && rawWattage > 0.05f) rawWattage else 0f
 
-                    chargeTypeLabel = when {
-                        !isCharging -> "On Battery"
-                        wattage >= 45f -> "⚡ Cryo-Hyper Turbo Charge"
-                        wattage >= 20f -> "⚡ Super Fast Warp Charge"
-                        wattage >= 10f -> "⚡ Fast Refueling"
-                        else -> "⚡ Standard Dock Refuel"
+                    chargeTier = when {
+                        !isCharging -> "battery"
+                        wattage >= 45f -> "hyper"
+                        wattage >= 20f -> "super_fast"
+                        wattage >= 10f -> "fast"
+                        else -> "standard"
                     }
 
                     timeRemainingMinutes = estimateBatteryEtaMinutes(
@@ -144,6 +146,14 @@ internal fun rememberRefuelingBatteryTelemetry(context: Context): RefuelingBatte
             handler.removeCallbacksAndMessages(null)
             try { context.unregisterReceiver(receiver) } catch (e: Exception) { logSwallowed("RefuelingBayScreen", "RefuelingBayContent:229", e) }
         }
+    }
+
+    val chargeTypeLabel = when (chargeTier) {
+        "battery" -> lsString(R.string.ref_bay_chg_on_battery)
+        "hyper" -> lsString(R.string.ref_bay_chg_hyper)
+        "super_fast" -> lsString(R.string.ref_bay_chg_super_fast)
+        "fast" -> lsString(R.string.ref_bay_chg_fast)
+        else -> lsString(R.string.ref_bay_chg_standard)
     }
 
     return RefuelingBatteryState(
@@ -277,7 +287,10 @@ internal fun CryoClockHeader(
                 ?: FontFamily.Monospace
         }
     }
+    val localeState = LightspeedLocaleEngine.state
+    val isArabic = localeState.primary == LightspeedLocaleEngine.AppLanguage.AR
     val clockLetterSpacing = when {
+        isArabic && (clockFormat == "12h" || clockFormat == "12h_sec") -> 0.sp
         clockFormat == "orbital" || clockFormat == "stardate" -> if (isLandscape) 1.0.sp else 1.2.sp
         clockFont == "cyber" -> if (isLandscape) 3.0.sp else 3.5.sp
         else -> 2.sp
@@ -312,10 +325,10 @@ internal fun CryoClockHeader(
         )
         if (currentDateStr.isNotEmpty() || isLandscape) {
             Text(
-                text = currentDateStr.uppercase(Locale.US),
+                text = if (isArabic) currentDateStr else currentDateStr.uppercase(localeState.primary.locale),
                 fontSize = if (isLandscape) 11.sp else 12.sp,
                 fontWeight = FontWeight.Medium,
-                letterSpacing = if (isLandscape) 1.2.sp else 1.4.sp,
+                letterSpacing = if (isArabic) 0.sp else if (isLandscape) 1.2.sp else 1.4.sp,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
             )
         }

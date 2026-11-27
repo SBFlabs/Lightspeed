@@ -5,7 +5,11 @@ import com.sbf.lightspeed.system.lsString
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Adjust
 import androidx.compose.material.icons.filled.DisplaySettings
@@ -14,7 +18,9 @@ import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,7 +35,9 @@ fun TrackpadGeometrySubSection(
     isLeft: Boolean,
     context: Context,
     prefs: SharedPreferences,
-    isParentExpanded: Boolean = true
+    isParentExpanded: Boolean = true,
+    isSubExpanded: Boolean? = null,
+    onToggle: (() -> Unit)? = null
 ) {
     val lsColors = LightspeedStyle.colors
     val flankKey = if (isLeft) "left" else "right"
@@ -57,9 +65,10 @@ fun TrackpadGeometrySubSection(
     val colorModeKey = if (isLeft) LightspeedBotContract.KEY_BOT_TRACKPAD_COLOR_MODE_LEFT else LightspeedBotContract.KEY_BOT_TRACKPAD_COLOR_MODE_RIGHT
     val orientationKey = if (isLeft) LightspeedBotContract.KEY_BOT_TRACKPAD_ORIENTATION_LEFT else LightspeedBotContract.KEY_BOT_TRACKPAD_ORIENTATION_RIGHT
 
-    var isSubExpanded by remember {
+    var localExpanded by remember {
         mutableStateOf(prefs.getBoolean("pref_sub_trackpad_geo_$flankKey", false))
     }
+    val effectiveExpanded = isSubExpanded ?: localExpanded
     var isTriggerStripExpanded by rememberSaveable {
         mutableStateOf(prefs.getBoolean("pref_sub_trackpad_trigger_strip_$flankKey", true))
     }
@@ -96,10 +105,14 @@ fun TrackpadGeometrySubSection(
     CollapsibleSubSection(
         title = lsString(R.string.sec_geometry_calibration),
         subtitle = lsString(R.string.secd_style_3_button_layout_automati),
-        isExpanded = isSubExpanded,
+        isExpanded = effectiveExpanded,
         onToggle = {
-            isSubExpanded = !isSubExpanded
-            prefs.edit().putBoolean("pref_sub_trackpad_geo_$flankKey", isSubExpanded).apply()
+            if (onToggle != null) {
+                onToggle()
+            } else {
+                localExpanded = !localExpanded
+                prefs.edit().putBoolean("pref_sub_trackpad_geo_$flankKey", localExpanded).apply()
+            }
         },
         icon = {
             Icon(Icons.Default.DisplaySettings, contentDescription = null, tint = lsColors.accentInfo, modifier = Modifier.size(18.dp))
@@ -130,19 +143,39 @@ fun TrackpadGeometrySubSection(
             val isInfinity = remember(unlockEpoch) {
                 com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)
             }
-            fun promptInfinity() {
+            var pendingInfinityFeature by remember { mutableStateOf<String?>(null) }
+            if (pendingInfinityFeature != null) {
+                LightspeedInfinityDialog(
+                    context = context,
+                    onDismiss = { pendingInfinityFeature = null },
+                    featureContext = pendingInfinityFeature
+                )
+            }
+            fun promptInfinity(featureName: String) {
                 LightspeedHapticEngine.triggerWarning(context)
-                try {
-                    context.startActivity(
-                        android.content.Intent(context, com.sbf.lightspeed.CockpitDialogActivity::class.java).apply {
-                            action = com.sbf.lightspeed.CockpitDialogActivity.ACTION_SHOW_INFINITY
-                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                        }
-                    )
-                } catch (_: Exception) {}
+                pendingInfinityFeature = featureName
             }
 
-            Text(lsString(R.string.tp_color_engine), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
+            val openFlightDeck = LocalOpenFlightControlDeck.current
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(lsString(R.string.tp_color_engine), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
+                Text(
+                    text = "◈ ${lsString(R.string.fc_browse_13_themes)}",
+                    fontSize = 9.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                        .border(0.6.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                        .clickable { openFlightControlDeck(context, openFlightDeck) }
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                )
+            }
             val colorModes = listOf(
                 LightspeedBotContract.COLOR_MODE_THEME_12 to "◈ 12-Theme",
                 LightspeedBotContract.COLOR_MODE_M3_DYNAMIC to "🎨 Material 3",
@@ -194,7 +227,7 @@ fun TrackpadGeometrySubSection(
                             isLocked = isLocked,
                             onClick = {
                                 if (isLocked) {
-                                    promptInfinity()
+                                    promptInfinity(label)
                                 } else {
                                     cursorShape = id
                                     prefs.edit().putString(LightspeedBotContract.KEY_BOT_CURSOR_SHAPE, id).apply()
@@ -230,7 +263,7 @@ fun TrackpadGeometrySubSection(
                             isLocked = isLocked,
                             onClick = {
                                 if (isLocked) {
-                                    promptInfinity()
+                                    promptInfinity(label)
                                 } else {
                                     trackpadStyle = id
                                     prefs.edit().putString(styleKey, id).apply()
@@ -382,26 +415,33 @@ fun TrackpadGeometrySubSection(
 @Composable
 fun TrackpadPhysicsSubSection(
     isLeft: Boolean,
-    prefs: SharedPreferences
+    prefs: SharedPreferences,
+    isSubExpanded: Boolean? = null,
+    onToggle: (() -> Unit)? = null
 ) {
     val lsColors = LightspeedStyle.colors
     val flankKey = if (isLeft) "left" else "right"
     val sensitivityKey = LightspeedBotContract.KEY_BOT_TRACKPAD_SENSITIVITY
     val lingerKey = LightspeedBotContract.KEY_BOT_TRACKPAD_LINGER_MS
 
-    var isSubExpanded by remember {
+    var localExpanded by remember {
         mutableStateOf(prefs.getBoolean("pref_sub_trackpad_physics_$flankKey", false))
     }
+    val effectiveExpanded = isSubExpanded ?: localExpanded
     var sensitivity by remember { mutableFloatStateOf(prefs.getFloat(sensitivityKey, 1.3f)) }
     var lingerDelay by remember { mutableFloatStateOf(prefs.getInt(lingerKey, 1800).toFloat()) }
 
     CollapsibleSubSection(
         title = lsString(R.string.sec_cursor_physics_timing),
         subtitle = lsString(R.string.secd_tracking_sensitivity_finger_li),
-        isExpanded = isSubExpanded,
+        isExpanded = effectiveExpanded,
         onToggle = {
-            isSubExpanded = !isSubExpanded
-            prefs.edit().putBoolean("pref_sub_trackpad_physics_$flankKey", isSubExpanded).apply()
+            if (onToggle != null) {
+                onToggle()
+            } else {
+                localExpanded = !localExpanded
+                prefs.edit().putBoolean("pref_sub_trackpad_physics_$flankKey", localExpanded).apply()
+            }
         },
         icon = {
             Icon(Icons.Default.Speed, contentDescription = null, tint = lsColors.accentInfo, modifier = Modifier.size(18.dp))
@@ -416,7 +456,7 @@ fun TrackpadPhysicsSubSection(
                 Text(lsString(R.string.tp_cursor_speed), fontSize = 11.sp, color = lsColors.textPrimary)
                 Text(sensFormatted, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
             }
-            Slider(
+            DeckSlider(
                 value = sensitivity,
                 onValueChange = {
                     sensitivity = it
@@ -431,7 +471,7 @@ fun TrackpadPhysicsSubSection(
                 Text(lsString(R.string.tp_linger), fontSize = 11.sp, color = lsColors.textPrimary)
                 Text("${lingerDelay.toInt()} ms ($lingerFormatted)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
             }
-            Slider(
+            DeckSlider(
                 value = lingerDelay,
                 onValueChange = {
                     lingerDelay = it

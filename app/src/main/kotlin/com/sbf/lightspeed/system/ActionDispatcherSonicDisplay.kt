@@ -15,14 +15,14 @@ object ActionDispatcherSonicDisplay {
 
     fun handleSonicOrDisplay(context: Context, token: String, service: AccessibilityService?): Boolean {
         when (token) {
-            "system:omniscient_audio", "system:sonic_deck", "system:audio_dock" -> {
+            "system:sonic_deck", "system:audio_dock", "system:omniscient_audio" -> {
                 val svc = service ?: LightspeedAccessibilityService.instance
-                svc?.let { SonicDeckManager.show(it) }
+                svc?.let { UnifiedSystemDeckHost.show(it, SystemDeckMode.SONIC) }
                 return true
             }
             "system:vista_deck", "system:display_dock" -> {
                 val svc = service ?: LightspeedAccessibilityService.instance
-                svc?.let { VistaDeckManager.show(it) }
+                svc?.let { UnifiedSystemDeckHost.show(it, SystemDeckMode.VISTA) }
                 return true
             }
             "system:volume" -> {
@@ -83,16 +83,14 @@ object ActionDispatcherSonicDisplay {
                 return true
             }
             "system:eye_care_toggle" -> {
-                val prefs = context.defaultPrefs()
-                val current = prefs.getBoolean(LightspeedPreferences.KEY_EYE_CARE_ENABLED, false)
-                val temp = prefs.getInt(LightspeedPreferences.KEY_EYE_CARE_TEMP, 3200)
-                LightspeedEyeCareEngine.applyEyeCare(context, !current, temp)
+                val (current, syncedTemp) = LightspeedEyeCareEngine.syncFromSystem(context)
+                LightspeedEyeCareEngine.applyEyeCare(context, !current, syncedTemp, updateTemperature = false)
                 return true
             }
             "system:extra_dim_toggle" -> {
                 val prefs = context.defaultPrefs()
                 val current = prefs.getBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, false)
-                val level = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 40)
+                val level = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 40).let { if (it in 10..90) it else 40 }
                 LightspeedEyeCareEngine.applyExtraDim(context, !current, level)
                 return true
             }
@@ -103,7 +101,7 @@ object ActionDispatcherSonicDisplay {
             }
             "system:volume_hud_show" -> {
                 val svc = service ?: LightspeedAccessibilityService.instance
-                svc?.let { SonicDeckManager.show(it) }
+                svc?.let { UnifiedSystemDeckHost.show(it, SystemDeckMode.SONIC) }
                 return true
             }
             else -> return false

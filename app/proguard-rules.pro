@@ -53,6 +53,7 @@
 -keepclassmembers class * implements android.os.IInterface { *; }
 -keep class com.sbf.lightspeed.system.sonic.SonicIsolationUserService { *; }
 -keep class com.sbf.lightspeed.system.sonic.ISonicIsolationUserService** { *; }
+-keep class com.sbf.lightspeed.system.sonic.NativeSonicDsp { *; }
 -keep class ai.onnxruntime.** { *; }
 -dontwarn ai.onnxruntime.**
 

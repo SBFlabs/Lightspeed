@@ -27,33 +27,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.settings.DeckSlider
+import com.sbf.lightspeed.settings.DeckSubChip
 import com.sbf.lightspeed.settings.DeckSwitch
 import com.sbf.lightspeed.settings.DeckThemeSnapshot
 import com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine
 import com.sbf.lightspeed.system.sonic.SonicChannelRouter
 import com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun SonicDialogueSection(
     context: Context,
-    snapshot: DeckThemeSnapshot
+    snapshot: DeckThemeSnapshot,
+    voiceOn: Boolean,
+    onVoiceOnChanged: (Boolean) -> Unit,
+    showSaveDialog: Boolean,
+    onShowSaveDialogChange: (Boolean) -> Unit
 ) {
-    var isEnabled by remember { mutableStateOf(SonicVoiceIsolationEngine.isEnabled) }
     var activePreset by remember { mutableStateOf(SonicVoiceIsolationEngine.activePreset) }
     var vocalBoost by remember { mutableFloatStateOf(SonicVoiceIsolationEngine.vocalBoostLevel) }
     var bgMuffle by remember { mutableFloatStateOf(SonicVoiceIsolationEngine.backgroundMuffleLevel) }
     var customProfiles by remember { mutableStateOf(SonicVoiceIsolationEngine.getCustomProfiles(context)) }
-    var showSaveDialog by remember { mutableStateOf(false) }
     var profileNameInput by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val tint = Color(snapshot.effectiveTintArgb.toInt())
 
+    LaunchedEffect(voiceOn) {
+        vocalBoost = SonicVoiceIsolationEngine.vocalBoostLevel
+        bgMuffle = SonicVoiceIsolationEngine.backgroundMuffleLevel
+        activePreset = SonicVoiceIsolationEngine.activePreset
+    }
+
     LaunchedEffect(showSaveDialog) {
-        SonicDeckManager.updateWindowFocusable(showSaveDialog)
         if (showSaveDialog) {
             kotlinx.coroutines.delay(100)
             focusRequester.requestFocus()
@@ -73,12 +84,12 @@ internal fun SonicDialogueSection(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(Icons.Default.GraphicEq, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
-                Text("VOICE ISOLATION & BACKGROUND MUFFLER", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(lsString(R.string.sdeck_voice_hdr), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
             DeckSwitch(
-                checked = isEnabled,
+                checked = voiceOn,
                 onCheckedChange = {
-                    isEnabled = it
+                    onVoiceOnChanged(it)
                     SonicVoiceIsolationEngine.setEnabled(context, it)
                     vocalBoost = SonicVoiceIsolationEngine.vocalBoostLevel
                     bgMuffle = SonicVoiceIsolationEngine.backgroundMuffleLevel
@@ -119,7 +130,7 @@ internal fun SonicDialogueSection(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "MAX",
+                    text = lsString(R.string.sdeck_preset_max),
                     fontSize = 9.sp,
                     fontWeight = if (isMaxSelected) FontWeight.Bold else FontWeight.Medium,
                     color = if (isMaxSelected) Color.White else Color.White.copy(alpha = 0.75f)
@@ -147,7 +158,7 @@ internal fun SonicDialogueSection(
                         },
                         onLongClick = {
                             profileNameInput = ""
-                            showSaveDialog = true
+                            onShowSaveDialogChange(true)
                         }
                     )
                     .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -158,13 +169,13 @@ internal fun SonicDialogueSection(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "Custom",
+                        text = lsString(R.string.sdeck_preset_custom),
                         fontSize = 9.sp,
                         fontWeight = if (isCustomSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isCustomSelected) Color.White else Color.White.copy(alpha = 0.75f)
                     )
                     Text(
-                        text = "HOLD ↗",
+                        text = lsString(R.string.sdeck_hold_tag),
                         fontSize = 6.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (isCustomSelected) tint else Color.White.copy(alpha = 0.45f)
@@ -228,7 +239,7 @@ internal fun SonicDialogueSection(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        "SAVE PROFILE (${(vocalBoost * 100).toInt()}% Boost / ${(bgMuffle * 100).toInt()}% Muffle)",
+                        lsString(R.string.sdeck_save_prof_fmt, (vocalBoost * 100).toInt(), (bgMuffle * 100).toInt()),
                         color = tint,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold
@@ -236,7 +247,7 @@ internal fun SonicDialogueSection(
                     OutlinedTextField(
                         value = profileNameInput,
                         onValueChange = { if (it.length <= 16) profileNameInput = it },
-                        placeholder = { Text("Profile Name (max 16 chars)", fontSize = 9.sp, color = Color.White.copy(alpha = 0.4f)) },
+                        placeholder = { Text(lsString(R.string.sdeck_prof_hint), fontSize = 9.sp, color = Color.White.copy(alpha = 0.4f)) },
                         singleLine = true,
                         supportingText = {
                             Text(
@@ -264,28 +275,31 @@ internal fun SonicDialogueSection(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextButton(
-                            onClick = { showSaveDialog = false },
+                            onClick = { onShowSaveDialogChange(false) },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                         ) {
-                            Text("Cancel", color = Color.White.copy(alpha = 0.7f), fontSize = 9.sp)
+                            Text(lsString(R.string.cc_dlg_cancel), color = Color.White.copy(alpha = 0.7f), fontSize = 9.sp)
                         }
                         Spacer(Modifier.width(6.dp))
                         Button(
                             onClick = {
                                 val cleanName = profileNameInput.trim()
-                                if (cleanName.isNotBlank() && cleanName != "MAX" && cleanName != "Custom") {
+                                if (cleanName.isNotBlank() &&
+                                    !cleanName.equals(SonicVoiceIsolationEngine.PRESET_MAX, ignoreCase = true) &&
+                                    !cleanName.equals(SonicVoiceIsolationEngine.PRESET_CUSTOM, ignoreCase = true)
+                                ) {
                                     SonicVoiceIsolationEngine.saveCustomProfile(context, cleanName, vocalBoost, bgMuffle)
                                     customProfiles = SonicVoiceIsolationEngine.getCustomProfiles(context)
                                     activePreset = cleanName
                                     SonicVoiceIsolationEngine.applyPreset(context, cleanName)
-                                    showSaveDialog = false
+                                    onShowSaveDialogChange(false)
                                 }
                             },
                             enabled = profileNameInput.trim().isNotBlank(),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = tint)
                         ) {
-                            Text("Save", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text(lsString(R.string.cc_common_save), color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -293,7 +307,7 @@ internal fun SonicDialogueSection(
         }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Vocal Boost: +${(vocalBoost * 8.0f).toInt()}dB", color = Color.White.copy(alpha = 0.85f), fontSize = 10.sp)
+            Text(lsString(R.string.sdeck_vocal_boost_db, (vocalBoost * 8.0f).toInt()), color = Color.White.copy(alpha = 0.85f), fontSize = 10.sp)
             Text("${(vocalBoost * 100).toInt()}%", color = tint, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
         DeckSlider(
@@ -307,7 +321,7 @@ internal fun SonicDialogueSection(
         )
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Film Background Muffle", color = Color.White.copy(alpha = 0.85f), fontSize = 10.sp)
+            Text(lsString(R.string.sdeck_bg_muffle), color = Color.White.copy(alpha = 0.85f), fontSize = 10.sp)
             Text("${(bgMuffle * 100).toInt()}%", color = tint, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
         DeckSlider(
@@ -326,9 +340,14 @@ internal fun SonicDialogueSection(
 internal fun SonicMasterStreamsSection(
     context: Context,
     audioManager: AudioManager,
-    snapshot: DeckThemeSnapshot
+    snapshot: DeckThemeSnapshot,
+    mediaVol: Float,
+    onMediaVolChange: (Float) -> Unit,
+    onAllMuted: () -> Unit,
+    onAppsReset: () -> Unit
 ) {
     val tint = Color(snapshot.effectiveTintArgb.toInt())
+    val coroutineScope = rememberCoroutineScope()
 
     fun readStreamRatio(stream: Int, fallbackMax: Float): Float {
         val max = try { audioManager.getStreamMaxVolume(stream).toFloat().coerceAtLeast(1f) } catch (_: Exception) { fallbackMax }
@@ -336,7 +355,6 @@ internal fun SonicMasterStreamsSection(
         return (cur / max).coerceIn(0f, 1f)
     }
 
-    var mediaVol by remember { mutableFloatStateOf(readStreamRatio(AudioManager.STREAM_MUSIC, 15f)) }
     var ringVol by remember { mutableFloatStateOf(readStreamRatio(AudioManager.STREAM_RING, 7f)) }
     var notifVol by remember { mutableFloatStateOf(readStreamRatio(AudioManager.STREAM_NOTIFICATION, 7f)) }
     var alarmVol by remember { mutableFloatStateOf(readStreamRatio(AudioManager.STREAM_ALARM, 7f)) }
@@ -345,18 +363,18 @@ internal fun SonicMasterStreamsSection(
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Icon(Icons.Default.Tune, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
-            Text("MASTER & SYSTEM STREAMS", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(lsString(R.string.sdeck_streams_hdr), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
 
-        StreamSliderRow("Media", mediaVol, tint) {
-            mediaVol = it
+        StreamSliderRow(lsString(R.string.sdeck_stream_media), mediaVol, tint) {
+            onMediaVolChange(it)
             try {
                 val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (it * max).toInt(), 0)
             } catch (_: Exception) {}
         }
 
-        StreamSliderRow("Ringtone", ringVol, tint) {
+        StreamSliderRow(lsString(R.string.sdeck_stream_ring), ringVol, tint) {
             ringVol = it
             try {
                 val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_RING)
@@ -364,7 +382,7 @@ internal fun SonicMasterStreamsSection(
             } catch (_: Exception) {}
         }
 
-        StreamSliderRow("Notifications", notifVol, tint) {
+        StreamSliderRow(lsString(R.string.sdeck_stream_notif), notifVol, tint) {
             notifVol = it
             try {
                 val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION)
@@ -372,7 +390,7 @@ internal fun SonicMasterStreamsSection(
             } catch (_: Exception) {}
         }
 
-        StreamSliderRow("Alarms", alarmVol, tint) {
+        StreamSliderRow(lsString(R.string.sdeck_stream_alarm), alarmVol, tint) {
             alarmVol = it
             try {
                 val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
@@ -380,7 +398,7 @@ internal fun SonicMasterStreamsSection(
             } catch (_: Exception) {}
         }
 
-        StreamSliderRow("Voice Call & Assistant", callVol, tint) {
+        StreamSliderRow(lsString(R.string.sdeck_stream_call), callVol, tint) {
             callVol = it
             try {
                 val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
@@ -390,28 +408,30 @@ internal fun SonicMasterStreamsSection(
 
         Spacer(modifier = Modifier.height(2.dp))
 
-        // Stream Control Buttons
+        // Stream Control Actions
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Button(
+            DeckSubChip(
+                text = lsString(R.string.sdeck_btn_mute_all),
+                isActive = false,
+                snapshot = snapshot,
+                modifier = Modifier.weight(1f),
                 onClick = {
-                    try { audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0) } catch (_: Exception) {}
+                    onAllMuted()
                     try { audioManager.setStreamVolume(AudioManager.STREAM_RING, 0, 0) } catch (_: Exception) {}
                     try { audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0) } catch (_: Exception) {}
-                    mediaVol = 0f
                     ringVol = 0f
                     notifVol = 0f
-                },
-                modifier = Modifier.weight(1f).height(30.dp),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = LightspeedTokens.StatusDanger.copy(alpha = 0.22f))
-            ) {
-                Text("MUTE ALL", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
+                }
+            )
 
-            Button(
+            DeckSubChip(
+                text = lsString(R.string.sdeck_btn_dnd),
+                isActive = false,
+                snapshot = snapshot,
+                modifier = Modifier.weight(1f),
                 onClick = {
                     val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
                     if (nm != null && nm.isNotificationPolicyAccessGranted) {
@@ -422,29 +442,26 @@ internal fun SonicMasterStreamsSection(
                         }
                         nm.setInterruptionFilter(newFilter)
                     } else if (ElevatedTaskCloser.isShizukuActive) {
-                        val curZen = ElevatedTaskCloser.execShizuku("settings get global zen_mode")?.readTextOrKill()?.trim() ?: "0"
-                        val newZen = if (curZen == "0") "1" else "0"
-                        ElevatedTaskCloser.execShizuku("settings put global zen_mode $newZen")
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val curZen = ElevatedTaskCloser.execShizuku("settings get global zen_mode")?.readTextOrKill()?.trim() ?: "0"
+                            val newZen = if (curZen == "0") "1" else "0"
+                            ElevatedTaskCloser.execShizuku("settings put global zen_mode $newZen")
+                        }
                     }
-                },
-                modifier = Modifier.weight(1f).height(30.dp),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = LightspeedTokens.StatusBlue.copy(alpha = 0.22f))
-            ) {
-                Text("DND TOGGLE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
+                }
+            )
 
-            Button(
+            DeckSubChip(
+                text = lsString(R.string.sdeck_btn_reset_apps),
+                isActive = false,
+                snapshot = snapshot,
+                modifier = Modifier.weight(1f),
                 onClick = {
-                    SonicAppVolumeEngine.resetAllAppVolumesToUnity()
+                    SonicAppVolumeEngine.clearAllCustomAppVolumes(context)
                     SonicChannelRouter.resetAllRouting(context)
-                },
-                modifier = Modifier.weight(1f).height(30.dp),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = LightspeedTokens.StatusOk.copy(alpha = 0.22f))
-            ) {
-                Text("RESET APPS", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
+                    onAppsReset()
+                }
+            )
         }
     }
 }

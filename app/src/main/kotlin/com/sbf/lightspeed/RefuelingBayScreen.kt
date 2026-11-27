@@ -50,8 +50,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.lsString
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.*
@@ -191,8 +193,11 @@ fun RefuelingBayScreen(
         else -> LightspeedStyle.colors.accentInfo.copy(alpha = 0.85f) // Normal (<38°C)
     }
 
+    val localeState = LightspeedLocaleEngine.state
+    val activeLocale = localeState.primary.locale
+
     // Ticking Clock, Sleep Shield Timer & Burn-In Drift Loop
-    LaunchedEffect(clockFormat, dateFormat, showAlarm) {
+    LaunchedEffect(clockFormat, dateFormat, showAlarm, activeLocale) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
 
         var driftCounter = 0
@@ -200,31 +205,31 @@ fun RefuelingBayScreen(
         while (true) {
             val now = Date()
             currentTimeStr = when (clockFormat) {
-                "24h" -> SimpleDateFormat("HH:mm", Locale.getDefault()).format(now)
-                "12h_sec" -> SimpleDateFormat("hh:mm:ss a", Locale.getDefault()).format(now)
-                "12h" -> SimpleDateFormat("hh:mm a", Locale.getDefault()).format(now)
+                "24h" -> SimpleDateFormat("HH:mm", activeLocale).format(now)
+                "12h_sec" -> SimpleDateFormat("hh:mm:ss a", activeLocale).format(now)
+                "12h" -> SimpleDateFormat("hh:mm a", activeLocale).format(now)
                 "orbital", "stardate" -> {
                     val cal = java.util.Calendar.getInstance()
                     val year = cal.get(java.util.Calendar.YEAR)
                     val day = cal.get(java.util.Calendar.DAY_OF_YEAR)
                     String.format(Locale.US, "SD %04d.%03d · %02d:%02d", year, day, cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
                 }
-                else -> SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(now)
+                else -> SimpleDateFormat("HH:mm:ss", activeLocale).format(now)
             }
 
             currentDateStr = when (dateFormat) {
-                "short" -> SimpleDateFormat("EEE, MMM d, yyyy", Locale.getDefault()).format(now)
-                "iso" -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now)
-                "compact" -> SimpleDateFormat("MMM d", Locale.getDefault()).format(now)
+                "short" -> SimpleDateFormat("EEE, MMM d, yyyy", activeLocale).format(now)
+                "iso" -> SimpleDateFormat("yyyy-MM-dd", activeLocale).format(now)
+                "compact" -> SimpleDateFormat("MMM d", activeLocale).format(now)
                 "hidden" -> ""
-                else -> SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(now)
+                else -> SimpleDateFormat("EEEE, MMMM d", activeLocale).format(now)
             }
 
             if (showAlarm) {
                 val nextAlarm = alarmManager?.nextAlarmClock
                 if (nextAlarm != null) {
-                    val alarmTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(nextAlarm.triggerTime))
-                    nextAlarmStr = "Next Alarm: $alarmTime"
+                    val alarmTime = SimpleDateFormat("hh:mm a", activeLocale).format(Date(nextAlarm.triggerTime))
+                    nextAlarmStr = lsString(R.string.ref_bay_next_alarm, alarmTime)
                 } else {
                     nextAlarmStr = null
                 }

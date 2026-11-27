@@ -502,10 +502,6 @@ object LightspeedOrientationManager {
         onForegroundPackageChanged(context, currentPackage, isLocked)
     }
 
-    fun killConflictingTools(context: Context) {
-        // No-op: previously force-stopped conflicting rotation tools on start
-    }
-
     fun evaluateGravityCascade(context: Context, isLocked: Boolean? = null, foregroundPackage: String? = null) {
         val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
         if (pm?.isInteractive == false) {

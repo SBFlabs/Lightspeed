@@ -75,6 +75,9 @@ internal class DeepSpaceRenderer(
     internal val tempShiftR0Rect = RectF()
     internal val tempShiftR1Rect = RectF()
     internal val hangarTipRect = RectF()
+    internal val previewGetKeyRect = RectF()
+    internal val previewEnterKeyRect = RectF()
+    internal val previewExitRect = RectF()
 
     // Modular sub-renderers
     val cosmicRenderer = LightspeedCosmicBackdropRenderer()
@@ -145,13 +148,16 @@ internal class DeepSpaceRenderer(
         val unitScale = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getUnitScale(context)
         val customDiameterScale = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getCustomDiameterScale(context)
         val baseOuterRadiusPx = 135f * unitScale * customDiameterScale
+        val isPreviewBarActive = !com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context) &&
+            com.sbf.lightspeed.system.CockpitGimbalConfigCache.previewFeatureLabel != null
         val layout = computeHangarLayoutMetrics(
             screenW = screenW,
             screenH = screenH,
             d = d,
             openAccordion = openAccordion,
             bottomInsetPx = state.bottomInsetPx,
-            baseOuterRadiusPx = baseOuterRadiusPx
+            baseOuterRadiusPx = baseOuterRadiusPx,
+            isPreviewBarActive = isPreviewBarActive
         )
 
         // 1. Deep Space Astrogation Hangar Void with Starfield

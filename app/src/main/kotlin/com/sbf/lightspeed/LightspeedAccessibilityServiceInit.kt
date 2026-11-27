@@ -35,12 +35,12 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
     PowerLongPressTakeover.sync(this)
     LightspeedWatchdogEngine.initSentinel(this)
     LightspeedWatchdogEngine.registerFastTriggers(this)
-    LightspeedOrientationManager.killConflictingTools(this)
     LightspeedGuardHelper.start(this)
     LightspeedBatterySentinel.init(this)
     com.sbf.lightspeed.settings.CentralCommandWarmupCoordinator.scheduleServiceWarmup(applicationContext)
 
     val initPrefs = defaultPrefs()
+    LightspeedPreferences.migrateLegacyPreferences(initPrefs)
     initPrefs.edit().putBoolean("pref_service_intentionally_stopped", false).apply()
     LightspeedGuardHelper.setPaused(this, false)
     if (initPrefs.getBoolean("key_has_unreported_crash", false)) {
@@ -114,7 +114,8 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
         overlayFlags,
         PixelFormat.TRANSLUCENT
     ).apply {
-        gravity = Gravity.TOP or Gravity.END
+        @Suppress("RtlHardcoded")
+        gravity = Gravity.TOP or Gravity.RIGHT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
@@ -141,7 +142,8 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
         overlayFlags,
         PixelFormat.TRANSLUCENT
     ).apply {
-        gravity = Gravity.TOP or Gravity.START
+        @Suppress("RtlHardcoded")
+        gravity = Gravity.TOP or Gravity.LEFT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }

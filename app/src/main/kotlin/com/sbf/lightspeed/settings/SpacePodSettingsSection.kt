@@ -34,6 +34,8 @@ import androidx.core.graphics.drawable.IconCompat
 import com.sbf.lightspeed.CockpitGearPickerActivity
 import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.ActionDispatcher
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
+import com.sbf.lightspeed.system.LightspeedShortcutManager
 import com.sbf.lightspeed.system.SpacePodGestureDispatcher
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
@@ -63,7 +65,7 @@ fun SpacePodSettingsSection(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 (1..4).forEach { index ->
                     DeckButton(
-                        text = "POD $index",
+                        text = lsString(R.string.pod_btn_upper_fmt, index),
                         onClick = { selectedPod = index },
                         isActive = selectedPod == index,
                         modifier = Modifier.weight(1f)
@@ -74,16 +76,16 @@ fun SpacePodSettingsSection(
             Spacer(Modifier.height(10.dp))
 
             // Action Mapping Rows for Selected Pod
-            SpacePodActionRow(context, prefs, selectedPod, SpacePodGestureDispatcher.GESTURE_CLICK, "Single Click")
-            SpacePodActionRow(context, prefs, selectedPod, SpacePodGestureDispatcher.GESTURE_DOUBLE_CLICK, "Double Click")
-            SpacePodActionRow(context, prefs, selectedPod, SpacePodGestureDispatcher.GESTURE_HOLD, "Hold")
-            SpacePodActionRow(context, prefs, selectedPod, SpacePodGestureDispatcher.GESTURE_CLICK_THEN_HOLD, "Click & Hold")
+            SpacePodActionRow(context, prefs, selectedPod, SpacePodGestureDispatcher.GESTURE_CLICK, lsString(R.string.pod_g_click))
+            SpacePodActionRow(context, prefs, selectedPod, SpacePodGestureDispatcher.GESTURE_DOUBLE_CLICK, lsString(R.string.pod_g_dclick))
+            SpacePodActionRow(context, prefs, selectedPod, SpacePodGestureDispatcher.GESTURE_HOLD, lsString(R.string.pod_g_hold))
+            SpacePodActionRow(context, prefs, selectedPod, SpacePodGestureDispatcher.GESTURE_CLICK_THEN_HOLD, lsString(R.string.pod_g_click_hold))
 
             Spacer(Modifier.height(10.dp))
 
             // Pin to Home Screen Action
             DeckButton(
-                text = "Pin Pod $selectedPod to Home Screen",
+                text = lsString(R.string.pod_pin_btn_fmt, selectedPod),
                 icon = Icons.Default.Launch,
                 onClick = { pinPodToHomeScreen(context, selectedPod) },
                 modifier = Modifier.fillMaxWidth()
@@ -103,13 +105,19 @@ private fun SpacePodActionRow(
     val lsColors = LightspeedStyle.colors
     val prefKey = SpacePodGestureDispatcher.getActionPrefKey(podIndex, gesture)
     var currentToken by remember(podIndex, gesture) {
-        mutableStateOf(SpacePodGestureDispatcher.getActionToken(context, podIndex, gesture) ?: "none")
+        mutableStateOf(SpacePodGestureDispatcher.getActionToken(context, podIndex, gesture))
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            currentToken = SpacePodGestureDispatcher.getActionToken(context, podIndex, gesture) ?: "none"
+            currentToken = SpacePodGestureDispatcher.getActionToken(context, podIndex, gesture)
         }
+    }
+
+    val displayAction = remember(currentToken, LightspeedLocaleEngine.state) {
+        val tok = currentToken
+        if (tok.isNullOrBlank()) lsString(R.string.pod_tap_to_cfg)
+        else LightspeedShortcutManager.resolveLabel(context, tok)
     }
 
     Surface(
@@ -120,7 +128,7 @@ private fun SpacePodActionRow(
             .clickable {
                 val intent = Intent(context, CockpitGearPickerActivity::class.java).apply {
                     putExtra("SINGLE_SELECT_PREF_KEY", prefKey)
-                    putExtra("SINGLE_SELECT_TITLE", "Pod $podIndex $title")
+                    putExtra("SINGLE_SELECT_TITLE", lsString(R.string.pod_picker_title_fmt, podIndex, title))
                     putExtra("IS_HOLD_GESTURE", gesture == SpacePodGestureDispatcher.GESTURE_HOLD || gesture == SpacePodGestureDispatcher.GESTURE_CLICK_THEN_HOLD)
                 }
                 launcher.launch(intent)
@@ -134,7 +142,7 @@ private fun SpacePodActionRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(title, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
-            Text(currentToken.take(24), fontSize = 10.sp, color = lsColors.accentInfo)
+            Text(displayAction.take(24), fontSize = 10.sp, color = lsColors.accentInfo)
         }
     }
 }
@@ -147,13 +155,13 @@ private fun pinPodToHomeScreen(context: Context, podIndex: Int) {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val shortcutInfo = ShortcutInfoCompat.Builder(context, "space_pod_$podIndex")
-            .setShortLabel("Pod $podIndex")
-            .setLongLabel("Tactical Space Pod $podIndex")
+            .setShortLabel(lsString(R.string.pod_num_fmt, podIndex))
+            .setLongLabel(lsString(R.string.pod_shortcut_long_fmt, podIndex))
             .setIcon(IconCompat.createWithResource(context, R.drawable.ic_qs_flight_armed))
             .setIntent(intent)
             .build()
         ShortcutManagerCompat.requestPinShortcut(context, shortcutInfo, null)
-        Toast.makeText(context, "Requested Home Screen Pin for Pod $podIndex", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, lsString(R.string.pod_req_home_pin_fmt, podIndex), Toast.LENGTH_SHORT).show()
     } else {
         Toast.makeText(context, lsString(R.string.pod_pin_unsup), Toast.LENGTH_SHORT).show()
     }

@@ -266,6 +266,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         set(value) {
             if (field != value) {
                 val wasIdle = (field == CruiseLayer.HIDDEN || field == CruiseLayer.NEUTRAL)
+                if (field == CruiseLayer.COCKPIT_HANGAR && value != CruiseLayer.COCKPIT_HANGAR) {
+                    com.sbf.lightspeed.system.CockpitGimbalConfigCache.clearPreview()
+                }
                 field = value
                 allTipsOverlaySurface = null
                 allTipsState.reset()

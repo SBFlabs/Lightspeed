@@ -27,8 +27,8 @@ android {
         applicationId = "com.sbf.lightspeed"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "1.4.3"
+        versionCode = 17
+        versionName = "1.5.0"
         manifestPlaceholders["appName"] = "Lightspeed"
     }
 

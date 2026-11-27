@@ -614,7 +614,7 @@ fun AmoledWarningDialog(
         },
         text = {
             Text(
-                "Prolonged static display on OLED panels can cause permanent subpixel degradation (burn-in). Keep auto-sleep enabled?",
+                lsString(R.string.cc_dlg_amoled_msg),
                 fontSize = 13.sp,
                 color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.9f),
                 lineHeight = 18.sp

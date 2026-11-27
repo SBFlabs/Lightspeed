@@ -47,7 +47,9 @@ import com.sbf.lightspeed.settings.blockScrimPassthrough
 import com.sbf.lightspeed.settings.deckGlassSurface
 import com.sbf.lightspeed.settings.overlayScrimDismiss
 import com.sbf.lightspeed.settings.resolveOpticalColors
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.system.LightspeedOverlayDismissCoordinator
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 import kotlin.math.roundToInt
@@ -211,6 +213,7 @@ private fun RefuelingWidgetTuneBody(
     val deckTheme = LocalDeckTheme.current
     val accent = deckTheme.resolveOpticalColors().readableTintColor
     val haptics = LocalHapticFeedback.current
+    val isArabic = LightspeedLocaleEngine.state.primary == LightspeedLocaleEngine.AppLanguage.AR
     val defaultW = if (isLandscape) 5 else 10
     val defaultH = 4
 
@@ -233,12 +236,12 @@ private fun RefuelingWidgetTuneBody(
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "TUNE WIDGET",
+                        text = lsString(R.string.ref_tune_title),
                         color = accent,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Black,
                         fontFamily = FontFamily.Monospace,
-                        letterSpacing = 1.1.sp
+                        letterSpacing = if (isArabic) 0.sp else 1.1.sp
                     )
                     Text(
                         text = widgetLabel,
@@ -263,7 +266,7 @@ private fun RefuelingWidgetTuneBody(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "Tap value to calibrate · Long-press value to reset · Drag up or down for precision",
+            text = lsString(R.string.ref_tune_hint),
             color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.8f),
             fontSize = 9.5.sp,
             fontFamily = FontFamily.Monospace
@@ -283,7 +286,7 @@ private fun RefuelingWidgetTuneBody(
         ) {
             if (isGridMode) {
                 DeckSignatureSliderRow(
-                    title = "WIDTH",
+                    title = lsString(R.string.ref_tune_width),
                     sliderKey = "refueling_tune_width",
                     value = spec.wCells.toFloat(),
                     valueDisplayText = "${spec.wCells}/10",
@@ -297,7 +300,7 @@ private fun RefuelingWidgetTuneBody(
                     onResetToDefault = { onSpecChange(spec.copy(wCells = defaultW)) }
                 )
                 DeckSignatureSliderRow(
-                    title = "HEIGHT",
+                    title = lsString(R.string.ref_tune_height),
                     sliderKey = "refueling_tune_height",
                     value = spec.hCells.toFloat(),
                     valueDisplayText = "${spec.hCells}/10",
@@ -311,7 +314,7 @@ private fun RefuelingWidgetTuneBody(
                     onResetToDefault = { onSpecChange(spec.copy(hCells = defaultH)) }
                 )
                 DeckSignatureSliderRow(
-                    title = "GRID GAP",
+                    title = lsString(R.string.ref_tune_grid_gap),
                     sliderKey = "refueling_tune_gap",
                     value = gridGapDp.toFloat(),
                     valueDisplayText = "${gridGapDp}dp",
@@ -327,7 +330,7 @@ private fun RefuelingWidgetTuneBody(
             }
 
             DeckSignatureSliderRow(
-                title = "OPACITY",
+                title = lsString(R.string.ref_tune_opacity),
                 sliderKey = "refueling_tune_opacity",
                 value = spec.opacity.toFloat(),
                 valueDisplayText = "${spec.opacity}%",
@@ -341,13 +344,14 @@ private fun RefuelingWidgetTuneBody(
                 onResetToDefault = { onSpecChange(spec.copy(opacity = RefuelingGridConstants.OPACITY_MAX)) }
             )
 
+            val autoLabel = lsString(R.string.ref_tune_auto)
             DeckSignatureSliderRow(
-                title = "CORNER RADIUS",
+                title = lsString(R.string.ref_tune_corner_radius),
                 sliderKey = "refueling_tune_corner_radius",
                 value = spec.cornerRadiusDp.toFloat(),
-                valueDisplayText = if (spec.cornerRadiusDp < 0) "AUTO" else "${spec.cornerRadiusDp}dp",
-                currentValueForDialog = if (spec.cornerRadiusDp < 0) "AUTO" else "${spec.cornerRadiusDp}dp",
-                defaultValueDisplay = "AUTO (-1)",
+                valueDisplayText = if (spec.cornerRadiusDp < 0) autoLabel else "${spec.cornerRadiusDp}dp",
+                currentValueForDialog = if (spec.cornerRadiusDp < 0) autoLabel else "${spec.cornerRadiusDp}dp",
+                defaultValueDisplay = "$autoLabel (-1)",
                 valueRange = -1f..RefuelingGridConstants.MAX_RADIUS_DP.toFloat(),
                 steps = 17,
                 precisionStep = 1f,
@@ -361,7 +365,7 @@ private fun RefuelingWidgetTuneBody(
                     )
                 },
                 onParseTypedValue = { raw ->
-                    if (raw.trim().equals("auto", ignoreCase = true)) -1f
+                    if (raw.trim().equals("auto", ignoreCase = true) || raw.trim() == autoLabel) -1f
                     else raw.filter { it.isDigit() || it == '-' }.toIntOrNull()?.toFloat()
                 },
                 onResetToDefault = {
@@ -370,15 +374,16 @@ private fun RefuelingWidgetTuneBody(
             )
 
             val padRows = listOf(
-                Triple("PAD LEFT", spec.padLeftDp) { v: Int -> spec.copy(padLeftDp = v) },
-                Triple("PAD TOP", spec.padTopDp) { v: Int -> spec.copy(padTopDp = v) },
-                Triple("PAD RIGHT", spec.padRightDp) { v: Int -> spec.copy(padRightDp = v) },
-                Triple("PAD BOTTOM", spec.padBottomDp) { v: Int -> spec.copy(padBottomDp = v) }
+                Triple("refueling_tune_pad_left" to lsString(R.string.ref_tune_pad_left), spec.padLeftDp) { v: Int -> spec.copy(padLeftDp = v) },
+                Triple("refueling_tune_pad_top" to lsString(R.string.ref_tune_pad_top), spec.padTopDp) { v: Int -> spec.copy(padTopDp = v) },
+                Triple("refueling_tune_pad_right" to lsString(R.string.ref_tune_pad_right), spec.padRightDp) { v: Int -> spec.copy(padRightDp = v) },
+                Triple("refueling_tune_pad_bottom" to lsString(R.string.ref_tune_pad_bottom), spec.padBottomDp) { v: Int -> spec.copy(padBottomDp = v) }
             )
-            padRows.forEach { (padLabel, padVal, updateFn) ->
+            padRows.forEach { (padMeta, padVal, updateFn) ->
+                val (padKey, padLabel) = padMeta
                 DeckSignatureSliderRow(
                     title = padLabel,
-                    sliderKey = "refueling_tune_${padLabel.lowercase().replace(' ', '_')}",
+                    sliderKey = padKey,
                     value = padVal.toFloat(),
                     valueDisplayText = "${padVal}dp",
                     currentValueForDialog = "${padVal}dp",
@@ -403,7 +408,7 @@ private fun RefuelingWidgetTuneBody(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             DeckButton(
-                text = "0 PAD",
+                text = lsString(R.string.ref_tune_zero_pad),
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     onSpecChange(
@@ -413,7 +418,7 @@ private fun RefuelingWidgetTuneBody(
                 modifier = Modifier.weight(1f)
             )
             DeckButton(
-                text = "RESET",
+                text = lsString(R.string.ref_tune_reset),
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     onResetSpec()
@@ -421,7 +426,7 @@ private fun RefuelingWidgetTuneBody(
                 modifier = Modifier.weight(1f)
             )
             DeckButton(
-                text = "DONE",
+                text = lsString(R.string.ref_bay_btn_done),
                 isActive = true,
                 onClick = onDismiss,
                 modifier = Modifier.weight(1.2f)
@@ -440,31 +445,32 @@ fun RefuelingDeleteConfirmDialog(
     onConfirmDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isArabic = LightspeedLocaleEngine.state.primary == LightspeedLocaleEngine.AppLanguage.AR
     DeckDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "REMOVE WIDGET?",
+                text = lsString(R.string.ref_del_wid_title),
                 color = MaterialTheme.colorScheme.error,
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.Black,
                 fontFamily = FontFamily.Monospace,
-                letterSpacing = 1.sp
+                letterSpacing = if (isArabic) 0.sp else 1.sp
             )
         },
         text = {
             Text(
-                text = "Remove \"$widgetLabel\" from Refueling Bay?",
+                text = lsString(R.string.ref_del_wid_msg, widgetLabel),
                 color = LightspeedStyle.colors.textSecondary,
                 fontSize = 12.5.sp
             )
         },
         dismissButton = {
-            DeckButton(text = "CANCEL", onClick = onDismiss)
+            DeckButton(text = lsString(R.string.ref_del_wid_cancel), onClick = onDismiss)
         },
         confirmButton = {
             DeckButton(
-                text = "DELETE",
+                text = lsString(R.string.ref_del_wid_confirm),
                 isDestructive = true,
                 onClick = onConfirmDelete
             )

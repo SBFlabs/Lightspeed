@@ -9,10 +9,17 @@ import com.sbf.lightspeed.system.LightspeedTimeoutEngine
 import com.sbf.lightspeed.system.bot.LightspeedBotEngine
 import kotlin.math.round
 
-internal fun LightspeedCruiseOverlay.showInfinityPrompt() {
+internal fun LightspeedCruiseOverlay.showInfinityPrompt(
+    featureContext: String? = null,
+    expandKeyInput: Boolean = false
+) {
     val intent = Intent(context, CockpitDialogActivity::class.java).apply {
         action = CockpitDialogActivity.ACTION_SHOW_INFINITY
         putExtra(CockpitDialogActivity.EXTRA_SET_INDEX, activeGearSetIndex.coerceAtLeast(0))
+        if (!featureContext.isNullOrBlank()) {
+            putExtra(CockpitDialogActivity.EXTRA_FEATURE_CONTEXT, featureContext)
+        }
+        putExtra(CockpitDialogActivity.EXTRA_EXPAND_KEY_INPUT, expandKeyInput)
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
     }
     dismissOverlay()
@@ -125,6 +132,7 @@ internal fun LightspeedCruiseOverlay.resolveAndDispatchHoldGesture(zone: TouchZo
                 }
                 "system:brightness", "scrub:brightness" -> {
                     val currentBrightness = com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.getSystemBrightness(context)
+                    activeScrubBrightness = currentBrightness
                     val brightResolution = prefs.getInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
                     scrubHudTitle = "BRIGHTNESS"
                     scrubHudValue = "${(currentBrightness * 100 / 255)}%"

@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 @Composable
@@ -365,11 +367,12 @@ internal fun RefuelingSplitHostLayout(
                     .refuelingBayUnlockSwipe(context, activity, onDismiss, onUserInteraction),
                 contentAlignment = Alignment.Center
             ) {
+                val isArabic = LightspeedLocaleEngine.state.primary == LightspeedLocaleEngine.AppLanguage.AR
                 Text(
-                    text = "Double Tap to Exit · Swipe Up to Unlock",
+                    text = lsString(R.string.ref_bay_exit_unlock_hint),
                     fontSize = 11.sp,
                     color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.45f),
-                    letterSpacing = 1.sp,
+                    letterSpacing = if (isArabic) 0.sp else 1.sp,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }

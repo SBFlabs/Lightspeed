@@ -51,7 +51,11 @@ fun DeflectorUnifiedSection(
     customVectors: List<Pair<String, Pair<String, ArrowDirection>>>,
     listState: LazyListState,
     coroutineScope: CoroutineScope,
-    onMooringConfirm: (MooringConfirmData) -> Unit
+    onMooringConfirm: (MooringConfirmData) -> Unit,
+    externalSubOrder: List<String>? = null,
+    externalPinnedSection: String? = null,
+    onSubOrderChange: ((List<String>) -> Unit)? = null,
+    onPinSubSection: ((String) -> Unit)? = null
 ) {
     val lsColors = LightspeedStyle.colors
     val macroPrefix = if (isLeft) "LEFT_" else ""
@@ -88,12 +92,19 @@ fun DeflectorUnifiedSection(
         onToggle = onToggle,
         onLongToggle = onSubBlueprintToggle
     ) {
-        var unifiedSubOrderStr by remember { mutableStateOf(prefs.getString(subOrderKey, "geo,scrub,gestures")!!) }
-        var unifiedPinnedSection by remember { mutableStateOf(prefs.getString(subPinnedKey, "gestures")) }
-        val defaultUnifiedSubOrder = listOf("geo", "scrub", "gestures")
-        val currentUnifiedSubOrder = unifiedSubOrderStr.split(",").map { it.trim() }.filter { it in defaultUnifiedSubOrder }.distinct().let { list ->
-            list + (defaultUnifiedSubOrder - list.toSet())
+        var unifiedSubOrderStr by remember(subOrderKey) { mutableStateOf(prefs.getString(subOrderKey, "geo,scrub,gestures")!!) }
+        var localPinnedSection by remember(subPinnedKey) { mutableStateOf(prefs.getString(subPinnedKey, "gestures")) }
+        val defaultUnifiedSubOrder = remember { listOf("geo", "scrub", "gestures") }
+        val localUnifiedSubOrder = remember(unifiedSubOrderStr) {
+            unifiedSubOrderStr.split(",").map { it.trim() }.filter { it in defaultUnifiedSubOrder }.distinct().let { list ->
+                list + (defaultUnifiedSubOrder - list.toSet())
+            }
         }
+        val currentUnifiedSubOrder = externalSubOrder ?: localUnifiedSubOrder
+        val unifiedPinnedSection = externalPinnedSection
+            ?.takeIf { it.startsWith("${secUnifiedKey}_") }
+            ?.removePrefix("${secUnifiedKey}_")
+            ?: localPinnedSection
 
         if (subBlueprintTarget == secUnifiedKey) {
             BlueprintWireframeView(
@@ -112,6 +123,7 @@ fun DeflectorUnifiedSection(
                         mutable.add(idx - 1, item)
                         val newStr = mutable.joinToString(",")
                         unifiedSubOrderStr = newStr
+                        onSubOrderChange?.invoke(mutable)
                         prefs.edit().putString(subOrderKey, newStr).apply()
                     }
                 },
@@ -122,12 +134,14 @@ fun DeflectorUnifiedSection(
                         mutable.add(idx + 1, item)
                         val newStr = mutable.joinToString(",")
                         unifiedSubOrderStr = newStr
+                        onSubOrderChange?.invoke(mutable)
                         prefs.edit().putString(subOrderKey, newStr).apply()
                     }
                 },
                 onPinSection = { id ->
-                    unifiedPinnedSection = id
+                    localPinnedSection = id
                     prefs.edit().putString(subPinnedKey, id).apply()
+                    onPinSubSection?.invoke("${secUnifiedKey}_$id")
                 },
                 onExitBlueprint = onSubBlueprintToggle
             )

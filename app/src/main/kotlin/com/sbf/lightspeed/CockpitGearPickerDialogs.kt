@@ -175,9 +175,9 @@ fun SystemAccordionPrefsDialog(
     val lsColors = LightspeedStyle.colors
     val sysTitle = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SYSTEM_ACTIONS)
     val options = listOf(
+        Triple("collapsed", "Always Start Collapsed", "Keep all categories neatly collapsed by default"),
         Triple("remember", "Remember Last State", "Restore the exact categories you left open"),
-        Triple("expanded", "Always Start Expanded", "Expand all categories by default"),
-        Triple("collapsed", "Always Start Collapsed", "Keep all categories neatly collapsed by default")
+        Triple("expanded", "Always Start Expanded", "Expand all categories by default")
     )
 
     DeckDialog(

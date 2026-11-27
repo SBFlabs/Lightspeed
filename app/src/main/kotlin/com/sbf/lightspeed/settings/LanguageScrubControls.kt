@@ -88,7 +88,7 @@ fun LanguageBadge(
     val content = if (selected) scheme.onPrimary else accent.copy(alpha = 0.9f)
     Box(
         modifier = modifier
-            .size(width = 34.dp, height = 24.dp)
+            .size(width = 34.dp, height = 25.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(container),
         contentAlignment = Alignment.Center
@@ -96,7 +96,15 @@ fun LanguageBadge(
         if (language == null) {
             Icon(Icons.Default.Translate, contentDescription = null, tint = content, modifier = Modifier.size(15.dp))
         } else {
-            Text(text = language.badge, color = content, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            val isArabic = language == AppLanguage.AR
+            Text(
+                text = language.badge,
+                color = content,
+                fontSize = if (isArabic) 12.sp else 11.sp,
+                lineHeight = if (isArabic) 14.sp else 13.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
         }
     }
 }
@@ -214,11 +222,15 @@ fun GuidebookLanguageButton(onOpenGuidebook: () -> Unit) {
         }
 
         if (showHud) {
+            val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
             VocabularyScrubHud(activeIndex = vocabIndex, dimmed = axis == AXIS_VERTICAL)
-            // Anchored slightly to the LEFT of the icon so a right thumb never covers the labels.
+            // Anchored away from the icon edge so a thumb never covers the labels.
             LightspeedScrubPopup(
                 alignment = Alignment.TopEnd,
-                offset = IntOffset(with(density) { (-30).dp.roundToPx() }, with(density) { 46.dp.roundToPx() })
+                offset = IntOffset(
+                    with(density) { (if (isRtl) 30 else -30).dp.roundToPx() },
+                    with(density) { 46.dp.roundToPx() }
+                )
             ) {
                 LanguageDropdownHud(activeIndex = languageIndex, dimmed = axis == AXIS_HORIZONTAL)
             }
@@ -489,12 +501,15 @@ fun LanguagePickerDialog(
                         Text(
                             text = lang.label,
                             fontSize = 13.sp,
+                            lineHeight = 17.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = lsColors.textPrimary,
                             maxLines = 1
                         )
                     }
                 }
+
+                RtlLayoutToggleCard()
             }
         },
         confirmButton = {
@@ -505,6 +520,56 @@ fun LanguagePickerDialog(
             )
         }
     )
+}
+
+/**
+ * Independent RTL / Left-Handed Layout toggle decoupled from app language selection.
+ * Never flips physical edge coordinates (Left vs. Right Deflectors or touch geometry).
+ */
+@Composable
+fun RtlLayoutToggleCard(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val lsColors = LightspeedStyle.colors
+    val colorScheme = MaterialTheme.colorScheme
+    val rtlEnabled = LightspeedLocaleEngine.state.rtlLayout
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(lsColors.textPrimary.copy(alpha = 0.05f))
+            .border(0.8.dp, lsColors.borderSubtle, RoundedCornerShape(12.dp))
+            .clickable {
+                LightspeedHapticEngine.tick(context)
+                LightspeedLocaleEngine.setRtlLayout(context, !rtlEnabled)
+            }
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = lsString(R.string.ls_rtl_layout_title),
+                fontSize = 11.5.sp,
+                lineHeight = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (rtlEnabled) colorScheme.primary else lsColors.textPrimary
+            )
+            Text(
+                text = lsString(R.string.ls_rtl_layout_sub),
+                fontSize = 9.5.sp,
+                lineHeight = 13.sp,
+                color = lsColors.textSecondary
+            )
+        }
+        DeckSwitch(
+            checked = rtlEnabled,
+            onCheckedChange = { checked ->
+                LightspeedHapticEngine.tick(context)
+                LightspeedLocaleEngine.setRtlLayout(context, checked)
+            }
+        )
+    }
 }
 
 private fun vocabIndexOf(mode: LanguageMode): Int = when (mode) {

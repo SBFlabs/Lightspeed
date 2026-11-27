@@ -29,13 +29,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.sbf.lightspeed.MultiWidgetContainer
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.TacticalWidgetPickerModal
 import com.sbf.lightspeed.settings.DeckGlassCardSurface
 import com.sbf.lightspeed.settings.blockScrimPassthrough
 import com.sbf.lightspeed.settings.overlayScrimDismiss
 import com.sbf.lightspeed.settings.DeckThemeManager
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
@@ -73,6 +76,7 @@ class LightspeedHomeStackOverlayActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        LightspeedLocaleEngine.init(this)
 
         // Make window completely transparent & edge-to-edge with zero black status/nav bars
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -134,13 +138,13 @@ class LightspeedHomeStackOverlayActivity : ComponentActivity() {
                                 ) {
                                     Column {
                                         Text(
-                                            text = "TACTICAL STACK",
+                                            text = lsString(R.string.stack_modal_title),
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = lsColors.textPrimary
                                         )
                                         Text(
-                                            text = "${widgetIds.size} Active Stack Modules",
+                                            text = if (widgetIds.size == 1) lsString(R.string.stack_modal_sub_one) else lsString(R.string.stack_modal_sub_many, widgetIds.size),
                                             fontSize = 9.sp,
                                             color = lsColors.textSecondary
                                         )
@@ -148,10 +152,10 @@ class LightspeedHomeStackOverlayActivity : ComponentActivity() {
 
                                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         IconButton(onClick = { showPicker = true }) {
-                                            Icon(Icons.Default.Add, contentDescription = "Add Module", tint = lsColors.accentInfo)
+                                            Icon(Icons.Default.Add, contentDescription = lsString(R.string.stack_add_module_cd), tint = lsColors.accentInfo)
                                         }
                                         IconButton(onClick = { finish() }) {
-                                            Icon(Icons.Default.Close, contentDescription = "Close", tint = lsColors.textSecondary)
+                                            Icon(Icons.Default.Close, contentDescription = lsString(R.string.icon_br_close), tint = lsColors.textSecondary)
                                         }
                                     }
                                 }

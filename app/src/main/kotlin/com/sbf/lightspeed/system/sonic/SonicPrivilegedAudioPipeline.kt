@@ -37,15 +37,31 @@ internal class SonicPrivilegedAudioPipeline(
     private var gtcrnProcessor: GtcrnProcessor? = null
     @Volatile private var preferredOutputDevice: AudioDeviceInfo? = null
 
+    private var highFidelity = false
+    private var nativeDsp: NativeSonicDsp? = null
+    private val sampleRate get() = if (highFidelity) NativeSonicDsp.SAMPLE_RATE_48K else SAMPLE_RATE
+    private val outChannelMask get() = if (highFidelity) AudioFormat.CHANNEL_OUT_STEREO else AudioFormat.CHANNEL_OUT_MONO
+    private val inChannelMask get() = if (highFidelity) AudioFormat.CHANNEL_IN_STEREO else AudioFormat.CHANNEL_IN_MONO
+
     companion object {
         private const val SAMPLE_RATE = 16000
         private const val REMOTE_SUBMIX_SOURCE = 8
         private const val FIXED_VOLUME_TAG = "fixedVolume"
     }
 
+    /** Neural Voice Isolation 2.0: tries 48 kHz stereo + native DSP first, then falls back to legacy 16 kHz mono. */
     @Synchronized
     fun start(): Boolean {
         if (isRunning.get()) return true
+        if (NativeSonicDsp.isAvailable) {
+            if (startInternal(highFidelity = true)) return true
+            stop()
+        }
+        return startInternal(highFidelity = false)
+    }
+
+    private fun startInternal(highFidelity: Boolean): Boolean {
+        this.highFidelity = highFidelity
         return try {
             val audioManager = shellContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val myUid = Process.myUid()
@@ -89,8 +105,8 @@ internal class SonicPrivilegedAudioPipeline(
             // 2. Build 16kHz Mono Loopback AudioMix (AudioMix requires CHANNEL_OUT_* mask)
             val mixFormat = AudioFormat.Builder()
                 .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                .setSampleRate(SAMPLE_RATE)
-                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .setSampleRate(sampleRate)
+                .setChannelMask(outChannelMask)
                 .build()
 
             val audioMixClass = Class.forName("android.media.audiopolicy.AudioMix")
@@ -149,8 +165,8 @@ internal class SonicPrivilegedAudioPipeline(
             // 5. Create Low-Latency AudioTrack Output with ALLOW_CAPTURE_BY_NONE
             val outFormat = AudioFormat.Builder()
                 .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                .setSampleRate(SAMPLE_RATE)
-                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .setSampleRate(sampleRate)
+                .setChannelMask(outChannelMask)
                 .build()
 
             val outAttrsBuilder = AudioAttributes.Builder()
@@ -160,11 +176,11 @@ internal class SonicPrivilegedAudioPipeline(
                 outAttrsBuilder.setAllowedCapturePolicy(AudioAttributes.ALLOW_CAPTURE_BY_NONE)
             }
 
-            val minTrackBuffer = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT) * 2
+            val minTrackBuffer = AudioTrack.getMinBufferSize(sampleRate, outChannelMask, AudioFormat.ENCODING_PCM_16BIT) * 2
             val trackBuilder = AudioTrack.Builder()
                 .setAudioAttributes(outAttrsBuilder.build())
                 .setAudioFormat(outFormat)
-                .setBufferSizeInBytes(minTrackBuffer.coerceAtLeast(StftProcessor.HOP_SIZE * 4))
+                .setBufferSizeInBytes(minTrackBuffer.coerceAtLeast(StftProcessor.HOP_SIZE * 4 * if (highFidelity) 6 else 1))
                 .setTransferMode(AudioTrack.MODE_STREAM)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 trackBuilder.setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
@@ -181,6 +197,7 @@ internal class SonicPrivilegedAudioPipeline(
             // 6. Initialize Neural Inference Engine
             mixer.reset()
             gtcrnProcessor = GtcrnProcessor(appContext)
+            nativeDsp = if (highFidelity) NativeSonicDsp() else null
 
             // 7. Launch DSP Streaming Loop
             isRunning.set(true)
@@ -230,17 +247,17 @@ internal class SonicPrivilegedAudioPipeline(
                 addTag?.invoke(attrBuilder, FIXED_VOLUME_TAG)
 
                 val minRecBuf = AudioRecord.getMinBufferSize(
-                    SAMPLE_RATE,
-                    AudioFormat.CHANNEL_IN_MONO,
+                    sampleRate,
+                    inChannelMask,
                     AudioFormat.ENCODING_PCM_16BIT
-                ).coerceAtLeast(StftProcessor.HOP_SIZE * 4)
+                ).coerceAtLeast(StftProcessor.HOP_SIZE * 4 * if (highFidelity) 6 else 1)
 
                 val recBuilder = AudioRecord.Builder()
                     .setAudioFormat(
                         AudioFormat.Builder()
                             .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                            .setSampleRate(SAMPLE_RATE)
-                            .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(inChannelMask)
                             .build()
                     )
                     .setBufferSizeInBytes(minRecBuf)
@@ -267,7 +284,43 @@ internal class SonicPrivilegedAudioPipeline(
         return createSinkMethod?.invoke(policy, audioMix) as AudioRecord
     }
 
+    /** 48 kHz stereo loop: native analysis -> GTCRN on 16 kHz stem -> mixer -> native render (air bypass, VAD, limiter). */
+    private fun runHighFidelityLoop(record: AudioRecord, track: AudioTrack, dsp: NativeSonicDsp) {
+        val hop16 = StftProcessor.HOP_SIZE
+        val hop48 = NativeSonicDsp.HOP_SIZE_48K
+        val inputPcm = ShortArray(hop48 * 2)
+        val outputPcm = ShortArray(hop48 * 2)
+        val dry16 = FloatArray(hop16)
+        val dryDelay16 = FloatArray(hop16)
+        val spectrum = FloatArray(StftProcessor.SPECTRUM_SIZE)
+        val enhanced = FloatArray(StftProcessor.SPECTRUM_SIZE)
+        val speech16 = FloatArray(hop16)
+        val mixed16 = FloatArray(hop16)
+        val proc = gtcrnProcessor ?: return
+        dsp.reset()
+
+        while (isRunning.get()) {
+            var readOffset = 0
+            while (readOffset < inputPcm.size && isRunning.get()) {
+                val read = record.read(inputPcm, readOffset, inputPcm.size - readOffset)
+                if (read <= 0) break
+                readOffset += read
+            }
+            if (!isRunning.get() || readOffset < inputPcm.size) break
+
+            dsp.analyze(inputPcm, dry16, spectrum)
+            proc.infer(spectrum, enhanced)
+            dsp.synthesize(enhanced, speech16)
+            mixer.mixHop(dryDelay16, speech16, mixed16, hop16)
+            dry16.copyInto(dryDelay16)
+            dsp.render(mixed16, mixer.highBandAirGain(), mixer.sideResidualGain(), outputPcm)
+
+            track.write(outputPcm, 0, outputPcm.size)
+        }
+    }
+
     private fun runProcessingLoop(record: AudioRecord, track: AudioTrack) {
+        nativeDsp?.let { runHighFidelityLoop(record, track, it); return }
         val hopSize = StftProcessor.HOP_SIZE
         val inputPcm = ShortArray(hopSize)
         val inputFloat = FloatArray(hopSize)
@@ -299,29 +352,35 @@ internal class SonicPrivilegedAudioPipeline(
     @Synchronized
     fun stop() {
         isRunning.set(false)
-        try {
-            workerThread?.interrupt()
-            workerThread?.join(300)
-        } catch (_: Exception) {}
-        workerThread = null
 
+        // Stop active audio streams BEFORE joining workerThread so blocked read/write unblocks immediately
         try {
             audioRecord?.stop()
+        } catch (e: Exception) { logSwallowed("SonicPrivilegedAudioPipeline", "stop:recordStop", e) }
+
+        try {
+            audioTrack?.pause()
+            audioTrack?.flush()
+            audioTrack?.stop()
+        } catch (e: Exception) { logSwallowed("SonicPrivilegedAudioPipeline", "stop:trackStop", e) }
+
+        val wt = workerThread
+        workerThread = null
+        try {
+            wt?.interrupt()
+            wt?.join(1500)
+        } catch (_: Exception) {}
+        val workerExited = (wt == null || !wt.isAlive)
+
+        try {
             audioRecord?.release()
-        } catch (e: Exception) { logSwallowed("SonicPrivilegedAudioPipeline", "stop:record", e) }
+        } catch (e: Exception) { logSwallowed("SonicPrivilegedAudioPipeline", "stop:recordRelease", e) }
         audioRecord = null
 
         try {
-            audioTrack?.stop()
-            audioTrack?.flush()
             audioTrack?.release()
-        } catch (e: Exception) { logSwallowed("SonicPrivilegedAudioPipeline", "stop:track", e) }
+        } catch (e: Exception) { logSwallowed("SonicPrivilegedAudioPipeline", "stop:trackRelease", e) }
         audioTrack = null
-
-        try {
-            gtcrnProcessor?.close()
-        } catch (e: Exception) { logSwallowed("SonicPrivilegedAudioPipeline", "stop:gtcrn", e) }
-        gtcrnProcessor = null
 
         audioPolicy?.let { policy ->
             try {
@@ -343,10 +402,32 @@ internal class SonicPrivilegedAudioPipeline(
         }
         audioPolicy = null
 
-        try {
-            gtcrnProcessor?.close()
-        } catch (e: Exception) { logSwallowed("SonicPrivilegedAudioPipeline", "stop:gtcrn", e) }
+        val procToClose = gtcrnProcessor
         gtcrnProcessor = null
+        val dspToClose = nativeDsp
+        nativeDsp = null
+
+        val closeNativeResources = {
+            try {
+                procToClose?.close()
+            } catch (e: Exception) { logSwallowed("SonicPrivilegedAudioPipeline", "stop:gtcrn", e) }
+            try {
+                dspToClose?.close()
+            } catch (e: Exception) { logSwallowed("SonicPrivilegedAudioPipeline", "stop:nativeDsp", e) }
+        }
+
+        if (workerExited) {
+            closeNativeResources()
+        } else {
+            Thread {
+                try { wt?.join() } catch (_: Exception) {}
+                closeNativeResources()
+            }.apply {
+                isDaemon = true
+                name = "SonicNativeCleanup"
+                start()
+            }
+        }
     }
 
     fun setPreferredOutputDevice(device: AudioDeviceInfo?) {

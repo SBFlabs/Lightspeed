@@ -24,8 +24,9 @@ import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.logSwallowed
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import androidx.compose.runtime.CompositionLocalProvider
-import com.sbf.lightspeed.ui.theme.CockpitPalette
 import com.sbf.lightspeed.ui.theme.LocalDomainPalette
+import com.sbf.lightspeed.ui.theme.ThemeDomain
+import com.sbf.lightspeed.ui.theme.rememberDomainPalette
 import java.util.function.Consumer
 
 class CockpitGearPickerActivity : ComponentActivity() {
@@ -119,6 +120,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
         }
         LightspeedIconManager.temporaryPickerCache.clear()
         LightspeedShortcutManager.temporaryPickerCache.clear()
+        CentralCommandBackdropBlur.unregisterHostWindow(window)
         val setId = intent.getStringExtra("SET_ID")
         val isSingleSelect = !intent.getStringExtra("SINGLE_SELECT_PREF_KEY").isNullOrBlank()
         if (!isSingleSelect && !setId.isNullOrBlank() &&
@@ -140,6 +142,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        CentralCommandBackdropBlur.registerHostWindow(window)
         if (CentralCommandBackdropBlur.backdropBitmap == null) {
             CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
         }
@@ -164,6 +167,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
         val isSplitMode = intent.getBooleanExtra("SPLIT_MODE", false)
         val isHoldGesture = intent.getBooleanExtra("IS_HOLD_GESTURE", false) ||
                 singleSelectPrefKey?.contains("_HOLD", ignoreCase = true) == true ||
+                singleSelectPrefKey?.contains("LONG_PRESS", ignoreCase = true) == true ||
                 singleSelectPrefKey?.contains("SCRUB", ignoreCase = true) == true
 
         val setId = intent.getStringExtra("SET_ID") ?: "0"
@@ -214,7 +218,8 @@ class CockpitGearPickerActivity : ComponentActivity() {
             ) { /* Handled in ScreenContent */ }
 
             LightspeedTheme(forceDark = true) {
-                CompositionLocalProvider(LocalDomainPalette provides CockpitPalette) {
+                val cockpitPalette = rememberDomainPalette(ThemeDomain.COCKPIT)
+                CompositionLocalProvider(LocalDomainPalette provides cockpitPalette) {
                     CockpitGearPickerScreenContent(
                         activity = this@CockpitGearPickerActivity,
                         prefs = prefs,

@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedPreferences
@@ -97,59 +98,73 @@ object LightspeedDisplayWellnessResetEngine {
 
     fun setVideoOverride(context: Context, pct: Float?) {
         activeVideoOverridePct = pct
-        val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
 
         if (pct == null || pct <= 0f) {
             clearVideoOverride(context)
             return
         }
 
-        try {
-            val brightness = pct.coerceIn(0.01f, 1.0f)
-            if (videoOverrideView == null) {
-                val v = View(context).apply {
-                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                }
-                val lp = WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                    PixelFormat.TRANSLUCENT
-                ).apply {
-                    gravity = Gravity.TOP or Gravity.START
-                    screenBrightness = brightness
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        val brightness = pct.coerceIn(0.01f, 1.0f)
+        val service = (context as? LightspeedAccessibilityService) ?: LightspeedAccessibilityService.instance
+        if (service != null) {
+            val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+            if (wm != null) {
+                try {
+                    val existing = videoOverrideView
+                    if (existing != null && existing.context !== service) {
+                        val oldWm = existing.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+                        try { oldWm?.removeView(existing) } catch (_: Exception) {}
+                        videoOverrideView = null
+                        videoOverrideParams = null
                     }
-                }
-                wm.addView(v, lp)
-                videoOverrideView = v
-                videoOverrideParams = lp
-            } else {
-                videoOverrideParams?.let { lp ->
-                    lp.screenBrightness = brightness
-                    wm.updateViewLayout(videoOverrideView, lp)
+                    if (videoOverrideView == null) {
+                        val v = View(service).apply {
+                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        }
+                        val lp = WindowManager.LayoutParams(
+                            WindowManager.LayoutParams.MATCH_PARENT,
+                            WindowManager.LayoutParams.MATCH_PARENT,
+                            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                            PixelFormat.TRANSLUCENT
+                        ).apply {
+                            @Suppress("RtlHardcoded")
+                            gravity = Gravity.TOP or Gravity.LEFT
+                            screenBrightness = brightness
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                            }
+                        }
+                        wm.addView(v, lp)
+                        videoOverrideView = v
+                        videoOverrideParams = lp
+                    } else {
+                        videoOverrideParams?.let { lp ->
+                            lp.screenBrightness = brightness
+                            wm.updateViewLayout(videoOverrideView, lp)
+                        }
+                    }
+                } catch (e: Exception) {
+                    logSwallowed(TAG, "setVideoOverride", e)
                 }
             }
-
-            // Always synchronize hardware system brightness in lockstep so brightness never resets on app close or update
-            val intVal = (brightness * 255).roundToInt().coerceIn(1, 255)
-            setSystemBrightness(context, intVal)
-        } catch (e: Exception) {
-            logSwallowed(TAG, "setVideoOverride", e)
         }
+
+        // Always synchronize hardware system brightness in lockstep so brightness never resets on app close or update
+        val intVal = (brightness * 255).roundToInt().coerceIn(1, 255)
+        setSystemBrightness(context, intVal)
     }
 
     fun clearVideoOverride(context: Context) {
         activeVideoOverridePct = null
-        val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
+        val fallbackWm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
         videoOverrideView?.let { v ->
             try {
-                wm.removeView(v)
+                val wm = (v.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager) ?: fallbackWm
+                wm?.removeView(v)
             } catch (e: Exception) {
                 logSwallowed(TAG, "clearVideoOverride", e)
             }
@@ -160,7 +175,7 @@ object LightspeedDisplayWellnessResetEngine {
 
     fun resetAutoBrightness(context: Context) {
         clearVideoOverride(context)
-        LightspeedEyeCareEngine.applyExtraDim(context, false, 0)
+        LightspeedEyeCareEngine.disableExtraDimIfActive(context)
         try {
             if (Settings.System.canWrite(context)) {
                 Settings.System.putInt(

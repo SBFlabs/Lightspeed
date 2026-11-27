@@ -57,7 +57,7 @@ internal fun LightspeedCruiseOverlay.drawTuneCategoryPickerOverlay(
     textPaint.color = colors.accentColor
     val hFm = textPaint.fontMetrics
     canvas.drawText(
-        "MOVE WIDGET TO CATEGORY",
+        com.sbf.lightspeed.system.lsString(R.string.ed_tune_move_to_cat),
         tuneCategoryPickerRect.left + 12f * dp,
         tuneCategoryPickerRect.top + headerH * 0.54f - ((hFm.descent + hFm.ascent) / 2f),
         textPaint
@@ -90,7 +90,7 @@ internal fun LightspeedCruiseOverlay.drawTuneCategoryPickerOverlay(
         textPaint.color = colors.textPrimary
         tunePickerEllipsizePaint.set(textPaint)
         val fitted = TextUtils.ellipsize(
-            catNode.label.uppercase(),
+            LightspeedDataBridge.localizedCategoryLabel(catNode.id, catNode.label).uppercase(),
             tunePickerEllipsizePaint,
             (colW - 10f * dp).coerceAtLeast(20f * dp),
             TextUtils.TruncateAt.END

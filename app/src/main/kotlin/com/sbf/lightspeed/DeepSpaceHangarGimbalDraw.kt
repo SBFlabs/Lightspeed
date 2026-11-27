@@ -45,7 +45,13 @@ internal fun DeepSpaceRenderer.drawHangarGimbalAssembly(
             gearShapeRaw == LightspeedPreferences.GEAR_SHAPE_DIAMOND ||
             gearShapeRaw == LightspeedPreferences.GEAR_SHAPE_CRESCENT ||
             gearShapeRaw == LightspeedPreferences.GEAR_SHAPE_TECH
-    val gearShape = if (!isInfinityUnlocked && isRow2Shape) LightspeedPreferences.GEAR_SHAPE_CIRCLE else gearShapeRaw
+    val previewShape = com.sbf.lightspeed.system.CockpitGimbalConfigCache.previewGearShape
+    val gearShape = when {
+        isInfinityUnlocked -> gearShapeRaw
+        previewShape != null -> previewShape
+        isRow2Shape -> LightspeedPreferences.GEAR_SHAPE_CIRCLE
+        else -> gearShapeRaw
+    }
     val unitScale = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getUnitScale(context)
     val customDiameterScale = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getCustomDiameterScale(context)
     val dGimbal = unitScale * customDiameterScale * layout.landscapeGimbalFit
@@ -165,7 +171,13 @@ internal fun DeepSpaceRenderer.drawHangarGimbalAssembly(
     elementPaint.strokeWidth = if (isHangarEjectArmed) 2.4f * d else 1.8f * d
     elementPaint.color = reticleColor
 
-    val effectiveReticle = if (!isInfinityUnlocked && (reticleStyle == "cross" || reticleStyle == "diamond")) "tactical" else reticleStyle
+    val previewReticle = com.sbf.lightspeed.system.CockpitGimbalConfigCache.previewReticleStyle
+    val effectiveReticle = when {
+        isInfinityUnlocked -> reticleStyle
+        previewReticle != null -> previewReticle
+        reticleStyle == "cross" || reticleStyle == "diamond" -> "tactical"
+        else -> reticleStyle
+    }
     when (effectiveReticle) {
         "cyber" -> {
             reticleArcRect.set(reticleX - half, reticleY - half, reticleX + half, reticleY + half)

@@ -219,7 +219,7 @@ internal fun LightspeedCruiseOverlay.drawTuneCalibrationModal(
     textPaint.textSize = 7.7f * dp
     textPaint.color = colors.accentColor
     val lblFm = textPaint.fontMetrics
-    canvas.drawText("Type Value", tuneCalibTypeCardRect.left + 7f * dp, curY + 12f * dp - (lblFm.descent + lblFm.ascent) / 2f, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.scal_type_val), tuneCalibTypeCardRect.left + 7f * dp, curY + 12f * dp - (lblFm.descent + lblFm.ascent) / 2f, textPaint)
 
     // Apply check button inside Type Value tile
     val checkSize = 18f * dp
@@ -264,7 +264,7 @@ internal fun LightspeedCruiseOverlay.drawTuneCalibrationModal(
     textPaint.typeface = overlayTypeface(isBold = true)
     textPaint.textSize = 7.7f * dp
     textPaint.color = colors.textMuted
-    canvas.drawText("Factory Default", tuneCalibTile2Rect.left + 7f * dp, curY + 12f * dp - (lblFm.descent + lblFm.ascent) / 2f, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.scal_factory), tuneCalibTile2Rect.left + 7f * dp, curY + 12f * dp - (lblFm.descent + lblFm.ascent) / 2f, textPaint)
 
     val defaultDisp = spec.defaultDisplay(isLandscape, item.type)
     textPaint.typeface = overlayTypeface(isBold = true)
@@ -286,7 +286,7 @@ internal fun LightspeedCruiseOverlay.drawTuneCalibrationModal(
     textPaint.typeface = overlayTypeface(isBold = true)
     textPaint.textSize = 7.7f * dp
     textPaint.color = colors.accentColor
-    canvas.drawText("↕ Fine Gearing", tuneCalibTile3Rect.left + 6f * dp, curY + 12f * dp - (lblFm.descent + lblFm.ascent) / 2f, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.scal_fine_gear), tuneCalibTile3Rect.left + 6f * dp, curY + 12f * dp - (lblFm.descent + lblFm.ascent) / 2f, textPaint)
 
     val stepBtnW = 20f * dp
     val stepBtnH = 19f * dp
@@ -371,7 +371,7 @@ internal fun LightspeedCruiseOverlay.drawTuneCalibrationModal(
             textPaint.textSize = 9.0f * dp
             textPaint.color = colors.accentColor
             val aFm = textPaint.fontMetrics
-            canvas.drawText("RESET TO AUTO", autoRect.centerX(), autoRect.centerY() - (aFm.descent + aFm.ascent) / 2f, textPaint)
+            canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_calib_reset_auto), autoRect.centerX(), autoRect.centerY() - (aFm.descent + aFm.ascent) / 2f, textPaint)
         }
         curY += keypadH + 6f * dp
     }
@@ -392,13 +392,13 @@ internal fun LightspeedCruiseOverlay.drawTuneCalibrationModal(
     textPaint.textSize = 9.4f * dp
     textPaint.color = colors.textPrimary
     val swTitleFm = textPaint.fontMetrics
-    canvas.drawText("Tap-to-Jump on Track", contentLeft + 10f * dp, curY + 14f * dp - (swTitleFm.descent + swTitleFm.ascent) / 2f, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.scal_tap_jump), contentLeft + 10f * dp, curY + 14f * dp - (swTitleFm.descent + swTitleFm.ascent) / 2f, textPaint)
 
     textPaint.typeface = overlayTypeface(isBold = false)
     textPaint.textSize = 7.7f * dp
     textPaint.color = colors.textMuted
     val swSubFm = textPaint.fontMetrics
-    canvas.drawText("Snap thumb to tap position on rail", contentLeft + 10f * dp, curY + 26.5f * dp - (swSubFm.descent + swSubFm.ascent) / 2f, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.scal_tap_jump_sub), contentLeft + 10f * dp, curY + 26.5f * dp - (swSubFm.descent + swSubFm.ascent) / 2f, textPaint)
 
     val swW = 34f * dp
     val swH = 19f * dp
@@ -427,7 +427,7 @@ internal fun LightspeedCruiseOverlay.drawTuneCalibrationModal(
     textPaint.textSize = 9.3f * dp
     textPaint.color = Color.argb(240, 255, 195, 200)
     val rstFm = textPaint.fontMetrics
-    canvas.drawText("↻  Reset to Default ($defaultDisp)", tuneCalibResetBtnRect.centerX(), tuneCalibResetBtnRect.centerY() - (rstFm.descent + rstFm.ascent) / 2f, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_calib_reset_def_fmt, defaultDisp), tuneCalibResetBtnRect.centerX(), tuneCalibResetBtnRect.centerY() - (rstFm.descent + rstFm.ascent) / 2f, textPaint)
 
     curY += resetBtnH + 9f * dp
 
@@ -447,7 +447,7 @@ internal fun LightspeedCruiseOverlay.drawTuneCalibrationModal(
     textPaint.textSize = 9.4f * dp
     textPaint.color = colors.textPrimary
     val phFm = textPaint.fontMetrics
-    canvas.drawText("Saved Profiles (${presets.size})", tuneCalibProfBoxRect.left + 10f * dp, tuneCalibProfilesHeaderRect.centerY() - (phFm.descent + phFm.ascent) / 2f, textPaint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_calib_saved_prof_fmt, presets.size), tuneCalibProfBoxRect.left + 10f * dp, tuneCalibProfilesHeaderRect.centerY() - (phFm.descent + phFm.ascent) / 2f, textPaint)
 
     textPaint.textAlign = Paint.Align.RIGHT
     textPaint.textSize = 10.5f * dp
@@ -476,7 +476,11 @@ internal fun LightspeedCruiseOverlay.drawTuneCalibrationModal(
         textPaint.textSize = 8.4f * dp
         textPaint.color = if (alreadySaved) colors.textMuted else colors.accentColor
         val adFm = textPaint.fontMetrics
-        val addText = if (alreadySaved) "✓  Current Value '$currentDisp' Saved" else "+  Add '$currentDisp' as Profile"
+        val addText = if (alreadySaved) {
+            com.sbf.lightspeed.system.lsString(R.string.ed_calib_val_saved_fmt, currentDisp)
+        } else {
+            com.sbf.lightspeed.system.lsString(R.string.ed_calib_add_prof_fmt, currentDisp)
+        }
         canvas.drawText(addText, tuneCalibAddProfileRect.centerX(), tuneCalibAddProfileRect.centerY() - (adFm.descent + adFm.ascent) / 2f, textPaint)
 
         var rY = tuneCalibAddProfileRect.bottom + 5f * dp
@@ -484,7 +488,7 @@ internal fun LightspeedCruiseOverlay.drawTuneCalibrationModal(
             textPaint.textAlign = Paint.Align.CENTER
             textPaint.typeface = overlayTypeface(isBold = false)
             textPaint.color = colors.textMuted
-            canvas.drawText("No saved profiles yet.", tuneCalibProfBoxRect.centerX(), rY + 10f * dp, textPaint)
+            canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.scal_no_profiles), tuneCalibProfBoxRect.centerX(), rY + 10f * dp, textPaint)
         } else {
             for (preset in presets.take(maxVisibleProfiles)) {
                 if (rY + profRowH > tuneCalibProfBoxRect.bottom - 4f * dp) break
@@ -497,10 +501,10 @@ internal fun LightspeedCruiseOverlay.drawTuneCalibrationModal(
                 highlightPaint.color = Color.argb(32, mutR, mutG, mutB)
                 canvas.drawRoundRect(rowRect, 6f * dp, 6f * dp, highlightPaint)
 
-                val unitStr = if (preset.valueStr.equals("AUTO", ignoreCase = true) || preset.valueStr.endsWith(spec.unit)) {
-                    preset.valueStr
-                } else {
-                    "${preset.valueStr}${spec.unit}"
+                val unitStr = when {
+                    preset.valueStr.equals("AUTO", ignoreCase = true) -> com.sbf.lightspeed.system.lsString(R.string.ref_tune_auto)
+                    preset.valueStr.endsWith(spec.unit) -> preset.valueStr
+                    else -> "${preset.valueStr}${spec.unit}"
                 }
                 val labelText = if (!preset.label.isNullOrBlank()) "$unitStr  •  ${preset.label}" else unitStr
                 textPaint.textAlign = Paint.Align.LEFT

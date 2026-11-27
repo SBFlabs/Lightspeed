@@ -94,12 +94,18 @@ object InstalledTacticalToolsScanner {
             )
         }
 
-        // Samsung Bixby
-        if (isPackageInstalled(pm, "com.samsung.android.bixby.agent")) {
+        // Installed OEM assistant (resolved dynamically from PackageManager)
+        val bixbyPkg = "com.samsung.android.bixby.agent"
+        if (isPackageInstalled(pm, bixbyPkg)) {
+            val appLabel = try {
+                pm.getApplicationLabel(pm.getApplicationInfo(bixbyPkg, 0)).toString()
+            } catch (_: Exception) {
+                "Voice Assistant"
+            }
             tools.add(
                 TacticalToolItem(
-                    token = "app:com.samsung.android.bixby.agent",
-                    label = "Samsung Bixby",
+                    token = "app:$bixbyPkg",
+                    label = appLabel,
                     category = "AI Assistants"
                 )
             )

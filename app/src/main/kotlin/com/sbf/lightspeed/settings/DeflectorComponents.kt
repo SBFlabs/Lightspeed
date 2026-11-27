@@ -180,9 +180,9 @@ fun DeflectorMasterCard(
 
             HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val isAlwaysArmed = startupMode != "standby_by_default"
-                if (maxWidth >= 380.dp) {
+            val isAlwaysArmed = startupMode != "standby_by_default"
+            val isWideCard = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 412
+            if (isWideCard) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -263,7 +263,6 @@ fun DeflectorMasterCard(
                         }
                     }
                 }
-            }
 
             if (context != null && prefs != null) {
                 HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)

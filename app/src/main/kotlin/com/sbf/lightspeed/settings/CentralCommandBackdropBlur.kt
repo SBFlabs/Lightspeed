@@ -2,48 +2,24 @@ package com.sbf.lightspeed.settings
 
 import android.accessibilityservice.AccessibilityService
 import android.graphics.Bitmap
-import android.graphics.RenderEffect
-import android.graphics.Shader
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.Display
+import android.view.View
+import android.view.Window
 import android.view.WindowManager
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.FlightLog
 import com.sbf.lightspeed.system.logSwallowed
 import java.util.concurrent.Executors
+import kotlin.math.roundToInt
 
 /**
  * CompositionLocal providing a live lambda for the card's vertical drag offset [dragOffsetY.value].
@@ -57,14 +33,15 @@ val LocalDeckCardDragOffsetY = staticCompositionLocalOf<() -> Float> { { 0f } }
  * cross-window blur (`ro.surface_flinger.supports_background_blur` unset, such as Transsion XOS).
  *
  * When `windowManager.isCrossWindowBlurEnabled` is false on Android 12+ (API 31+), captures a
- * single native display snapshot via [LightspeedAccessibilityService.takeScreenshot] before
- * the Central Command panel animates in, and renders it through a hardware GPU [RenderEffect]
- * Gaussian blur layer reactive to [DeckThemeSnapshot.windowBlurRadiusPx].
+ * single native display snapshot via [LightspeedAccessibilityService.takeScreenshot] through
+ * [CentralCommandCaptureMaskHelper] (hide -> wait 1–2 frames -> capture -> restore) so Lightspeed
+ * never captures itself.
  */
 object CentralCommandBackdropBlur {
     private const val TAG = "CentralCommandBackdropBlur"
     private const val CAPTURE_COOLDOWN_MS = 1200L
-    private const val CAPTURE_TIMEOUT_MS = 450L
+    private const val MIN_SCREENSHOT_INTERVAL_MS = 420L
+    private const val CAPTURE_TIMEOUT_MS = 550L
 
     private val captureExecutor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -110,74 +87,81 @@ object CentralCommandBackdropBlur {
 
     @Volatile
     private var lastCaptureTimeMs: Long = 0L
+    @Volatile
+    private var lastScreenshotAttemptMs: Long = 0L
+    @Volatile
+    private var pendingRetryWindowManager: WindowManager? = null
+    @Volatile
+    private var pendingRetryHideHosts: Boolean = true
+    @Volatile
+    private var pendingRetryIgnoreZeroThemeBlur: Boolean = false
+    @Volatile
+    private var pendingRetryAfterCooldown: Boolean = false
 
     private val readyCallbacks = mutableListOf<() -> Unit>()
-    private val registeredHostWindows = java.util.WeakHashMap<android.view.Window, Boolean>()
-    private val hiddenHostWindows = mutableMapOf<android.view.Window, Float>()
 
-    fun registerHostWindow(window: android.view.Window?) {
-        if (window == null) return
-        synchronized(registeredHostWindows) {
-            registeredHostWindows[window] = true
-        }
+    private val retryRunnable = Runnable {
+        if (!pendingRetryAfterCooldown) return@Runnable
+        pendingRetryAfterCooldown = false
+        val wm = pendingRetryWindowManager
+        val hideHosts = pendingRetryHideHosts
+        val ignoreZero = pendingRetryIgnoreZeroThemeBlur
+        pendingRetryWindowManager = null
+        prepareForCentralCommand(
+            windowManager = wm,
+            forceRecapture = true,
+            settleDelayMs = 0L,
+            hideActiveHosts = hideHosts,
+            ignoreZeroThemeBlur = ignoreZero
+        )
     }
 
-    fun unregisterHostWindow(window: android.view.Window?) {
-        if (window == null) return
-        synchronized(registeredHostWindows) {
-            registeredHostWindows.remove(window)
-        }
-        hiddenHostWindows.remove(window)
+    fun registerHostWindow(window: Window?) {
+        CentralCommandCaptureMaskHelper.registerWindow(window)
     }
 
-    fun hasRegisteredHostWindows(): Boolean {
-        return synchronized(registeredHostWindows) {
-            registeredHostWindows.isNotEmpty()
-        }
+    fun unregisterHostWindow(window: Window?) {
+        CentralCommandCaptureMaskHelper.unregisterWindow(window)
     }
 
-    private fun hideRegisteredHostWindowsForCapture() {
-        val windows = synchronized(registeredHostWindows) { registeredHostWindows.keys.toList() }
-        for (w in windows) {
-            try {
-                val decor = w.decorView
-                if (decor.visibility == android.view.View.VISIBLE) {
-                    val prevDim = w.attributes?.dimAmount ?: 0f
-                    hiddenHostWindows[w] = prevDim
-                    decor.visibility = android.view.View.INVISIBLE
-                    w.setDimAmount(0f)
-                }
-            } catch (_: Exception) {}
-        }
+    fun hasRegisteredHostWindows(): Boolean = CentralCommandCaptureMaskHelper.hasRegisteredWindows()
+
+    fun registerHostOverlayView(view: View?) {
+        CentralCommandCaptureMaskHelper.registerOverlayView(view)
     }
 
-    private fun restoreHiddenHostWindows() {
-        if (hiddenHostWindows.isEmpty()) return
-        val snapshotHidden = hiddenHostWindows.entries.toList()
-        hiddenHostWindows.clear()
-        for ((w, prevDim) in snapshotHidden) {
-            try {
-                w.decorView.visibility = android.view.View.VISIBLE
-                w.setDimAmount(prevDim)
-            } catch (_: Exception) {}
-        }
-        CentralCommandActivity.activeInstance?.updateLiveWindowBlur()
+    fun unregisterHostOverlayView(view: View?) {
+        CentralCommandCaptureMaskHelper.unregisterOverlayView(view)
     }
 
     private val timeoutRunnable = Runnable {
         isCapturing = false
         isHudCapturing = false
-        restoreHiddenHostWindows()
+        CentralCommandCaptureMaskHelper.restoreAll(mainHandler)
         flushReadyCallbacks()
     }
 
     private fun flushReadyCallbacks() {
-        restoreHiddenHostWindows()
         val list = synchronized(readyCallbacks) {
             if (readyCallbacks.isEmpty()) emptyList()
             else readyCallbacks.toList().also { readyCallbacks.clear() }
         }
         list.forEach { it.invoke() }
+    }
+
+    private fun scheduleCooldownRetry(
+        windowManager: WindowManager?,
+        hideActiveHosts: Boolean,
+        ignoreZeroThemeBlur: Boolean
+    ) {
+        pendingRetryWindowManager = windowManager
+        pendingRetryHideHosts = hideActiveHosts
+        pendingRetryIgnoreZeroThemeBlur = ignoreZeroThemeBlur
+        pendingRetryAfterCooldown = true
+        mainHandler.removeCallbacks(retryRunnable)
+        val elapsed = android.os.SystemClock.uptimeMillis() - lastScreenshotAttemptMs
+        val delayMs = (MIN_SCREENSHOT_INTERVAL_MS - elapsed).coerceIn(60L, MIN_SCREENSHOT_INTERVAL_MS)
+        mainHandler.postDelayed(retryRunnable, delayMs)
     }
 
     /**
@@ -239,6 +223,7 @@ object CentralCommandBackdropBlur {
         mainHandler.postDelayed(timeoutRunnable, CAPTURE_TIMEOUT_MS)
 
         try {
+            lastScreenshotAttemptMs = android.os.SystemClock.uptimeMillis()
             service.takeScreenshot(
                 Display.DEFAULT_DISPLAY,
                 captureExecutor,
@@ -272,8 +257,7 @@ object CentralCommandBackdropBlur {
                                 val preBucket = (defaultRadiusPx / 8f).roundToInt().coerceIn(1, 20)
                                 val preBlurred = if (swSmall != null) {
                                     try {
-                                        val p1 = fastBoxBlur(swSmall, (preBucket * 2).coerceIn(2, 24))
-                                        fastBoxBlur(p1, preBucket.coerceIn(2, 16))
+                                        dualFastBoxBlur(swSmall, (preBucket * 2).coerceIn(2, 24), preBucket.coerceIn(2, 16))
                                     } catch (_: Exception) { null }
                                 } else null
                                 lastHudCaptureTimeMs = android.os.SystemClock.uptimeMillis()
@@ -326,13 +310,14 @@ object CentralCommandBackdropBlur {
 
     /**
      * Checks if native cross-window blur is active and inspects the user's BackdropBlurMode;
-     * initiates an Accessibility screenshot capture if screenshot blur is required.
+     * initiates an Accessibility screenshot capture via [CentralCommandCaptureMaskHelper] if
+     * screenshot blur is required.
      */
     fun prepareForCentralCommand(
         windowManager: WindowManager?,
         forceRecapture: Boolean = false,
-        settleDelayMs: Long = 20L,
-        hideActiveHosts: Boolean = false,
+        settleDelayMs: Long = 0L,
+        hideActiveHosts: Boolean = true,
         ignoreZeroThemeBlur: Boolean = false,
         onReady: (() -> Unit)? = null
     ) {
@@ -348,6 +333,9 @@ object CentralCommandBackdropBlur {
             (ignoreZeroThemeBlur || activeThemeBlur > 0)
 
         if (!shouldScreenshot) {
+            pendingRetryAfterCooldown = false
+            pendingRetryWindowManager = null
+            mainHandler.removeCallbacks(retryRunnable)
             backdropBitmap = null
             backdropBlurBitmap = null
             blurDownscaleRatio = 1f
@@ -356,14 +344,14 @@ object CentralCommandBackdropBlur {
             cachedCanvasBlurRadiusBucket = -1
             cachedDenseHudBlurBitmap = null
             isCapturing = false
-            restoreHiddenHostWindows()
+            CentralCommandCaptureMaskHelper.restoreAll(mainHandler)
             onReady?.invoke()
             return
         }
 
         if (service == null) {
             isCapturing = false
-            restoreHiddenHostWindows()
+            CentralCommandCaptureMaskHelper.restoreAll(mainHandler)
             onReady?.invoke()
             return
         }
@@ -378,22 +366,41 @@ object CentralCommandBackdropBlur {
         if (onReady != null) {
             synchronized(readyCallbacks) { readyCallbacks.add(onReady) }
         }
-        if (isCapturing && !forceRecapture) return
-
-        isCapturing = true
-        if (hideActiveHosts) {
-            hideRegisteredHostWindowsForCapture()
+        if (isCapturing) {
+            if (forceRecapture) {
+                scheduleCooldownRetry(windowManager, hideActiveHosts, ignoreZeroThemeBlur)
+            }
+            return
         }
-        mainHandler.removeCallbacks(timeoutRunnable)
-        mainHandler.postDelayed(timeoutRunnable, CAPTURE_TIMEOUT_MS + if (hideActiveHosts) settleDelayMs else 0L)
 
-        val captureTask = Runnable {
+        val sinceLastAttempt = now - lastScreenshotAttemptMs
+        if (forceRecapture && sinceLastAttempt < MIN_SCREENSHOT_INTERVAL_MS) {
+            scheduleCooldownRetry(windowManager, hideActiveHosts, ignoreZeroThemeBlur)
+            return
+        }
+
+        pendingRetryAfterCooldown = false
+        mainHandler.removeCallbacks(retryRunnable)
+        isCapturing = true
+        mainHandler.removeCallbacks(timeoutRunnable)
+        mainHandler.postDelayed(timeoutRunnable, CAPTURE_TIMEOUT_MS + settleDelayMs.coerceAtLeast(0L))
+
+        val effectiveHideHosts = hideActiveHosts || CentralCommandCaptureMaskHelper.hasVisibleHostSurfaces()
+        CentralCommandCaptureMaskHelper.runMaskedCapture(
+            mainHandler = mainHandler,
+            hideActiveHosts = effectiveHideHosts,
+            extraPreDelayMs = settleDelayMs.coerceAtLeast(0L),
+            frameWaitCount = 2
+        ) { restoreMask ->
             try {
                 val currentService = LightspeedAccessibilityService.instance ?: run {
+                    mainHandler.removeCallbacks(timeoutRunnable)
                     isCapturing = false
+                    restoreMask()
                     flushReadyCallbacks()
-                    return@Runnable
+                    return@runMaskedCapture
                 }
+                lastScreenshotAttemptMs = android.os.SystemClock.uptimeMillis()
                 currentService.takeScreenshot(
                     Display.DEFAULT_DISPLAY,
                     captureExecutor,
@@ -407,7 +414,6 @@ object CentralCommandBackdropBlur {
                                 if (hwBitmap != null) {
                                     val fullW = hwBitmap.width
                                     val fullH = hwBitmap.height
-                                    val imgBitmap = hwBitmap.asImageBitmap()
                                     val blurW = (fullW / 3).coerceAtLeast(1)
                                     val blurH = (fullH / 3).coerceAtLeast(1)
                                     val imgBlurScaled = try {
@@ -434,12 +440,15 @@ object CentralCommandBackdropBlur {
                                     val finalBlurImg = imgBlurScaled?.first ?: swSmall?.asImageBitmap()
                                     val finalBlurScale = imgBlurScaled?.second
                                         ?: if (swSmall != null) qW.toFloat() / fullW.coerceAtLeast(1).toFloat() else 1f
+                                    if (finalBlurImg != null) {
+                                        hwBitmap.recycle()
+                                    }
+                                    val imgBitmap = finalBlurImg ?: hwBitmap.asImageBitmap()
                                     val defaultRadiusPx = DeckThemeManager.snapshotFlow.value.windowBlurRadiusPx.toFloat()
                                     val preBucket = (defaultRadiusPx / 8f).roundToInt().coerceIn(1, 20)
                                     val preBlurred = if (swSmall != null) {
                                         try {
-                                            val p1 = fastBoxBlur(swSmall, (preBucket * 2).coerceIn(2, 24))
-                                            fastBoxBlur(p1, preBucket.coerceIn(2, 16))
+                                            dualFastBoxBlur(swSmall, (preBucket * 2).coerceIn(2, 24), preBucket.coerceIn(2, 16))
                                         } catch (_: Exception) { null }
                                     } else null
                                     lastCaptureTimeMs = android.os.SystemClock.uptimeMillis()
@@ -455,12 +464,13 @@ object CentralCommandBackdropBlur {
                                         blurDownscaleRatio = finalBlurScale
                                         backdropBitmap = imgBitmap
                                         isCapturing = false
+                                        restoreMask()
                                         flushReadyCallbacks()
                                     }
                                     FlightLog.log(
                                         "central_command",
                                         true,
-                                        "OEM cross-window blur fallback active: native 1:1 hardware buffer (${hwBitmap.width}x${hwBitmap.height})"
+                                        "OEM cross-window blur fallback active: 3x pre-downscaled buffer (${blurW}x${blurH} from ${fullW}x${fullH})"
                                     )
                                     return
                                 }
@@ -470,6 +480,7 @@ object CentralCommandBackdropBlur {
                             mainHandler.post {
                                 mainHandler.removeCallbacks(timeoutRunnable)
                                 isCapturing = false
+                                restoreMask()
                                 flushReadyCallbacks()
                             }
                         }
@@ -478,7 +489,11 @@ object CentralCommandBackdropBlur {
                             mainHandler.post {
                                 mainHandler.removeCallbacks(timeoutRunnable)
                                 isCapturing = false
+                                restoreMask()
                                 flushReadyCallbacks()
+                                if (errorCode == AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT) {
+                                    scheduleCooldownRetry(windowManager, effectiveHideHosts, ignoreZeroThemeBlur)
+                                }
                             }
                         }
                     }
@@ -487,16 +502,9 @@ object CentralCommandBackdropBlur {
                 logSwallowed(TAG, "takeScreenshot", e)
                 mainHandler.removeCallbacks(timeoutRunnable)
                 isCapturing = false
+                restoreMask()
                 flushReadyCallbacks()
             }
-        }
-
-        // Settle delay (when hiding active host windows wait 85ms so compositor draws clean behind-app pixels)
-        val effectiveDelay = if (hideActiveHosts) maxOf(settleDelayMs, 85L) else settleDelayMs
-        if (effectiveDelay <= 0L) {
-            captureTask.run()
-        } else {
-            mainHandler.postDelayed(captureTask, effectiveDelay)
         }
     }
 
@@ -504,6 +512,9 @@ object CentralCommandBackdropBlur {
      * Clears any cached backdrop bitmap immediately.
      */
     fun clearBitmap() {
+        pendingRetryAfterCooldown = false
+        pendingRetryWindowManager = null
+        mainHandler.removeCallbacks(retryRunnable)
         mainHandler.removeCallbacks(timeoutRunnable)
         backdropBitmap = null
         backdropBlurBitmap = null
@@ -513,6 +524,7 @@ object CentralCommandBackdropBlur {
         cachedCanvasBlurRadiusBucket = -1
         cachedDenseHudBlurBitmap = null
         lastCaptureTimeMs = 0L
+        CentralCommandCaptureMaskHelper.restoreAll(mainHandler)
         flushReadyCallbacks()
     }
 
@@ -522,6 +534,9 @@ object CentralCommandBackdropBlur {
      */
     fun onWindowHidden(isChangingConfigurations: Boolean) {
         if (!isChangingConfigurations) {
+            pendingRetryAfterCooldown = false
+            pendingRetryWindowManager = null
+            mainHandler.removeCallbacks(retryRunnable)
             mainHandler.removeCallbacks(timeoutRunnable)
             isCapturing = false
             backdropBitmap = null
@@ -532,6 +547,7 @@ object CentralCommandBackdropBlur {
             cachedCanvasBlurRadiusBucket = -1
             cachedDenseHudBlurBitmap = null
             lastCaptureTimeMs = 0L
+            CentralCommandCaptureMaskHelper.restoreAll(mainHandler)
             flushReadyCallbacks()
         }
     }
@@ -551,8 +567,8 @@ object CentralCommandBackdropBlur {
             val tinyW = (src.width * 2 / 5).coerceAtLeast(16)
             val tinyH = (src.height * 2 / 5).coerceAtLeast(16)
             val tiny = Bitmap.createScaledBitmap(src, tinyW, tinyH, true)
-            val pass1 = fastBoxBlur(tiny, 12)
-            val pass2 = fastBoxBlur(pass1, 10)
+            val pass2 = dualFastBoxBlur(tiny, 12, 10)
+            if (tiny !== src && tiny !== pass2) tiny.recycle()
             cachedDenseHudBlurBitmap = pass2
             pass2
         } catch (_: Exception) {
@@ -573,8 +589,7 @@ object CentralCommandBackdropBlur {
             hudCachedCanvasBlurBitmap?.let { cached ->
                 if (!cached.isRecycled && hudCachedCanvasBlurRadiusBucket == bucket) return cached
             }
-            val p1 = fastBoxBlur(hudSrc, (bucket * 2).coerceIn(2, 24))
-            val blurred = fastBoxBlur(p1, bucket.coerceIn(2, 16))
+            val blurred = dualFastBoxBlur(hudSrc, (bucket * 2).coerceIn(2, 24), bucket.coerceIn(2, 16))
             hudCachedCanvasBlurBitmap = blurred
             hudCachedCanvasBlurRadiusBucket = bucket
             return blurred
@@ -583,20 +598,26 @@ object CentralCommandBackdropBlur {
         cachedCanvasBlurBitmap?.let { cached ->
             if (!cached.isRecycled && cachedCanvasBlurRadiusBucket == bucket) return cached
         }
-        val p1 = fastBoxBlur(src, (bucket * 2).coerceIn(2, 24))
-        val blurred = fastBoxBlur(p1, bucket.coerceIn(2, 16))
+        val blurred = dualFastBoxBlur(src, (bucket * 2).coerceIn(2, 24), bucket.coerceIn(2, 16))
         cachedCanvasBlurBitmap = blurred
         cachedCanvasBlurRadiusBucket = bucket
         return blurred
     }
 
-    private fun fastBoxBlur(src: Bitmap, radius: Int): Bitmap {
+    private fun dualFastBoxBlur(src: Bitmap, radius1: Int, radius2: Int): Bitmap {
         val w = src.width
         val h = src.height
         val out = src.copy(Bitmap.Config.ARGB_8888, true)
         val pix = IntArray(w * h)
         out.getPixels(pix, 0, w, 0, 0, w, h)
         val tmp = IntArray(w * h)
+        boxBlurPass(pix, tmp, w, h, radius1)
+        boxBlurPass(pix, tmp, w, h, radius2)
+        out.setPixels(pix, 0, w, 0, 0, w, h)
+        return out
+    }
+
+    private fun boxBlurPass(pix: IntArray, tmp: IntArray, w: Int, h: Int, radius: Int) {
         val div = radius * 2 + 1
         // Horizontal pass
         for (y in 0 until h) {
@@ -639,8 +660,6 @@ object CentralCommandBackdropBlur {
                 bSum += (cAdd and 0xff) - (cSub and 0xff)
             }
         }
-        out.setPixels(pix, 0, w, 0, 0, w, h)
-        return out
     }
 
     /**
@@ -673,217 +692,3 @@ object CentralCommandBackdropBlur {
         }
     }
 }
-
-/**
- * Renders the [BackdropBlurMode.SCREENSHOT] / [BackdropBlurMode.AUTOMATIC] fallback:
- * Hardware-blurred screen snapshot strictly inside a floating card or dialog's clipped bounds,
- * aligned to window coordinates.
- */
-@Composable
-@android.annotation.SuppressLint("NewApi") // LiquidRefractionProbe.isSupported is false below API 33
-fun ClippedFallbackBlurLayer(
-    snapshot: DeckThemeSnapshot,
-    modifier: Modifier = Modifier,
-    useLightweightHudBlur: Boolean = false
-) {
-    val context = LocalView.current.context
-    val mode = BackdropBlurModeManager.getMode(context)
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
-    if (mode == BackdropBlurMode.NATIVE) return
-    if (CentralCommandActivity.isCrossWindowBlurActive && mode != BackdropBlurMode.SCREENSHOT) return
-    if (!useLightweightHudBlur && snapshot.windowBlurRadiusPx <= 0) return
-
-    val view = LocalView.current
-    val densityPx = LocalDensity.current.density
-    val dragOffsetYProvider = LocalDeckCardDragOffsetY.current
-
-    if (useLightweightHudBlur) {
-        val floorPx = maxOf(snapshot.windowBlurRadiusPx.toFloat(), 28f * densityPx)
-        val lightBmp = remember(CentralCommandBackdropBlur.backdropBitmap, floorPx) {
-            CentralCommandBackdropBlur.getBlurredCanvasBitmap(floorPx)?.asImageBitmap()
-        } ?: CentralCommandBackdropBlur.backdropBlurBitmap
-            ?: CentralCommandBackdropBlur.backdropBitmap
-            ?: return
-        val fullW = CentralCommandBackdropBlur.capturedDisplayWidthPx.takeIf { it > 0 }?.toFloat()
-            ?: lightBmp.width.toFloat().coerceAtLeast(1f)
-        val fullH = CentralCommandBackdropBlur.capturedDisplayHeightPx.takeIf { it > 0 }?.toFloat()
-            ?: lightBmp.height.toFloat().coerceAtLeast(1f)
-        val lightScaleX = lightBmp.width.toFloat() / fullW
-        val lightScaleY = lightBmp.height.toFloat() / fullH
-        val screenLocation = remember { IntArray(2) }
-        var basePosX by remember { mutableIntStateOf(Int.MIN_VALUE) }
-        var basePosY by remember { mutableIntStateOf(Int.MIN_VALUE) }
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-                .onSizeChanged {
-                    basePosX = Int.MIN_VALUE
-                    basePosY = Int.MIN_VALUE
-                }
-                .onGloballyPositioned { coords ->
-                    view.getLocationOnScreen(screenLocation)
-                    val posInWindow = coords.positionInWindow()
-                    val currentDrag = dragOffsetYProvider().roundToInt()
-                    val newX = screenLocation[0] + posInWindow.x.roundToInt()
-                    val newY = screenLocation[1] + posInWindow.y.roundToInt() - currentDrag
-                    if (basePosX != newX) basePosX = newX
-                    if (basePosY != newY) basePosY = newY
-                }
-                .drawWithContent {
-                    if (basePosX == Int.MIN_VALUE || basePosY == Int.MIN_VALUE) return@drawWithContent
-                    val currentDrag = dragOffsetYProvider().roundToInt()
-                    val screenX = basePosX
-                    val screenY = basePosY + currentDrag
-                    val srcX = (screenX * lightScaleX).roundToInt().coerceIn(0, (lightBmp.width - 1).coerceAtLeast(0))
-                    val srcY = (screenY * lightScaleY).roundToInt().coerceIn(0, (lightBmp.height - 1).coerceAtLeast(0))
-                    val srcW = (size.width * lightScaleX).roundToInt().coerceIn(1, (lightBmp.width - srcX).coerceAtLeast(1))
-                    val srcH = (size.height * lightScaleY).roundToInt().coerceIn(1, (lightBmp.height - srcY).coerceAtLeast(1))
-                    drawImage(
-                        image = lightBmp,
-                        srcOffset = IntOffset(srcX, srcY),
-                        srcSize = IntSize(srcW, srcH),
-                        dstOffset = IntOffset.Zero,
-                        dstSize = IntSize(size.width.roundToInt().coerceAtLeast(1), size.height.roundToInt().coerceAtLeast(1)),
-                        filterQuality = FilterQuality.Medium
-                    )
-                }
-        )
-        return
-    }
-
-    val bitmap = CentralCommandBackdropBlur.backdropBlurBitmap
-        ?: CentralCommandBackdropBlur.backdropBitmap
-        ?: return
-    val downscale = if (bitmap === CentralCommandBackdropBlur.backdropBlurBitmap) {
-        CentralCommandBackdropBlur.blurDownscaleRatio
-    } else 1f
-    if (snapshot.styleId == DeckStylePresets.PRISM.styleId && LiquidRefractionProbe.isSupported) {
-        val fullBitmap = CentralCommandBackdropBlur.backdropBitmap ?: bitmap
-        LiquidRefractionLayer(bitmap = fullBitmap, snapshot = snapshot, modifier = modifier)
-        return
-    }
-    val blurRadiusPx = snapshot.windowBlurRadiusPx
-    if (blurRadiusPx <= 0) return
-
-    val screenLocation = remember { IntArray(2) }
-    var basePosX by remember { mutableIntStateOf(Int.MIN_VALUE) }
-    var basePosY by remember { mutableIntStateOf(Int.MIN_VALUE) }
-
-    val effectiveRadius = (blurRadiusPx * 0.70f * downscale).coerceIn(3f, 32f)
-    val primaryBlurEffect = remember(effectiveRadius) {
-        RenderEffect.createBlurEffect(
-            effectiveRadius,
-            effectiveRadius,
-            Shader.TileMode.CLAMP
-        ).asComposeRenderEffect()
-    }
-
-    val endBlurEffect = if (snapshot.isProgressive) {
-        val endRadius = (snapshot.progressiveEndBlurPx * 0.80f * downscale).coerceIn(effectiveRadius + 2f, 40f)
-        remember(endRadius) {
-            RenderEffect.createBlurEffect(
-                endRadius,
-                endRadius,
-                Shader.TileMode.CLAMP
-            ).asComposeRenderEffect()
-        }
-    } else null
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .onSizeChanged {
-                basePosX = Int.MIN_VALUE
-                basePosY = Int.MIN_VALUE
-            }
-            .onGloballyPositioned { coords ->
-                view.getLocationOnScreen(screenLocation)
-                val posInWindow = coords.positionInWindow()
-                val currentDrag = dragOffsetYProvider().roundToInt()
-                val newX = screenLocation[0] + posInWindow.x.roundToInt()
-                val newY = screenLocation[1] + posInWindow.y.roundToInt() - currentDrag
-                if (basePosX != newX) basePosX = newX
-                if (basePosY != newY) basePosY = newY
-            }
-    ) {
-        // Primary Frosted Blur Pass: synchronous draw-time frame-0 drag alignment on scaled texture
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    this.renderEffect = primaryBlurEffect
-                }
-                .drawWithContent {
-                    if (basePosX == Int.MIN_VALUE || basePosY == Int.MIN_VALUE) return@drawWithContent
-                    val currentDrag = dragOffsetYProvider().roundToInt()
-                    val screenX = basePosX
-                    val screenY = basePosY + currentDrag
-
-                    val srcX = (screenX * downscale).roundToInt().coerceIn(0, (bitmap.width - 1).coerceAtLeast(0))
-                    val srcY = (screenY * downscale).roundToInt().coerceIn(0, (bitmap.height - 1).coerceAtLeast(0))
-                    val srcW = (size.width * downscale).roundToInt().coerceIn(1, (bitmap.width - srcX).coerceAtLeast(1))
-                    val srcH = (size.height * downscale).roundToInt().coerceIn(1, (bitmap.height - srcY).coerceAtLeast(1))
-
-                    drawImage(
-                        image = bitmap,
-                        srcOffset = IntOffset(srcX, srcY),
-                        srcSize = IntSize(srcW, srcH),
-                        dstOffset = IntOffset.Zero,
-                        dstSize = IntSize(size.width.roundToInt().coerceAtLeast(1), size.height.roundToInt().coerceAtLeast(1)),
-                        filterQuality = FilterQuality.Medium
-                    )
-                }
-        )
-
-        // Progressive depth second pass (top clearer -> bottom deeper blur) for Glass Lava & Progressive
-        if (snapshot.isProgressive && endBlurEffect != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        compositingStrategy = CompositingStrategy.Offscreen
-                    }
-                    .drawWithContent {
-                        drawContent()
-                        drawRect(
-                            brush = Brush.verticalGradient(
-                                0.0f to Color.Transparent,
-                                0.35f to Color.Black.copy(alpha = 0.45f),
-                                1.0f to Color.Black
-                            ),
-                            blendMode = BlendMode.DstIn
-                        )
-                    }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            this.renderEffect = endBlurEffect
-                        }
-                        .drawWithContent {
-                            if (basePosX == Int.MIN_VALUE || basePosY == Int.MIN_VALUE) return@drawWithContent
-                            val currentDrag = dragOffsetYProvider().roundToInt()
-                            val screenX = basePosX
-                            val screenY = basePosY + currentDrag
-
-                            val srcX = (screenX * downscale).roundToInt().coerceIn(0, (bitmap.width - 1).coerceAtLeast(0))
-                            val srcY = (screenY * downscale).roundToInt().coerceIn(0, (bitmap.height - 1).coerceAtLeast(0))
-                            val srcW = (size.width * downscale).roundToInt().coerceIn(1, (bitmap.width - srcX).coerceAtLeast(1))
-                            val srcH = (size.height * downscale).roundToInt().coerceIn(1, (bitmap.height - srcY).coerceAtLeast(1))
-
-                            drawImage(
-                                image = bitmap,
-                                srcOffset = IntOffset(srcX, srcY),
-                                srcSize = IntSize(srcW, srcH),
-                                dstOffset = IntOffset.Zero,
-                                dstSize = IntSize(size.width.roundToInt().coerceAtLeast(1), size.height.roundToInt().coerceAtLeast(1)),
-                                filterQuality = FilterQuality.Medium
-                            )
-                        }
-                )
-            }
-        }
-    }
-}
-

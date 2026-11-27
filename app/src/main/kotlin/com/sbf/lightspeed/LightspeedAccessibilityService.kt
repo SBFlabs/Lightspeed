@@ -173,8 +173,12 @@ class LightspeedAccessibilityService : AccessibilityService() {
             updateBottomSensorTouchOverlayFromPrefs(prefs)
             bottomSensorTouchOverlayView?.postInvalidate()
         }
-        if (key != null && (key.startsWith("pref_notch_") || key.startsWith("pref_telemetry_"))) {
+        if (key != null && key.startsWith("pref_notch_")) {
             notchOverlayView?.postInvalidate()
+        }
+        if (key != null && key.startsWith("pref_telemetry_")) {
+            notchOverlayView?.postInvalidate()
+            com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay.refreshState(this)
         }
         if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_top") || key.startsWith("pref_section_center") || key.startsWith("pref_section_bottom"))) {
             updateSidebarOverlayFromPrefs(prefs)
@@ -182,11 +186,13 @@ class LightspeedAccessibilityService : AccessibilityService() {
         if (key != null && (key.startsWith("pref_sidebar_left_") || key.startsWith("pref_section_left_") || key.startsWith("pref_macro_action_LEFT_"))) {
             updateLeftWingOverlayFromPrefs(prefs)
         }
+        if (key == LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW ||
+            key == LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW) {
+            updateOverlaysVisibility()
+        }
         if (key == LightspeedPreferences.KEY_MASTER_FLIGHT_ARMED ||
             key == LightspeedPreferences.KEY_DEFLECTOR_LEFT_ENABLED ||
-            key == LightspeedPreferences.KEY_DEFLECTOR_RIGHT_ENABLED ||
-            key == LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW ||
-            key == LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW) {
+            key == LightspeedPreferences.KEY_DEFLECTOR_RIGHT_ENABLED) {
             updateOverlaysVisibility()
             LightspeedFlightNotificationManager.update(this)
         }
@@ -210,6 +216,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         handleDisplayOrientationChange()
         resyncOverlayMetrics()
         com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.reload(this)
+        com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay.onConfigurationChanged(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -229,6 +236,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     }
 
     fun reloadPreferences() {
+        LightspeedLocaleEngine.init(this)
         val prefs = defaultPrefs()
         updateStatusBarOverlayFromPrefs(prefs)
         updateSensorTouchOverlayFromPrefs(prefs)
@@ -247,6 +255,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         LightspeedOrientationManager.evaluateGravityCascade(this)
         updateOverlaysVisibility()
         LightspeedFlightNotificationManager.update(this)
+        com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay.refreshState(this)
     }
 
     fun reopenCockpitHangar(setIndex: Int = -1) {
@@ -352,12 +361,13 @@ class LightspeedAccessibilityService : AccessibilityService() {
         return super.onUnbind(intent)
     }
 
+    internal fun collectVisibleOverlayViews(): List<View> = listOfNotNull(
+        overlayView?.takeIf { it.currentLayer != CruiseLayer.HIDDEN },
+        mediaScrubberOverlayView
+    ).filter { it.isAttachedToWindow && it.visibility == View.VISIBLE }
+
     override fun onDestroy() {
         super.onDestroy()
-        if (instanceRef?.get() === this) {
-            instanceRef?.clear()
-            instanceRef = null
-        }
         try {
             val enabledServices = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: ""
             val expectedLong = ComponentName(this, LightspeedAccessibilityService::class.java).flattenToString()
@@ -383,15 +393,21 @@ class LightspeedAccessibilityService : AccessibilityService() {
             LightspeedWatchdogEngine.unregisterFastTriggers(this)
             SonicDeckManager.dismiss(this)
             VistaDeckManager.dismiss(this)
-            com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine.resetAllAppVolumesToUnity()
+            com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine.stopMonitoring(this)
             com.sbf.lightspeed.system.sonic.SonicChannelRouter.unregisterPolicy()
             com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine.teardown(this)
             com.sbf.lightspeed.system.display.LightspeedConsciousAirlockOverlay.dismiss()
+            com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay.detachOverlay()
             LightspeedSpacePodOverlay.hide()
             CallStateTracker.unregister(this)
             teardown()
         } catch (e: Exception) {
             Log.e(TAG, "Exception during service onDestroy: ${e.message}", e)
+        } finally {
+            if (instanceRef?.get() === this) {
+                instanceRef?.clear()
+                instanceRef = null
+            }
         }
     }
 }

@@ -57,7 +57,7 @@ internal val tuneValueBoxLongPressRunnable = Runnable {
 
     pendingValueBoxLongTriggered = true
     spec.applyAutoOrReset(item, overlay.width > overlay.height)
-    tuneStatusText = "RESET ${spec.label} -> DEFAULT"
+    tuneStatusText = com.sbf.lightspeed.system.lsString(R.string.ed_tune_status_reset, spec.label)
     tuneStatusUntilMs = SystemClock.uptimeMillis() + 1200L
     overlay.triggerHardwareHaptic(32, 130)
     overlay.applyLiveHudTuneItemChanges(catId, item)
@@ -212,7 +212,7 @@ internal fun LightspeedCruiseOverlay.drawHudTuneModal(
     textPaint.textSize = 11.5f * dp * ts
     textPaint.color = if (activeStatus != null) themeAccent else colors.textPrimary
     val fm = textPaint.fontMetrics
-    val rawHeaderText = activeStatus ?: "TUNE · ${hudWidgetDisplayName(item.type, short = true)}"
+    val rawHeaderText = activeStatus ?: com.sbf.lightspeed.system.lsString(R.string.ed_tune_hdr_fmt, hudWidgetDisplayName(item.type, short = true))
     val maxTitleW = (tuneMoveUpBtnRect.left - 8f * dp) - (left + 14f * dp)
     val headerText = if (maxTitleW > 12f * dp) {
         tuneHeaderEllipsizePaint.set(textPaint)
@@ -438,10 +438,19 @@ internal fun LightspeedCruiseOverlay.drawHudTuneModal(
         canvas.drawRoundRect(tuneTempUnitPillRect, 7f * dp, 7f * dp, highlightPaint)
         textPaint.textAlign = Paint.Align.CENTER
         textPaint.typeface = overlayTypeface(isBold = true)
-        textPaint.textSize = 10.0f * dp * ts
+        var tSize = 10.0f * dp * ts
+        textPaint.textSize = tSize
         textPaint.color = colors.textPrimary
+        val tempTxt = com.sbf.lightspeed.system.lsString(
+            if (isF) R.string.ed_tune_temp_f else R.string.ed_tune_temp_c
+        )
+        val maxTempW = (tuneTempUnitPillRect.width() - 10f * dp).coerceAtLeast(24f * dp)
+        while (textPaint.measureText(tempTxt) > maxTempW && tSize > 6.5f * dp) {
+            tSize -= 0.4f * dp
+            textPaint.textSize = tSize
+        }
         val tFm = textPaint.fontMetrics
-        canvas.drawText("TEMPERATURE UNIT: ${if (isF) "FAHRENHEIT (°F)" else "CELSIUS (°C)"} (TAP TO SWITCH)", tuneTempUnitPillRect.centerX(), tuneTempUnitPillRect.centerY() - ((tFm.descent + tFm.ascent) / 2f), textPaint)
+        canvas.drawText(tempTxt, tuneTempUnitPillRect.centerX(), tuneTempUnitPillRect.centerY() - ((tFm.descent + tFm.ascent) / 2f), textPaint)
         curY += extraRowH
     } else if (isScreenTime) {
         val activeWkMode = LightspeedCruiseHudPods.getWeekCycleMode(context)
@@ -516,9 +525,9 @@ internal fun LightspeedCruiseOverlay.drawHudTuneModal(
     canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_tune_scope).ifBlank { "VISIBILITY SCOPE" }, left + 14f * dp, scopeLabelY, textPaint)
 
     val scopeOptions = listOf(
-        CategoryHudManager.SCOPE_CRUISE to "CATEGORY CRUISE",
-        CategoryHudManager.SCOPE_GRID to "APP GRID",
-        CategoryHudManager.SCOPE_BOTH to "BOTH"
+        CategoryHudManager.SCOPE_CRUISE to com.sbf.lightspeed.system.lsString(R.string.ed_scope_cruise),
+        CategoryHudManager.SCOPE_GRID to com.sbf.lightspeed.system.lsString(R.string.ed_scope_grid),
+        CategoryHudManager.SCOPE_BOTH to com.sbf.lightspeed.system.lsString(R.string.ed_scope_both)
     )
     val pillY = scopeLabelY + 5f * dp
     val pillH = 22f * dp

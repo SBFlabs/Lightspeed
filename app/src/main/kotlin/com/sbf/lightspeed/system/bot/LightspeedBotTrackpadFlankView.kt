@@ -291,7 +291,10 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
         }
 
         val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-        val effectivePassThrough = passThrough || isInjectingPassThrough || LightspeedBotTrackpadOverlay.isPlaybackPassThroughActive
+        val effectivePassThrough = passThrough ||
+            isInjectingPassThrough ||
+            LightspeedBotTrackpadOverlay.isPlaybackPassThroughActive ||
+            (!isDeployed && com.sbf.lightspeed.touch.LightspeedEdgeArbiter.isDeflectorHandlingEdge(context, isLeft))
         val finalFlags = if (effectivePassThrough) (baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) else baseFlags
 
         return WindowManager.LayoutParams(
@@ -299,7 +302,8 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
             finalFlags,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.TOP or (if (isLeft) Gravity.START else Gravity.END)
+            @Suppress("RtlHardcoded")
+            gravity = Gravity.TOP or (if (isLeft) Gravity.LEFT else Gravity.RIGHT)
             x = 0; y = yPos
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
@@ -381,8 +385,20 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
         mainHandler.postDelayed(lingerRunnable, ms)
     }
 
+    internal fun handleArbiterTouchEvent(event: MotionEvent): Boolean {
+        val loc = IntArray(2)
+        getLocationOnScreen(loc)
+        val localX = (event.rawX - loc[0]).coerceIn(0f, width.toFloat().coerceAtLeast(1f))
+        val localY = (event.rawY - loc[1]).coerceIn(0f, height.toFloat().coerceAtLeast(1f))
+        return processTrackpadTouch(event, localX, localY)
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        return processTrackpadTouch(event, event.x, event.y)
+    }
+
+    private fun processTrackpadTouch(event: MotionEvent, localX: Float, localY: Float): Boolean {
         // Ignore synthetic injected touch events (from cursor tap/swipe/loop or Shizuku IInputManager)
         // or events while suspended/editing/recording/playing back so trackpad never traps touches.
         if (isInjectingPassThrough ||
@@ -424,7 +440,7 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
                     deployedOnThisTouch = false
                     refreshHasStepsFlags()
                     hoveredArm = LightspeedBotTrackpadDraw.hitTestArm(
-                        event.x, event.y, armCount, isLeft, centerY, radiusPx, deployProgress, wF, density, armReachPx, orientation
+                        localX, localY, armCount, isLeft, centerY, radiusPx, deployProgress, wF, density, armReachPx, orientation
                     )
                     if (hoveredArm != null) {
                         if (pendingTapArm == hoveredArm && (now - pendingTapUptime) <= 550L) {
@@ -479,7 +495,7 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
                             val accel = 1f + (speed / (30f * density)).coerceIn(0f, 2.5f)
                             cursorX = (cursorX + (dx * accel * sensitivity)).coerceIn(0f, screenW)
                             cursorY = (cursorY + (dy * accel * sensitivity)).coerceIn(0f, screenH)
-                            thumbX = event.x.coerceIn(0f, wF); thumbY = event.y.coerceIn(0f, height.toFloat())
+                            thumbX = localX.coerceIn(0f, wF); thumbY = localY.coerceIn(0f, height.toFloat())
                             if (isStreamingShizukuDrag) {
                                 dispatchStreamedMove(cursorX, cursorY)
                             }
@@ -507,7 +523,7 @@ internal class TrackpadFlankView(context: Context, val isLeft: Boolean) : View(c
                         val totalMove = hypot((event.rawX - downRawX).toDouble(), (event.rawY - downRawY).toDouble()).toFloat()
                         val holdDuration = now - touchDownUptime
                         val arm = hoveredArm ?: LightspeedBotTrackpadDraw.hitTestArm(
-                            event.x, event.y, armCount, isLeft, centerY, radiusPx, deployProgress, wF, density, armReachPx, orientation
+                            localX, localY, armCount, isLeft, centerY, radiusPx, deployProgress, wF, density, armReachPx, orientation
                         )
                         if (arm != null && totalMove <= (22f * density)) {
                             if (isSecondPressEdit) {

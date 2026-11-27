@@ -11,6 +11,9 @@ import android.os.BatteryManager
 import android.os.PowerManager
 import androidx.core.content.ContextCompat
 
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
+
 /**
  * Helper to generate high-contrast tactical system deck tile icons and telemetry badges (< 120 lines).
  */
@@ -72,9 +75,9 @@ object LightspeedStackTileHelper {
         return try {
             val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
             val isImmune = pm?.isIgnoringBatteryOptimizations(context.packageName) == true
-            if (isImmune) "100% UNRESTRICTED" else "OPTIMIZED"
+            if (isImmune) lsString(R.string.stack_imm_unrestricted) else lsString(R.string.stack_imm_optimized)
         } catch (_: Exception) {
-            "ACTIVE"
+            lsString(R.string.ed_pack_active)
         }
     }
 }

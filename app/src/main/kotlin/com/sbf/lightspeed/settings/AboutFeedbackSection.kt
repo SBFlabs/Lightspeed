@@ -10,13 +10,13 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Analytics
@@ -24,52 +24,42 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.DistributionVerifier
+import com.sbf.lightspeed.system.LightspeedInfinityManager
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.NightlyFeatures
 import com.sbf.lightspeed.system.SignatureStatus
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
-// ---- User-visible strings (kept together so a later language step can extract them) ----
-private const val TEXT_SECTION_TITLE = "About & Feedback"
-private const val TEXT_BUTTON_BUG = "Report a bug"
-private const val TEXT_BUTTON_LANGUAGE = "Language issue"
-private const val TEXT_HINT = "Opens a pre-filled page in your browser. Nothing is sent until you submit it there."
-private const val TEXT_COMMUNITIES_NOTE =
-    "Use XDA Forums for discussions & setup tips.\nGitHub Issues handles bugs, feature feedback, language requests & Q&A."
-private const val TEXT_SUPPORT_PAYMENT_NOTE =
-    "Buy Me a Coffee ($1.99 Lightspeed ∞) supports Google Pay."
+// ---- Constants kept together ----
 private const val TEXT_NO_BROWSER = "No browser found; link copied"
 private const val TEXT_UNKNOWN = "unknown"
 private const val TEXT_BUTTON_SHARE = "Share Lightspeed"
-private const val TEXT_BUTTON_COFFEE = "Coffee"
-private const val TEXT_BUTTON_INFINITY = "Lightspeed Infinity"
 private const val TEXT_SHARE_CHOOSER = "Share Lightspeed"
 private const val TEXT_SHARE_BODY =
     "Lightspeed: a free, ad-free, 100% offline meta-launcher & Android control layer. https://github.com/SBFlabs/Lightspeed"
-private const val COFFEE_PAGE_URL = "https://buymeacoffee.com/sbflabs"
-private const val COFFEE_SHOP_URL = "https://buymeacoffee.com/sbflabs/e/579114"
+private const val COFFEE_SHOP_URL = INFINITY_SHOP_URL
 private const val XDA_THREAD_URL = "https://xdaforums.com/t/4804419/"
 
 private const val ISSUE_TITLE_BUG = "[Bug] "
@@ -90,10 +80,14 @@ private val ISSUE_PATH_SEGMENTS = listOf("SBFlabs", "Lightspeed", "issues", "new
 @Composable
 fun AboutFeedbackSection(context: Context) {
     var isExpanded by rememberSaveable { mutableStateOf(false) }
+    var showCreditsDialog by rememberSaveable { mutableStateOf(false) }
     var showLicensesDialog by rememberSaveable { mutableStateOf(false) }
     var showBuildVerificationDialog by rememberSaveable { mutableStateOf(false) }
     var showInfinityDialog by rememberSaveable { mutableStateOf(false) }
+    var expandKeyOnOpen by rememberSaveable { mutableStateOf(false) }
     var showSupporterReminderPreview by rememberSaveable { mutableStateOf(false) }
+    val unlockEpoch by LightspeedInfinityManager.unlockEpoch.collectAsState()
+    val isInfinityUnlocked = remember(unlockEpoch) { LightspeedInfinityManager.isUnlocked(context) }
     val buildVerification by produceState(
         initialValue = DistributionVerifier.getCachedVerification(),
         key1 = isExpanded || showBuildVerificationDialog
@@ -122,7 +116,14 @@ fun AboutFeedbackSection(context: Context) {
     }
 
     if (showInfinityDialog) {
-        LightspeedInfinityDialog(context = context, onDismiss = { showInfinityDialog = false })
+        LightspeedInfinityDialog(
+            context = context,
+            onDismiss = {
+                showInfinityDialog = false
+                expandKeyOnOpen = false
+            },
+            initialExpandKeyInput = expandKeyOnOpen
+        )
     }
 
     if (showBuildVerificationDialog && buildVerification != null) {
@@ -133,67 +134,12 @@ fun AboutFeedbackSection(context: Context) {
         )
     }
 
+    if (showCreditsDialog) {
+        LightspeedCreditsDialog(onDismiss = { showCreditsDialog = false })
+    }
+
     if (showLicensesDialog) {
-        DeckDialog(
-            onDismissRequest = { showLicensesDialog = false },
-            title = { Text(lsString(R.string.about_oss_title), fontWeight = FontWeight.Bold) },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = 360.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Shizuku API & Provider\nCopyright (c) 2021 RikkaW\nLicensed under the MIT License.",
-                        fontSize = 11.5.sp,
-                        color = lsColors.textPrimary
-                    )
-                    Text(
-                        text = "AndroidX & Jetpack Compose\nCopyright (c) The Android Open Source Project\nLicensed under the Apache License, Version 2.0.",
-                        fontSize = 11.5.sp,
-                        color = lsColors.textPrimary
-                    )
-                    Text(
-                        text = "SplitAudio\nCopyright (c) 2026 splitaudio contributors\nLicensed under the MIT License.",
-                        fontSize = 11.5.sp,
-                        color = lsColors.textPrimary
-                    )
-                    Text(
-                        text = "android-realtime-voice-isolation & GTCRN\nCopyright (c) 2026 André Naumann / Copyright (c) 2024 Rong Xiaobin\nLicensed under the MIT License.",
-                        fontSize = 11.5.sp,
-                        color = lsColors.textPrimary
-                    )
-                    Text(
-                        text = "Microsoft ONNX Runtime\nCopyright (c) Microsoft Corporation\nLicensed under the MIT License.",
-                        fontSize = 11.5.sp,
-                        color = lsColors.textPrimary
-                    )
-                    Text(
-                        text = "Volume++\nCopyright (c) 2026 noel-digital-fan\nLicensed under the MIT License.",
-                        fontSize = 11.5.sp,
-                        color = lsColors.textPrimary
-                    )
-                    Text(
-                        text = "Essentials\nCopyright (c) 2025 Sameera Sandakelum\nLicensed under the MIT License.",
-                        fontSize = 11.5.sp,
-                        color = lsColors.textPrimary
-                    )
-                    Text(
-                        text = "MIT License Notice:\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
-                        fontSize = 10.sp,
-                        color = lsColors.textSecondary
-                    )
-                }
-            },
-            confirmButton = {
-                DeckButton(
-                    text = "Close",
-                    onClick = { showLicensesDialog = false },
-                    isActive = true
-                )
-            }
-        )
+        OpenSourceLicensesDialog(onDismiss = { showLicensesDialog = false })
     }
 
     CompactAccordionSection(
@@ -271,11 +217,238 @@ fun AboutFeedbackSection(context: Context) {
                     }
                 }
             }
+            // Founder's License Card near the top of About & Feedback with direct 1-tap Shop CTA
+            if (isInfinityUnlocked) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(lsColors.accentGold.copy(alpha = 0.12f))
+                        .border(0.9.dp, lsColors.accentGold.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                        .clickable {
+                            expandKeyOnOpen = false
+                            showInfinityDialog = true
+                        }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = lsString(R.string.about_founder_title_unlocked),
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = lsColors.accentGold
+                        )
+                        Text(
+                            text = lsString(R.string.about_founder_sub_unlocked),
+                            fontSize = 10.5.sp,
+                            lineHeight = 14.sp,
+                            color = lsColors.textPrimary.copy(alpha = 0.82f)
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = lsColors.accentGold,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(LightspeedTokens.StatusGoldAlt.copy(alpha = 0.10f))
+                        .border(1.dp, LightspeedTokens.StatusGoldAlt.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
+                        RocketFuelCanIcon(modifier = Modifier.size(16.dp), tint = lsColors.accentGold)
+                        Text(
+                            text = lsString(R.string.about_founder_title_locked),
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = lsColors.accentGold
+                        )
+                    }
+                    Text(
+                        text = lsString(R.string.about_founder_sub_locked),
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        color = lsColors.textPrimary.copy(alpha = 0.85f)
+                    )
+                    Text(
+                        text = lsString(R.string.about_founder_pricing_note),
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp,
+                        color = lsColors.textSecondary.copy(alpha = 0.7f)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                openExternalUrl(context, COFFEE_SHOP_URL)
+                                expandKeyOnOpen = true
+                                showInfinityDialog = true
+                            },
+                            modifier = Modifier.weight(1.35f),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = LightspeedTokens.StatusGoldAlt)
+                        ) {
+                            RocketFuelCanIcon(modifier = Modifier.size(14.dp), tint = Color.Black)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = lsString(R.string.inf_btn_get_key_short),
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.Black,
+                                maxLines = 1
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                expandKeyOnOpen = true
+                                showInfinityDialog = true
+                            },
+                            modifier = Modifier.weight(0.95f),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = lsColors.accentGold.copy(alpha = 0.12f),
+                                contentColor = lsColors.accentGold
+                            ),
+                            border = BorderStroke(0.9.dp, lsColors.accentGold.copy(alpha = 0.50f))
+                        ) {
+                            Text(
+                                text = lsString(R.string.inf_btn_enter_key_short),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Feedback & Diagnostics Tiles (unified 10.dp tonal rectangles)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AboutActionTile(
+                    text = lsString(R.string.about_btn_bug),
+                    icon = Icons.Outlined.BugReport,
+                    onClick = { openIssuePage(context, buildBugUri(context)) },
+                    modifier = Modifier.weight(1f)
+                )
+                AboutActionTile(
+                    text = lsString(R.string.about_btn_lang),
+                    icon = Icons.Default.Translate,
+                    onClick = { openIssuePage(context, buildLanguageUri(context)) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            AboutActionTile(
+                text = lsString(R.string.about_oem_diag),
+                icon = Icons.Default.Analytics,
+                onClick = { openIssuePage(context, buildOemDiagnosticsUri(context)) },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Text(
+                text = lsString(R.string.about_hint_browser),
+                fontSize = 10.sp,
+                lineHeight = 13.5.sp,
+                color = lsColors.textSecondary.copy(alpha = 0.78f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp)
+            )
+
+            // Community & Trust List Rows (unified 10.dp left-aligned cards with chevron)
+            AboutListRow(
+                title = lsString(R.string.about_xda),
+                subtitle = lsString(R.string.about_discussions),
+                icon = Icons.Default.Forum,
+                accentTint = MaterialTheme.colorScheme.primary,
+                useNeutralSurface = true,
+                onClick = { openExternalUrl(context, XDA_THREAD_URL) }
+            )
+
+            val resolvedVerification = buildVerification
+            if (resolvedVerification != null) {
+                val originLabel = resolveInstallOriginLabel(resolvedVerification.installOrigin)
+                val (verifyIcon, verifyTint, verifySubtitle) = when (resolvedVerification.signatureStatus) {
+                    SignatureStatus.OFFICIAL_RELEASE -> Triple(
+                        Icons.Default.CheckCircle,
+                        lsColors.accentOk,
+                        lsString(R.string.about_verify_official, originLabel)
+                    )
+                    SignatureStatus.NIGHTLY_DEV_BUILD -> Triple(
+                        Icons.Default.Shield,
+                        lsColors.accent,
+                        lsString(R.string.about_verify_nightly, originLabel)
+                    )
+                    SignatureStatus.CUSTOM_OR_UNVERIFIED -> Triple(
+                        Icons.Default.Warning,
+                        lsColors.accentWarn,
+                        lsString(R.string.about_verify_custom)
+                    )
+                }
+                AboutListRow(
+                    title = lsString(R.string.about_verify_title),
+                    subtitle = verifySubtitle,
+                    icon = verifyIcon,
+                    accentTint = verifyTint,
+                    useNeutralSurface = false,
+                    onClick = { showBuildVerificationDialog = true }
+                )
+            }
+
+            AboutListRow(
+                title = lsString(R.string.about_contact_title),
+                subtitle = lsString(R.string.about_contact_sub),
+                icon = Icons.Outlined.Email,
+                accentTint = MaterialTheme.colorScheme.primary,
+                useNeutralSurface = true,
+                singleLineSubtitle = true,
+                onClick = { openSbfSupportEmail(context, versionLine(context)) }
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AboutActionTile(
+                    text = lsString(R.string.about_btn_licenses),
+                    icon = Icons.Outlined.Description,
+                    onClick = { showLicensesDialog = true },
+                    modifier = Modifier.weight(1f)
+                )
+                AboutActionTile(
+                    text = lsString(R.string.about_btn_credits),
+                    icon = Icons.Outlined.WorkspacePremium,
+                    onClick = { showCreditsDialog = true },
+                    modifier = Modifier.wrapContentWidth()
+                )
+            }
+
+            // Nightly Dev Gate Testers tucked cleanly at the bottom (debug-only)
             if (NightlyFeatures.isWarmupGateTesterEnabled && testWarmupGate != null) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(lsColors.accent.copy(alpha = 0.12f))
                         .clickable { testWarmupGate() }
                         .padding(horizontal = 10.dp, vertical = 7.dp),
@@ -300,7 +473,7 @@ fun AboutFeedbackSection(context: Context) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(lsColors.accent.copy(alpha = 0.12f))
                         .clickable { testCoreSetupGate() }
                         .padding(horizontal = 10.dp, vertical = 7.dp),
@@ -321,204 +494,125 @@ fun AboutFeedbackSection(context: Context) {
                     )
                 }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = { openIssuePage(context, buildBugUri(context)) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(lsString(R.string.about_btn_bug), fontSize = 11.5.sp, textAlign = TextAlign.Center)
-                }
-                OutlinedButton(
-                    onClick = { openIssuePage(context, buildLanguageUri(context)) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(lsString(R.string.about_btn_lang), fontSize = 11.5.sp, textAlign = TextAlign.Center)
-                }
-            }
-
-            // 3rd Button: Contribute OEM Diagnostics Matrix
-            OutlinedButton(
-                onClick = { openIssuePage(context, buildOemDiagnosticsUri(context)) },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Analytics,
-                        contentDescription = null,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Text(lsString(R.string.about_oem_diag), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
-
-            AboutNoteBanner(text = lsString(R.string.about_hint_browser))
-
-            OutlinedButton(
-                onClick = { openUrl(context, XDA_THREAD_URL) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Forum,
-                            contentDescription = null,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(lsString(R.string.about_xda), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    Text(
-                        text = lsString(R.string.about_discussions),
-                        fontSize = 10.sp,
-                        color = lsColors.textSecondary
-                    )
-                }
-            }
-
-            val resolvedVerification = buildVerification
-            if (resolvedVerification != null) {
-                val originLabel = resolveInstallOriginLabel(resolvedVerification.installOrigin)
-                val (verifyIcon, verifyTint, verifySubtitle) = when (resolvedVerification.signatureStatus) {
-                    SignatureStatus.OFFICIAL_RELEASE -> Triple(
-                        Icons.Default.CheckCircle,
-                        lsColors.accentOk,
-                        lsString(R.string.about_verify_official, originLabel)
-                    )
-                    SignatureStatus.NIGHTLY_DEV_BUILD -> Triple(
-                        Icons.Default.Shield,
-                        lsColors.accent,
-                        lsString(R.string.about_verify_nightly, originLabel)
-                    )
-                    SignatureStatus.CUSTOM_OR_UNVERIFIED -> Triple(
-                        Icons.Default.Warning,
-                        lsColors.accentWarn,
-                        lsString(R.string.about_verify_custom)
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(verifyTint.copy(alpha = 0.09f))
-                        .border(0.8.dp, verifyTint.copy(alpha = 0.30f), RoundedCornerShape(10.dp))
-                        .clickable { showBuildVerificationDialog = true }
-                        .padding(horizontal = 11.dp, vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(9.dp)
-                ) {
-                    Icon(
-                        imageVector = verifyIcon,
-                        contentDescription = null,
-                        tint = verifyTint,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = lsString(R.string.about_verify_title),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = lsColors.textPrimary
-                        )
-                        Text(
-                            text = verifySubtitle,
-                            fontSize = 10.5.sp,
-                            color = lsColors.textSecondary
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Inspect build verification",
-                        tint = verifyTint,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            OutlinedButton(
-                onClick = { showLicensesDialog = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(lsString(R.string.about_oss_lic), fontSize = 11.5.sp)
-            }
-
-            // Support: Infinity supporter tier (Coffee is already pinned in the bottom bar).
-            OutlinedButton(
-                onClick = { showInfinityDialog = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Lightspeed ∞", fontSize = 11.5.sp, textAlign = TextAlign.Center)
-            }
-
-            AboutNoteBanner(annotatedText = buildGooglePayAnnotatedText(lsString(R.string.about_gpay_note)))
         }
     }
 }
 
-internal fun buildGooglePayAnnotatedText(text: String): AnnotatedString {
-    val keyword = "Google Pay"
-    val idx = text.indexOf(keyword)
-    if (idx < 0) return AnnotatedString(text)
-    return buildAnnotatedString {
-        append(text.substring(0, idx))
-        withStyle(
-            SpanStyle(
-                fontWeight = FontWeight.Bold,
-                textDecoration = TextDecoration.Underline
-            )
-        ) {
-            append(keyword)
-        }
-        append(text.substring(idx + keyword.length))
-    }
-}
-
-/** Opens the system share sheet with a short pitch and the project link. */
 @Composable
-private fun AboutNoteBanner(
-    text: String? = null,
-    annotatedText: AnnotatedString? = null
+private fun AboutActionTile(
+    text: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(8.dp)
+    val lsColors = LightspeedStyle.colors
+    val shape = RoundedCornerShape(10.dp)
+    Row(
+        modifier = modifier
+            .clip(shape)
+            .background(lsColors.textPrimary.copy(alpha = 0.05f))
+            .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.24f), shape)
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(15.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        var labelSizeSp by remember(text) { mutableFloatStateOf(11.5f) }
+        Text(
+            text = text,
+            fontSize = labelSizeSp.sp,
+            lineHeight = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = lsColors.textPrimary,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { result ->
+                if ((result.didOverflowWidth || result.hasVisualOverflow) && labelSizeSp > 9.5f) {
+                    labelSizeSp = (labelSizeSp - 0.5f).coerceAtLeast(9.5f)
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun AboutListRow(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    accentTint: Color,
+    useNeutralSurface: Boolean = true,
+    singleLineSubtitle: Boolean = false,
+    onClick: () -> Unit
+) {
+    val lsColors = LightspeedStyle.colors
+    val shape = RoundedCornerShape(10.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-            .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f), shape)
-            .padding(horizontal = 10.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(7.dp)
+            .background(if (useNeutralSurface) lsColors.textPrimary.copy(alpha = 0.05f) else accentTint.copy(alpha = 0.09f))
+            .border(0.8.dp, accentTint.copy(alpha = if (useNeutralSurface) 0.22f else 0.30f), shape)
+            .clickable { onClick() }
+            .padding(horizontal = 11.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(9.dp)
     ) {
         Icon(
-            imageVector = Icons.Outlined.ErrorOutline,
+            imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .padding(top = 1.dp)
-                .size(14.dp)
+            tint = accentTint,
+            modifier = Modifier.size(18.dp)
         )
-        Text(
-            text = annotatedText ?: AnnotatedString(text.orEmpty()),
-            fontSize = 11.sp,
-            lineHeight = 14.5.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.88f)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = lsColors.textPrimary
+            )
+            if (singleLineSubtitle) {
+                var subFontSp by remember(subtitle) { mutableFloatStateOf(10.5f) }
+                Text(
+                    text = subtitle,
+                    fontSize = subFontSp.sp,
+                    lineHeight = 14.sp,
+                    color = lsColors.textSecondary,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { result ->
+                        if ((result.didOverflowWidth || result.hasVisualOverflow) && subFontSp > 8.8f) {
+                            subFontSp = (subFontSp - 0.4f).coerceAtLeast(8.8f)
+                        }
+                    }
+                )
+            } else {
+                Text(
+                    text = subtitle,
+                    fontSize = 10.5.sp,
+                    color = lsColors.textSecondary
+                )
+            }
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = accentTint.copy(alpha = 0.8f),
+            modifier = Modifier.size(16.dp)
         )
     }
 }
 
+/** Opens the system share sheet with a short pitch and the project link. */
 private fun shareApp(context: Context) {
     val send = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
@@ -526,14 +620,6 @@ private fun shareApp(context: Context) {
     }
     try {
         context.startActivity(Intent.createChooser(send, TEXT_SHARE_CHOOSER).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    } catch (e: ActivityNotFoundException) {
-        Toast.makeText(context, TEXT_NO_BROWSER, Toast.LENGTH_SHORT).show()
-    }
-}
-
-private fun openUrl(context: Context, url: String) {
-    try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     } catch (e: ActivityNotFoundException) {
         Toast.makeText(context, TEXT_NO_BROWSER, Toast.LENGTH_SHORT).show()
     }

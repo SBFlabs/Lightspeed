@@ -2,6 +2,8 @@ package com.sbf.lightspeed.settings
 
 import android.content.SharedPreferences
 import androidx.compose.runtime.Composable
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.lsString
 
 @Composable
 fun DeflectorBlueprintSection(
@@ -12,9 +14,11 @@ fun DeflectorBlueprintSection(
     topSecId: String,
     bottomSecId: String,
     unifiedSecId: String,
+    trackpadSecId: String? = null,
     currentSubTop: List<String>,
     currentSubBottom: List<String>,
     currentSubUnified: List<String>,
+    currentSubTrackpad: List<String> = listOf("geo", "physics"),
     sectionOrderPrefKey: String,
     pinnedAccordionPrefKey: String,
     prefs: SharedPreferences,
@@ -23,7 +27,8 @@ fun DeflectorBlueprintSection(
     onExitBlueprint: () -> Unit,
     onSubTopChange: (List<String>) -> Unit,
     onSubBottomChange: (List<String>) -> Unit,
-    onSubUnifiedChange: (List<String>) -> Unit
+    onSubUnifiedChange: (List<String>) -> Unit,
+    onSubTrackpadChange: (List<String>) -> Unit = {}
 ) {
     BlueprintWireframeView(
         tabTitle = tabTitle,
@@ -55,22 +60,31 @@ fun DeflectorBlueprintSection(
             prefs.edit().putString(pinnedAccordionPrefKey, secId).apply()
         },
         onExitBlueprint = onExitBlueprint,
-        subSections = mapOf(
-            topSecId to currentSubTop,
-            bottomSecId to currentSubBottom,
-            unifiedSecId to currentSubUnified
-        ),
-        subSectionTitles = mapOf(
-            "geo" to "Sensor Geometry",
-            "scrub" to "Inward Scrubbing Control",
-            "gestures" to "Gesture Actions & Macro Mappings"
-        ),
+        fillViewport = true,
+        subSections = buildMap {
+            put(topSecId, currentSubTop)
+            put(bottomSecId, currentSubBottom)
+            put(unifiedSecId, currentSubUnified)
+            if (trackpadSecId != null) {
+                put(trackpadSecId, currentSubTrackpad)
+            }
+        },
+        subSectionTitles = buildMap {
+            put("geo", "Sensor Geometry")
+            put("scrub", "Inward Scrubbing Control")
+            put("gestures", "Gesture Actions & Macro Mappings")
+            put("physics", lsString(R.string.sec_cursor_physics_timing))
+            if (trackpadSecId != null) {
+                put("${trackpadSecId}_geo", lsString(R.string.sec_geometry_calibration))
+            }
+        },
         onMoveSubUp = { secId, idx ->
             if (idx > 0) {
                 val (list, key) = when (secId) {
-                    topSecId -> currentSubTop to "pref_sub_order_${topSecId}_2"
-                    bottomSecId -> currentSubBottom to "pref_sub_order_${bottomSecId}_2"
-                    unifiedSecId -> currentSubUnified to "pref_sub_order_${unifiedSecId}_2"
+                    topSecId -> currentSubTop to "pref_sub_order_${topSecId}"
+                    bottomSecId -> currentSubBottom to "pref_sub_order_${bottomSecId}"
+                    unifiedSecId -> currentSubUnified to "pref_sub_order_${unifiedSecId}"
+                    trackpadSecId -> currentSubTrackpad to "pref_sub_order_${trackpadSecId}"
                     else -> return@BlueprintWireframeView
                 }
                 val mutable = list.toMutableList()
@@ -80,15 +94,17 @@ fun DeflectorBlueprintSection(
                     topSecId -> onSubTopChange(mutable)
                     bottomSecId -> onSubBottomChange(mutable)
                     unifiedSecId -> onSubUnifiedChange(mutable)
+                    trackpadSecId -> onSubTrackpadChange(mutable)
                 }
                 prefs.edit().putString(key, mutable.joinToString(",")).apply()
             }
         },
         onMoveSubDown = { secId, idx ->
             val (list, key) = when (secId) {
-                topSecId -> currentSubTop to "pref_sub_order_${topSecId}_2"
-                bottomSecId -> currentSubBottom to "pref_sub_order_${bottomSecId}_2"
-                unifiedSecId -> currentSubUnified to "pref_sub_order_${unifiedSecId}_2"
+                topSecId -> currentSubTop to "pref_sub_order_${topSecId}"
+                bottomSecId -> currentSubBottom to "pref_sub_order_${bottomSecId}"
+                unifiedSecId -> currentSubUnified to "pref_sub_order_${unifiedSecId}"
+                trackpadSecId -> currentSubTrackpad to "pref_sub_order_${trackpadSecId}"
                 else -> return@BlueprintWireframeView
             }
             if (idx < list.size - 1) {
@@ -99,6 +115,7 @@ fun DeflectorBlueprintSection(
                     topSecId -> onSubTopChange(mutable)
                     bottomSecId -> onSubBottomChange(mutable)
                     unifiedSecId -> onSubUnifiedChange(mutable)
+                    trackpadSecId -> onSubTrackpadChange(mutable)
                 }
                 prefs.edit().putString(key, mutable.joinToString(",")).apply()
             }

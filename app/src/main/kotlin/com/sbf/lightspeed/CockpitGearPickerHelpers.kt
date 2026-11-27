@@ -207,8 +207,8 @@ internal fun PickerPopupStyleOptionRow(
                 fontSize = 12.5.sp,
                 fontWeight = if (item.isSelected) FontWeight.Bold else FontWeight.Medium,
                 style = TextStyle(
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                    lineHeight = 15.sp
+                    platformStyle = PlatformTextStyle(includeFontPadding = true),
+                    lineHeight = 17.sp
                 )
             )
             Text(
@@ -216,8 +216,8 @@ internal fun PickerPopupStyleOptionRow(
                 color = lsColors.textSecondary.copy(alpha = 0.55f),
                 fontSize = 10.sp,
                 style = TextStyle(
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                    lineHeight = 12.sp
+                    platformStyle = PlatformTextStyle(includeFontPadding = true),
+                    lineHeight = 14.sp
                 )
             )
         }

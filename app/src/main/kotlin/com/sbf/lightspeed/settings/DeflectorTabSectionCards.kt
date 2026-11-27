@@ -77,6 +77,12 @@ class DeflectorSectionExpansionStates(
     val onBottomScrubToggle: () -> Unit,
     val isBottomGesturesExpanded: Boolean,
     val onBottomGesturesToggle: () -> Unit,
+    val isTrackpadExpanded: Boolean,
+    val onTrackpadToggle: () -> Unit,
+    val isTrackpadGeoExpanded: Boolean,
+    val onTrackpadGeoToggle: () -> Unit,
+    val isTrackpadPhysicsExpanded: Boolean,
+    val onTrackpadPhysicsToggle: () -> Unit,
 )
 
 fun buildDeflectorExpansionStates(
@@ -85,6 +91,8 @@ fun buildDeflectorExpansionStates(
     unifiedSecId: String,
     topSecId: String,
     bottomSecId: String,
+    trackpadSecId: String,
+    flankKey: String,
     isCenterExpanded: Boolean,
     isCenterGeoExpanded: Boolean,
     isUnifiedExpanded: Boolean,
@@ -99,8 +107,12 @@ fun buildDeflectorExpansionStates(
     isBottomGeoExpanded: Boolean,
     isBottomScrubExpanded: Boolean,
     isBottomGesturesExpanded: Boolean,
+    isTrackpadExpanded: Boolean,
+    isTrackpadGeoExpanded: Boolean,
+    isTrackpadPhysicsExpanded: Boolean,
     prefs: SharedPreferences,
     toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit,
+    toggleSubSection: (Int, String, String, Boolean, (Boolean) -> Unit) -> Unit,
     onSetCenterExpanded: (Boolean) -> Unit,
     onSetCenterGeoExpanded: (Boolean) -> Unit,
     onSetUnifiedExpanded: (Boolean) -> Unit,
@@ -115,6 +127,9 @@ fun buildDeflectorExpansionStates(
     onSetBottomGeoExpanded: (Boolean) -> Unit,
     onSetBottomScrubExpanded: (Boolean) -> Unit,
     onSetBottomGesturesExpanded: (Boolean) -> Unit,
+    onSetTrackpadExpanded: (Boolean) -> Unit,
+    onSetTrackpadGeoExpanded: (Boolean) -> Unit,
+    onSetTrackpadPhysicsExpanded: (Boolean) -> Unit,
     onRefreshNeeded: () -> Unit
 ): DeflectorSectionExpansionStates {
     return DeflectorSectionExpansionStates(
@@ -127,15 +142,19 @@ fun buildDeflectorExpansionStates(
         },
         isCenterGeoExpanded = isCenterGeoExpanded,
         onCenterGeoToggle = {
-            onSetCenterGeoExpanded(!isCenterGeoExpanded)
-            prefs.edit().putBoolean("pref_sub_geo_${centerSecId}", !isCenterGeoExpanded).apply()
+            toggleSubSection(tabIndex, centerSecId, "geo", isCenterGeoExpanded, onSetCenterGeoExpanded)
             safeReloadPreferences()
             onRefreshNeeded()
         },
         isUnifiedExpanded = isUnifiedExpanded,
         onUnifiedToggle = {
             toggleSection(tabIndex, unifiedSecId, isUnifiedExpanded, onSetUnifiedExpanded)
-            prefs.edit().putBoolean("pref_section_${unifiedSecId}_expanded", !isUnifiedExpanded).apply()
+            val unifiedPrefKey = if (tabIndex == 0) {
+                com.sbf.lightspeed.system.LightspeedPreferences.KEY_SECTION_LEFT_UNIFIED_EXPANDED
+            } else {
+                com.sbf.lightspeed.system.LightspeedPreferences.KEY_SECTION_RIGHT_UNIFIED_EXPANDED
+            }
+            prefs.edit().putBoolean(unifiedPrefKey, !isUnifiedExpanded).apply()
             safeReloadPreferences()
         },
         isTopExpanded = isTopExpanded,
@@ -152,54 +171,61 @@ fun buildDeflectorExpansionStates(
         },
         isUnifiedGeoExpanded = isUnifiedGeoExpanded,
         onUnifiedGeoToggle = {
-            onSetUnifiedGeoExpanded(!isUnifiedGeoExpanded)
-            prefs.edit().putBoolean("pref_sub_geo_${unifiedSecId}", !isUnifiedGeoExpanded).apply()
+            toggleSubSection(tabIndex, unifiedSecId, "geo", isUnifiedGeoExpanded, onSetUnifiedGeoExpanded)
             safeReloadPreferences()
             onRefreshNeeded()
         },
         isUnifiedScrubExpanded = isUnifiedScrubExpanded,
         onUnifiedScrubToggle = {
-            onSetUnifiedScrubExpanded(!isUnifiedScrubExpanded)
-            prefs.edit().putBoolean("pref_sub_scrub_${unifiedSecId}", !isUnifiedScrubExpanded).apply()
+            toggleSubSection(tabIndex, unifiedSecId, "scrub", isUnifiedScrubExpanded, onSetUnifiedScrubExpanded)
         },
         isUnifiedGesturesExpanded = isUnifiedGesturesExpanded,
         onUnifiedGesturesToggle = {
-            onSetUnifiedGesturesExpanded(!isUnifiedGesturesExpanded)
-            prefs.edit().putBoolean("pref_sub_gestures_${unifiedSecId}", !isUnifiedGesturesExpanded).apply()
+            toggleSubSection(tabIndex, unifiedSecId, "gestures", isUnifiedGesturesExpanded, onSetUnifiedGesturesExpanded)
         },
         isTopGeoExpanded = isTopGeoExpanded,
         onTopGeoToggle = {
-            onSetTopGeoExpanded(!isTopGeoExpanded)
-            prefs.edit().putBoolean("pref_sub_geo_${topSecId}", !isTopGeoExpanded).apply()
+            toggleSubSection(tabIndex, topSecId, "geo", isTopGeoExpanded, onSetTopGeoExpanded)
             safeReloadPreferences()
             onRefreshNeeded()
         },
         isTopScrubExpanded = isTopScrubExpanded,
         onTopScrubToggle = {
-            onSetTopScrubExpanded(!isTopScrubExpanded)
-            prefs.edit().putBoolean("pref_sub_scrub_${topSecId}", !isTopScrubExpanded).apply()
+            toggleSubSection(tabIndex, topSecId, "scrub", isTopScrubExpanded, onSetTopScrubExpanded)
         },
         isTopGesturesExpanded = isTopGesturesExpanded,
         onTopGesturesToggle = {
-            onSetTopGesturesExpanded(!isTopGesturesExpanded)
-            prefs.edit().putBoolean("pref_sub_gestures_${topSecId}", !isTopGesturesExpanded).apply()
+            toggleSubSection(tabIndex, topSecId, "gestures", isTopGesturesExpanded, onSetTopGesturesExpanded)
         },
         isBottomGeoExpanded = isBottomGeoExpanded,
         onBottomGeoToggle = {
-            onSetBottomGeoExpanded(!isBottomGeoExpanded)
-            prefs.edit().putBoolean("pref_sub_geo_${bottomSecId}", !isBottomGeoExpanded).apply()
+            toggleSubSection(tabIndex, bottomSecId, "geo", isBottomGeoExpanded, onSetBottomGeoExpanded)
             safeReloadPreferences()
             onRefreshNeeded()
         },
         isBottomScrubExpanded = isBottomScrubExpanded,
         onBottomScrubToggle = {
-            onSetBottomScrubExpanded(!isBottomScrubExpanded)
-            prefs.edit().putBoolean("pref_sub_scrub_${bottomSecId}", !isBottomScrubExpanded).apply()
+            toggleSubSection(tabIndex, bottomSecId, "scrub", isBottomScrubExpanded, onSetBottomScrubExpanded)
         },
         isBottomGesturesExpanded = isBottomGesturesExpanded,
         onBottomGesturesToggle = {
-            onSetBottomGesturesExpanded(!isBottomGesturesExpanded)
-            prefs.edit().putBoolean("pref_sub_gestures_${bottomSecId}", !isBottomGesturesExpanded).apply()
+            toggleSubSection(tabIndex, bottomSecId, "gestures", isBottomGesturesExpanded, onSetBottomGesturesExpanded)
+        },
+        isTrackpadExpanded = isTrackpadExpanded,
+        onTrackpadToggle = {
+            toggleSection(tabIndex, trackpadSecId, isTrackpadExpanded, onSetTrackpadExpanded)
+            prefs.edit().putBoolean("pref_accordion_trackpad_$flankKey", !isTrackpadExpanded).apply()
+            safeReloadPreferences()
+        },
+        isTrackpadGeoExpanded = isTrackpadGeoExpanded,
+        onTrackpadGeoToggle = {
+            toggleSubSection(tabIndex, trackpadSecId, "geo", isTrackpadGeoExpanded, onSetTrackpadGeoExpanded)
+            safeReloadPreferences()
+            onRefreshNeeded()
+        },
+        isTrackpadPhysicsExpanded = isTrackpadPhysicsExpanded,
+        onTrackpadPhysicsToggle = {
+            toggleSubSection(tabIndex, trackpadSecId, "physics", isTrackpadPhysicsExpanded, onSetTrackpadPhysicsExpanded)
         }
     )
 }
@@ -211,6 +237,7 @@ fun LazyListScope.renderDeflectorOrderedSections(
     topSecId: String,
     bottomSecId: String,
     trackpadSecId: String,
+    isTrackpadLabsEnabled: Boolean,
     isFlankUnified: Boolean,
     isLeft: Boolean,
     context: Context,
@@ -222,6 +249,16 @@ fun LazyListScope.renderDeflectorOrderedSections(
     coroutineScope: CoroutineScope,
     subBlueprintTarget: String?,
     onSubBlueprintToggle: (String) -> Unit,
+    pinnedSection: String,
+    currentSubTop: List<String>,
+    currentSubBottom: List<String>,
+    currentSubUnified: List<String>,
+    currentSubTrackpad: List<String>,
+    onSubTopChange: (List<String>) -> Unit,
+    onSubBottomChange: (List<String>) -> Unit,
+    onSubUnifiedChange: (List<String>) -> Unit,
+    onSubTrackpadChange: (List<String>) -> Unit,
+    onPinSection: (String) -> Unit,
     exp: DeflectorSectionExpansionStates,
     onMooringConfirm: (MooringConfirmData) -> Unit,
     onRefreshNeeded: () -> Unit
@@ -229,13 +266,25 @@ fun LazyListScope.renderDeflectorOrderedSections(
     currentOrder.forEach { secId ->
         when (secId) {
             trackpadSecId -> {
-                if (com.sbf.lightspeed.system.bot.LightspeedBotContract.isLabsEnabled(prefs)) {
+                if (isTrackpadLabsEnabled) {
                     item(key = trackpadSecId, contentType = "accordion") {
                         CyberneticTrackpadAccordion(
                             isLeft = isLeft,
                             context = context,
                             prefs = prefs,
-                            onRefreshNeeded = onRefreshNeeded
+                            isExpanded = exp.isTrackpadExpanded,
+                            onToggle = exp.onTrackpadToggle,
+                            subBlueprintTarget = subBlueprintTarget,
+                            onSubBlueprintToggle = { onSubBlueprintToggle(trackpadSecId) },
+                            isGeoExpanded = exp.isTrackpadGeoExpanded,
+                            onGeoToggle = exp.onTrackpadGeoToggle,
+                            isPhysicsExpanded = exp.isTrackpadPhysicsExpanded,
+                            onPhysicsToggle = exp.onTrackpadPhysicsToggle,
+                            onRefreshNeeded = onRefreshNeeded,
+                            externalSubOrder = currentSubTrackpad,
+                            externalPinnedSection = pinnedSection,
+                            onSubOrderChange = onSubTrackpadChange,
+                            onPinSubSection = onPinSection
                         )
                     }
                 }
@@ -288,7 +337,11 @@ fun LazyListScope.renderDeflectorOrderedSections(
                             customVectors = customVectors,
                             listState = listState,
                             coroutineScope = coroutineScope,
-                            onMooringConfirm = onMooringConfirm
+                            onMooringConfirm = onMooringConfirm,
+                            externalSubOrder = currentSubUnified,
+                            externalPinnedSection = pinnedSection,
+                            onSubOrderChange = onSubUnifiedChange,
+                            onPinSubSection = onPinSection
                         )
                     }
                 }
@@ -314,7 +367,11 @@ fun LazyListScope.renderDeflectorOrderedSections(
                             isGesturesExpanded = exp.isTopGesturesExpanded,
                             onGesturesToggle = exp.onTopGesturesToggle,
                             customVectors = customVectors,
-                            onRefreshNeeded = onRefreshNeeded
+                            onRefreshNeeded = onRefreshNeeded,
+                            externalSubOrder = currentSubTop,
+                            externalPinnedSection = pinnedSection,
+                            onSubOrderChange = onSubTopChange,
+                            onPinSubSection = onPinSection
                         )
                     }
                 }
@@ -340,7 +397,11 @@ fun LazyListScope.renderDeflectorOrderedSections(
                             isGesturesExpanded = exp.isBottomGesturesExpanded,
                             onGesturesToggle = exp.onBottomGesturesToggle,
                             customVectors = customVectors,
-                            onRefreshNeeded = onRefreshNeeded
+                            onRefreshNeeded = onRefreshNeeded,
+                            externalSubOrder = currentSubBottom,
+                            externalPinnedSection = pinnedSection,
+                            onSubOrderChange = onSubBottomChange,
+                            onPinSubSection = onPinSection
                         )
                     }
                 }

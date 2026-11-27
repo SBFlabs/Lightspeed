@@ -173,12 +173,14 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarAccordionTouch(
             val ret3Rect = RectF(leftX + (retW + gap) * 2f, layout.sub2Y - 14f * d, leftX + (retW + gap) * 2f + retW, layout.sub2Y + 14f * d)
             val ret4Rect = RectF(rightX - retW, layout.sub2Y - 14f * d, rightX, layout.sub2Y + 14f * d)
             if (ret1Rect.contains(x, y)) {
+                com.sbf.lightspeed.system.CockpitGimbalConfigCache.clearPreview()
                 prefs.edit().putString(LightspeedPreferences.KEY_GEAR_RETICLE_STYLE, "tactical").apply()
                 triggerHardwareHaptic(20, 120)
                 invalidate()
                 return true
             }
             if (ret2Rect.contains(x, y)) {
+                com.sbf.lightspeed.system.CockpitGimbalConfigCache.clearPreview()
                 prefs.edit().putString(LightspeedPreferences.KEY_GEAR_RETICLE_STYLE, "cyber").apply()
                 triggerHardwareHaptic(20, 120)
                 invalidate()
@@ -186,8 +188,8 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarAccordionTouch(
             }
             if (ret3Rect.contains(x, y)) {
                 if (!com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
-                    triggerHardwareHaptic(50, 255)
-                    showInfinityPrompt()
+                    com.sbf.lightspeed.system.CockpitGimbalConfigCache.setReticlePreview("cross", "Cross Reticle")
+                    triggerHardwareHaptic(22, 130)
                     invalidate()
                     return true
                 }
@@ -198,8 +200,8 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarAccordionTouch(
             }
             if (ret4Rect.contains(x, y)) {
                 if (!com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
-                    triggerHardwareHaptic(50, 255)
-                    showInfinityPrompt()
+                    com.sbf.lightspeed.system.CockpitGimbalConfigCache.setReticlePreview("diamond", "Diamond Reticle")
+                    triggerHardwareHaptic(22, 130)
                     invalidate()
                     return true
                 }
@@ -233,39 +235,43 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarAccordionTouch(
             val shape3Rect = RectF(leftX + (shapeW + gap) * 2f, layout.sub1Y - 14f * d, leftX + (shapeW + gap) * 2f + shapeW, layout.sub1Y + 14f * d)
             val shape4Rect = RectF(rightX - shapeW, layout.sub1Y - 14f * d, rightX, layout.sub1Y + 14f * d)
             if (shape1Rect.contains(x, y)) {
+                com.sbf.lightspeed.system.CockpitGimbalConfigCache.clearPreview()
                 CockpitGearRepository.setGearShape(context, LightspeedPreferences.GEAR_SHAPE_CIRCLE)
                 triggerHardwareHaptic(20, 120)
                 invalidate()
                 return true
             }
             if (shape2Rect.contains(x, y)) {
+                com.sbf.lightspeed.system.CockpitGimbalConfigCache.clearPreview()
                 CockpitGearRepository.setGearShape(context, LightspeedPreferences.GEAR_SHAPE_SQUARE)
                 triggerHardwareHaptic(20, 120)
                 invalidate()
                 return true
             }
             if (shape3Rect.contains(x, y)) {
+                com.sbf.lightspeed.system.CockpitGimbalConfigCache.clearPreview()
                 CockpitGearRepository.setGearShape(context, LightspeedPreferences.GEAR_SHAPE_SQUIRCLE)
                 triggerHardwareHaptic(20, 120)
                 invalidate()
                 return true
             }
             if (shape4Rect.contains(x, y)) {
+                com.sbf.lightspeed.system.CockpitGimbalConfigCache.clearPreview()
                 CockpitGearRepository.setGearShape(context, LightspeedPreferences.GEAR_SHAPE_STAR)
                 triggerHardwareHaptic(20, 120)
                 invalidate()
                 return true
             }
 
-            // Sub-row 2: Sculpted Mockup Styles (Row 2 of 2 — Infinity Tier)
+            // Sub-row 2: Sculpted Mockup Styles (Row 2 of 2 — Infinity Tier live preview)
             val shape5Rect = RectF(leftX, layout.sub2Y - 14f * d, leftX + shapeW, layout.sub2Y + 14f * d)
             val shape6Rect = RectF(leftX + (shapeW + gap), layout.sub2Y - 14f * d, leftX + (shapeW + gap) + shapeW, layout.sub2Y + 14f * d)
             val shape7Rect = RectF(leftX + (shapeW + gap) * 2f, layout.sub2Y - 14f * d, leftX + (shapeW + gap) * 2f + shapeW, layout.sub2Y + 14f * d)
             val shape8Rect = RectF(rightX - shapeW, layout.sub2Y - 14f * d, rightX, layout.sub2Y + 14f * d)
             if (shape5Rect.contains(x, y)) {
                 if (!com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
-                    triggerHardwareHaptic(50, 255)
-                    showInfinityPrompt()
+                    com.sbf.lightspeed.system.CockpitGimbalConfigCache.setShapePreview(LightspeedPreferences.GEAR_SHAPE_ORBITAL, "Orbital Gear Shape")
+                    triggerHardwareHaptic(22, 130)
                     invalidate()
                     return true
                 }
@@ -276,8 +282,8 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarAccordionTouch(
             }
             if (shape6Rect.contains(x, y)) {
                 if (!com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
-                    triggerHardwareHaptic(50, 255)
-                    showInfinityPrompt()
+                    com.sbf.lightspeed.system.CockpitGimbalConfigCache.setShapePreview(LightspeedPreferences.GEAR_SHAPE_DIAMOND, "Diamond Gear Shape")
+                    triggerHardwareHaptic(22, 130)
                     invalidate()
                     return true
                 }
@@ -288,8 +294,8 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarAccordionTouch(
             }
             if (shape7Rect.contains(x, y)) {
                 if (!com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
-                    triggerHardwareHaptic(50, 255)
-                    showInfinityPrompt()
+                    com.sbf.lightspeed.system.CockpitGimbalConfigCache.setShapePreview(LightspeedPreferences.GEAR_SHAPE_CRESCENT, "Crescent Gear Shape")
+                    triggerHardwareHaptic(22, 130)
                     invalidate()
                     return true
                 }
@@ -300,8 +306,8 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarAccordionTouch(
             }
             if (shape8Rect.contains(x, y)) {
                 if (!com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
-                    triggerHardwareHaptic(50, 255)
-                    showInfinityPrompt()
+                    com.sbf.lightspeed.system.CockpitGimbalConfigCache.setShapePreview(LightspeedPreferences.GEAR_SHAPE_TECH, "Tech Gear Shape")
+                    triggerHardwareHaptic(22, 130)
                     invalidate()
                     return true
                 }
@@ -372,6 +378,16 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarAccordionTouch(
                 com.sbf.lightspeed.system.CockpitGimbalConfigCache.flush()
                 triggerHardwareHaptic(20, 120)
                 invalidate()
+                return true
+            }
+
+            // Sub-row 5: Browse 13 Themes Deep-Link (Flight Control Deck)
+            val browseThemesRect = RectF(leftX, layout.sub5Y - 14f * d, rightX, layout.sub5Y + 14f * d)
+            if (browseThemesRect.contains(x, y)) {
+                triggerHardwareHaptic(25, 140)
+                com.sbf.lightspeed.system.CockpitGimbalConfigCache.clearPreview()
+                dismissOverlay()
+                com.sbf.lightspeed.settings.openFlightControlDeck(context)
                 return true
             }
         }

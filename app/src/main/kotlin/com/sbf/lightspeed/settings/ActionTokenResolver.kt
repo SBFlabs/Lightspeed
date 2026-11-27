@@ -22,6 +22,7 @@ object ActionTokenResolver {
         "ACTION_SPLIT_SCREEN", "split_screen"                  -> "system:split_screen"
         "popup_window", "system:popup_window", "system:freeform" -> "system:freeform"
         "ACTION_FLASHLIGHT", "flashlight", "system:torch"      -> "system:flashlight"
+        "ACTION_DIRECT_CALL", "direct_call", "action:direct_call" -> "system:direct_call"
         "ACTION_SCREENSHOT", "screenshot"                      -> "system:screenshot"
         "ACTION_LOCK_SCREEN", "lock_screen"                    -> "system:lock_screen"
         "ACTION_POWER_MENU", "power_menu"                      -> "system:power_menu"
@@ -45,7 +46,7 @@ object ActionTokenResolver {
         "ACTION_MEDIA_STOP", "media_stop"                      -> "system:media_stop"
         "ACTION_REFUELING_BAY", "refueling_bay"                -> "system:refueling_bay"
         "ACTION_GLOW_DEFLECTORS", "glow_deflectors"            -> "system:glow_deflectors"
-        "system:audio_dock", "system:sonic_deck"               -> "system:omniscient_audio"
+        "system:audio_dock", "system:omniscient_audio", "system:sonic_deck" -> "system:sonic_deck"
         "system:display_dock", "system:vista_deck", "vista_deck" -> "system:vista_deck"
         "ACTION_TACTICAL_FLYOUT", "action_quick_flyout", "system:quick_flyout" -> "system:tactical_flyout"
         "ACTION_LENS", "google_lens"                           -> "system:lens"
@@ -69,7 +70,7 @@ object ActionTokenResolver {
         "system:native_bluetooth_settings", "native_bluetooth_settings" -> "system:native_bluetooth_settings"
         "system:native_battery_settings", "native_battery_settings" -> "system:native_battery_settings"
         "system:native_digital_wellbeing", "native_digital_wellbeing" -> "system:native_digital_wellbeing"
-        "action:sonic_deck", "sonic_deck" -> "system:omniscient_audio"
+        "action:sonic_deck", "sonic_deck" -> "system:sonic_deck"
         "action:vista_deck", "vista_deck" -> "system:vista_deck"
         "action:circle_to_search", "circle_to_search", "system:circle_to_search" -> "system:circle_to_search"
         "action:assistant", "assistant", "system:assistant", "ACTION_ASSISTANT" -> "system:assistant"
@@ -100,6 +101,7 @@ object ActionTokenResolver {
             token == "system:assistant" || token == "action:assistant" -> lsString(R.string.act_assistant)
 
             token == "system:flashlight" -> lsString(R.string.act_flashlight)
+            token == "system:direct_call" -> lsString(R.string.act_direct_call)
             token == "system:screenshot" -> lsString(R.string.act_screenshot)
             token == "system:lock_screen" -> lsString(R.string.act_lock_screen)
             token == "system:power_menu" -> lsString(R.string.act_power_menu)

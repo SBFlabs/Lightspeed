@@ -31,7 +31,7 @@ object ThemeCustomizationManager {
     ) {
         fun toSnapshot(base: DeckThemeSnapshot): DeckThemeSnapshot {
             val effectiveTint = if (base.styleId == DeckStylePresets.ADAPTIVE.styleId) base.tintArgb else (customTintArgb ?: base.tintArgb)
-            val effectiveGlow = if (customTintArgb != null && base.styleId in setOf("jelly", "depth", "neon", "prism", "cyberpunk", "hologram")) {
+            val effectiveGlow = if (customTintArgb != null && base.styleId in setOf("jelly", "depth", "neon", "prism")) {
                 customTintArgb
             } else base.glowColorArgb
 
@@ -169,8 +169,13 @@ object ThemeCustomizationManager {
         updated[custom.styleId] = custom
         _customizationsFlow.value = updated
 
-        // Force DeckThemeManager snapshot refresh
+        // Force DeckThemeManager snapshot refresh & sync masked backdrop if blur state changed
+        val prevBlur = DeckThemeManager.snapshotFlow.value.windowBlurRadiusPx
         DeckThemeManager.refresh(context)
+        DeckThemeManager.syncLiveBackdropOnThemeTransition(
+            context = context,
+            forceRecapture = (prevBlur <= 0 || CentralCommandBackdropBlur.backdropBitmap == null)
+        )
     }
 
     fun resetToDefaults(context: Context, styleId: String) {
@@ -190,7 +195,12 @@ object ThemeCustomizationManager {
         updated.remove(styleId)
         _customizationsFlow.value = updated
 
+        val prevBlur = DeckThemeManager.snapshotFlow.value.windowBlurRadiusPx
         DeckThemeManager.refresh(context)
+        DeckThemeManager.syncLiveBackdropOnThemeTransition(
+            context = context,
+            forceRecapture = (prevBlur <= 0 || CentralCommandBackdropBlur.backdropBitmap == null)
+        )
     }
 
     fun resetAllToDefaults(context: Context) {
@@ -200,6 +210,7 @@ object ThemeCustomizationManager {
             val p = prefix(preset.styleId)
             editor.remove("${p}_blur")
                 .remove("${p}_opacity")
+                .remove("${p}_backdrop_opacity")
                 .remove("${p}_corner")
                 .remove("${p}_border")
                 .remove("${p}_glow")
@@ -208,6 +219,11 @@ object ThemeCustomizationManager {
         }
         editor.apply()
         _customizationsFlow.value = emptyMap()
+        val prevBlur = DeckThemeManager.snapshotFlow.value.windowBlurRadiusPx
         DeckThemeManager.refresh(context)
+        DeckThemeManager.syncLiveBackdropOnThemeTransition(
+            context = context,
+            forceRecapture = (prevBlur <= 0 || CentralCommandBackdropBlur.backdropBitmap == null)
+        )
     }
 }

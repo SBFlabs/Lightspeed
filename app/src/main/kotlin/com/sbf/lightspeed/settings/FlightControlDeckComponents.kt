@@ -42,7 +42,11 @@ import com.sbf.lightspeed.ui.theme.LightspeedStyle
 fun FlightControlDeckCard(
     context: Context,
     prefs: SharedPreferences,
-    onStateChanged: () -> Unit = {}
+    onStateChanged: () -> Unit = {},
+    previewStyleId: String? = null,
+    onPreviewLockedStyle: (DeckThemeSnapshot) -> Unit = {},
+    onClearPreview: () -> Unit = {},
+    onOpenInfinityForFeature: (featureName: String?, expandKey: Boolean) -> Unit = { _, _ -> }
 ) {
     val lsColors = LightspeedStyle.colors
     var isArmed by remember { mutableStateOf(LightspeedPreferences.isMasterFlightArmed(context)) }
@@ -132,8 +136,8 @@ fun FlightControlDeckCard(
 
             // Theme-Aware Optical Deck Customization
             var customizingStyleId by remember { mutableStateOf<String?>(null) }
+            var infinityFeatureContext by remember { mutableStateOf<String?>(null) }
             var showInfinityDialog by remember { mutableStateOf(false) }
-            var showStyleLabDialog by remember { mutableStateOf(false) }
 
             if (customizingStyleId != null) {
                 DeckThemeCustomizationDialog(
@@ -149,8 +153,12 @@ fun FlightControlDeckCard(
             if (showInfinityDialog) {
                 LightspeedInfinityDialog(
                     context = context,
-                    onDismiss = { showInfinityDialog = false },
-                    onUnlocked = { onStateChanged() }
+                    onDismiss = {
+                        showInfinityDialog = false
+                        infinityFeatureContext = null
+                    },
+                    onUnlocked = { onStateChanged() },
+                    featureContext = infinityFeatureContext
                 )
             }
 
@@ -164,33 +172,47 @@ fun FlightControlDeckCard(
                 DeckStylePickerGrid(
                     context = context,
                     isInfinityUnlocked = isInfinityUnlocked,
-                    onLockedClick = { showInfinityDialog = true },
+                    previewStyleId = previewStyleId,
+                    onLockedClick = { featureName ->
+                        infinityFeatureContext = featureName
+                        showInfinityDialog = true
+                        onOpenInfinityForFeature(featureName, false)
+                    },
+                    onPreviewLockedStyle = { preset ->
+                        DeckThemeManager.setPreviewOverride(context, preset.styleId)
+                        onPreviewLockedStyle(preset)
+                    },
                     onCustomizeStyle = { styleId ->
                         customizingStyleId = styleId
                     },
-                    onStyleSelected = onStateChanged
+                    onStyleSelected = {
+                        onClearPreview()
+                        onStateChanged()
+                    }
                 )
 
-                // Lightspeed Infinity Status / Upgrade Card
+                // Lightspeed Infinity Status / Upgrade Card (gold accent even when locked)
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
                         .clickable {
                             LightspeedHapticEngine.tick(context)
+                            infinityFeatureContext = null
                             showInfinityDialog = true
+                            onOpenInfinityForFeature(null, false)
                         },
                     shape = RoundedCornerShape(10.dp),
-                    color = if (isInfinityUnlocked) lsColors.accentGold.copy(alpha = 0.12f) else lsColors.textPrimary.copy(alpha = 0.05f),
+                    color = if (isInfinityUnlocked) lsColors.accentGold.copy(alpha = 0.14f) else lsColors.accentGold.copy(alpha = 0.10f),
                     border = androidx.compose.foundation.BorderStroke(
-                        0.8.dp,
-                        if (isInfinityUnlocked) lsColors.accentGold.copy(alpha = 0.45f) else lsColors.textPrimary.copy(alpha = 0.1f)
+                        if (isInfinityUnlocked) 0.8.dp else 1.0.dp,
+                        if (isInfinityUnlocked) lsColors.accentGold.copy(alpha = 0.45f) else lsColors.accentGold.copy(alpha = 0.48f)
                     )
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                            .padding(horizontal = 12.dp, vertical = 9.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -199,22 +221,26 @@ fun FlightControlDeckCard(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(if (isInfinityUnlocked) "★" else "☕", fontSize = 12.sp, color = if (isInfinityUnlocked) lsColors.accentGold else MaterialTheme.colorScheme.primary)
+                            if (isInfinityUnlocked) {
+                                Text("★", fontSize = 12.sp, color = lsColors.accentGold)
+                            } else {
+                                RocketFuelCanIcon(modifier = Modifier.size(14.dp), tint = lsColors.accentGold)
+                            }
                             Text(
-                                text = if (isInfinityUnlocked) lsString(R.string.fc_inf_active) else lsString(R.string.fc_inf_short_up),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isInfinityUnlocked) lsColors.accentGold else lsColors.textPrimary.copy(alpha = 0.85f),
+                                text = if (isInfinityUnlocked) lsString(R.string.fc_inf_active) else lsString(R.string.fc_inf_upgrade_gold),
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = lsColors.accentGold,
                                 letterSpacing = 0.5.sp,
                                 maxLines = 2,
-                                lineHeight = 12.sp
+                                lineHeight = 12.5.sp
                             )
                         }
                         Text(
-                            text = if (isInfinityUnlocked) lsString(R.string.fc_unlim_decks) else lsString(R.string.fc_free_decks),
-                            fontSize = 9.5.sp,
-                            color = if (isInfinityUnlocked) lsColors.accentGold.copy(alpha = 0.85f) else lsColors.textDisabled,
-                            fontWeight = FontWeight.SemiBold,
+                            text = if (isInfinityUnlocked) lsString(R.string.fc_unlim_decks) else lsString(R.string.fc_inf_perks_short),
+                            fontSize = 10.sp,
+                            color = lsColors.accentGold.copy(alpha = 0.90f),
+                            fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -223,22 +249,6 @@ fun FlightControlDeckCard(
             }
 
             HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (showStyleLabDialog) {
-                    StyleLabPreviewDialog(
-                        context = context,
-                        onDismiss = { showStyleLabDialog = false },
-                        onLockedClick = { showInfinityDialog = true },
-                        onCustomizeStyle = { styleId ->
-                            showStyleLabDialog = false
-                            customizingStyleId = styleId
-                        }
-                    )
-                }
-
-
-            }
 
             // Row 3: Home Screen 1-Tap Shortcut Buttons
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

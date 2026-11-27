@@ -155,8 +155,8 @@ fun PickerAppHeaderRow(
                     fontSize = 13.5.sp,
                     fontWeight = if (isAppSelected || item.isPinned) FontWeight.Bold else FontWeight.SemiBold,
                     style = TextStyle(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false),
-                        lineHeight = 16.sp
+                        platformStyle = PlatformTextStyle(includeFontPadding = true),
+                        lineHeight = 18.sp
                     ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -167,8 +167,8 @@ fun PickerAppHeaderRow(
                         color = dynamicSecondary.copy(alpha = 0.85f),
                         fontSize = 10.sp,
                         style = TextStyle(
-                            platformStyle = PlatformTextStyle(includeFontPadding = false),
-                            lineHeight = 12.sp
+                            platformStyle = PlatformTextStyle(includeFontPadding = true),
+                            lineHeight = 14.sp
                         ),
                         maxLines = 1
                     )
@@ -391,8 +391,8 @@ fun PickerShortcutActionRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                    lineHeight = 16.sp
+                    platformStyle = PlatformTextStyle(includeFontPadding = true),
+                    lineHeight = 18.sp
                 )
             )
             Text(
@@ -402,8 +402,8 @@ fun PickerShortcutActionRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                    lineHeight = 12.sp
+                    platformStyle = PlatformTextStyle(includeFontPadding = true),
+                    lineHeight = 14.sp
                 )
             )
         }

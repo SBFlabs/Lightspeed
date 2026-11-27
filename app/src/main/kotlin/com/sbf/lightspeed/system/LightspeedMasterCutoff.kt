@@ -171,7 +171,7 @@ object LightspeedMasterCutoff {
             try {
                 if (disableExtraDim) {
                     val wasExtraDim = prefs.getBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, false)
-                    val curLevel = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 40)
+                    val curLevel = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 40).let { if (it in 10..90) it else 40 }
                     prefs.edit()
                         .putBoolean(KEY_STASHED_EXTRA_DIM, wasExtraDim)
                         .putInt(KEY_STASHED_EXTRA_DIM_LEVEL, curLevel)
@@ -186,16 +186,14 @@ object LightspeedMasterCutoff {
             try {
                 if (disableEyeCare) {
                     val wasEyeCare = prefs.getBoolean(LightspeedPreferences.KEY_EYE_CARE_ENABLED, false)
-                    val curTemp = prefs.getInt(LightspeedPreferences.KEY_EYE_CARE_TEMP, 3400)
+                    val curTemp = prefs.getInt(LightspeedPreferences.KEY_EYE_CARE_TEMP, LightspeedEyeCareEngine.DEFAULT_KELVIN)
+                        .coerceIn(LightspeedEyeCareEngine.MIN_KELVIN, LightspeedEyeCareEngine.MAX_KELVIN)
                     prefs.edit()
                         .putBoolean(KEY_STASHED_EYE_CARE, wasEyeCare)
                         .putInt(KEY_STASHED_EYE_CARE_TEMP, curTemp)
                         .apply()
                     if (wasEyeCare) {
                         LightspeedEyeCareEngine.applyEyeCare(context, false, curTemp)
-                    }
-                    if (ElevatedTaskCloser.isShizukuActive) {
-                        ElevatedTaskCloser.execShizuku("service call SurfaceFlinger 1015 i32 0")
                     }
                 }
             } catch (e: Exception) { logSwallowed(TAG, "cutoff:eyecare", e) }
@@ -414,12 +412,13 @@ object LightspeedMasterCutoff {
             // 4. Restore stashed Extra Dim, Eye Care, Smart Pixels, and Sonic Deck
             try {
                 if (disableExtraDim && prefs.getBoolean(KEY_STASHED_EXTRA_DIM, false)) {
-                    val savedLevel = prefs.getInt(KEY_STASHED_EXTRA_DIM_LEVEL, 40)
+                    val savedLevel = prefs.getInt(KEY_STASHED_EXTRA_DIM_LEVEL, 40).let { if (it in 10..90) it else 40 }
                     LightspeedEyeCareEngine.applyExtraDim(context, true, savedLevel)
                     prefs.edit().putBoolean(KEY_STASHED_EXTRA_DIM, false).apply()
                 }
                 if (disableEyeCare && prefs.getBoolean(KEY_STASHED_EYE_CARE, false)) {
-                    val savedTemp = prefs.getInt(KEY_STASHED_EYE_CARE_TEMP, 3400)
+                    val savedTemp = prefs.getInt(KEY_STASHED_EYE_CARE_TEMP, LightspeedEyeCareEngine.DEFAULT_KELVIN)
+                        .coerceIn(LightspeedEyeCareEngine.MIN_KELVIN, LightspeedEyeCareEngine.MAX_KELVIN)
                     LightspeedEyeCareEngine.applyEyeCare(context, true, savedTemp)
                     prefs.edit().putBoolean(KEY_STASHED_EYE_CARE, false).apply()
                 }

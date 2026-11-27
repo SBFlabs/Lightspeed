@@ -68,14 +68,22 @@ internal class GtcrnProcessor(private val context: Context) : AutoCloseable {
         )
     }
 
+    /** Legacy 16 kHz mono path: Kotlin STFT -> inference -> Kotlin iSTFT. */
     fun process(inputFrame: FloatArray): FloatArray {
         require(inputFrame.size == StftProcessor.HOP_SIZE)
         stft.analyze(inputFrame, inputSpectrum)
+        infer(inputSpectrum, enhancedSpectrum)
+        stft.synthesize(enhancedSpectrum, outputFrame)
+        limit(outputFrame)
+        return outputFrame
+    }
 
+    /** Neural inference only: [spectrum] ([re|im], 514) -> [enhanced] ([re|im], 514). Used by the native DSP path. */
+    fun infer(spectrum: FloatArray, enhanced: FloatArray) {
         mixBuffer.clear()
         for (bin in 0 until StftProcessor.BIN_COUNT) {
-            mixBuffer.put(inputSpectrum[bin])
-            mixBuffer.put(inputSpectrum[bin + StftProcessor.BIN_COUNT])
+            mixBuffer.put(spectrum[bin])
+            mixBuffer.put(spectrum[bin + StftProcessor.BIN_COUNT])
         }
         mixBuffer.rewind()
 
@@ -94,12 +102,9 @@ internal class GtcrnProcessor(private val context: Context) : AutoCloseable {
         }
 
         for (bin in 0 until StftProcessor.BIN_COUNT) {
-            enhancedSpectrum[bin] = interleavedSpectrum[bin * 2]
-            enhancedSpectrum[bin + StftProcessor.BIN_COUNT] = interleavedSpectrum[bin * 2 + 1]
+            enhanced[bin] = interleavedSpectrum[bin * 2]
+            enhanced[bin + StftProcessor.BIN_COUNT] = interleavedSpectrum[bin * 2 + 1]
         }
-        stft.synthesize(enhancedSpectrum, outputFrame)
-        limit(outputFrame)
-        return outputFrame
     }
 
     fun inferenceMs(): Float = smoothedInferenceMs

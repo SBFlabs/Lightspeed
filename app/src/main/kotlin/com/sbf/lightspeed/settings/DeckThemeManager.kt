@@ -121,8 +121,13 @@ object DeckThemeManager {
     fun setPreviewOverride(context: Context, styleId: String) {
         if (DeckStylePresets.ALL.none { it.styleId == styleId }) return
         if (!loaded) refresh(context)
+        val prevBlurRadius = _snapshotFlow.value.windowBlurRadiusPx
         previewStyleId = styleId
         publish(context, styleId)
+        syncLiveBackdropOnThemeTransition(
+            context = context,
+            forceRecapture = (prevBlurRadius <= 0 || CentralCommandBackdropBlur.backdropBitmap == null)
+        )
     }
 
     /**
@@ -132,9 +137,14 @@ object DeckThemeManager {
     @Synchronized
     fun clearPreviewOverride(context: Context) {
         if (previewStyleId == null) return
+        val prevBlurRadius = _snapshotFlow.value.windowBlurRadiusPx
         previewStyleId = null
         val id = getCommittedStyleId(context)
         publish(context, id)
+        syncLiveBackdropOnThemeTransition(
+            context = context,
+            forceRecapture = (prevBlurRadius <= 0 || CentralCommandBackdropBlur.backdropBitmap == null)
+        )
     }
 
     /**
@@ -145,7 +155,6 @@ object DeckThemeManager {
     @Synchronized
     fun setStyle(context: Context, styleId: String) {
         if (DeckStylePresets.ALL.none { it.styleId == styleId }) return
-        val prevBlurRadius = _snapshotFlow.value.windowBlurRadiusPx
         previewStyleId = null
         context.defaultPrefs().edit().putString(LightspeedPreferences.KEY_DECK_STYLE, styleId).apply()
         when (styleId) {
@@ -155,29 +164,38 @@ object DeckThemeManager {
         }
         publish(context, styleId)
         loaded = true
+        syncLiveBackdropOnThemeTransition(context = context, forceRecapture = true)
+    }
 
-        // Sync live Central Command & Flight Control Deck blur immediately when switching
-        // between opaque Material 3 (0px blur) and Glass/Blur themes (or vice versa).
+    /**
+     * Routes all screenshot-backed theme transitions through the single masked
+     * hide -> wait 1–2 frames -> capture -> restore helper so Lightspeed windows and
+     * overlays never capture themselves in the backdrop snapshot.
+     */
+    fun syncLiveBackdropOnThemeTransition(context: Context, forceRecapture: Boolean = true) {
         val nextBlurRadius = _snapshotFlow.value.windowBlurRadiusPx
-        val hasVisibleHosts = CentralCommandBackdropBlur.hasRegisteredHostWindows() || CentralCommandActivity.isActive
-        if (hasVisibleHosts) {
-            val wm = CentralCommandActivity.activeInstance?.windowManager
-                ?: (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)
-            val blurMode = BackdropBlurModeManager.getMode(context)
-            val useScreenshot = BackdropBlurModeManager.shouldUseScreenshotBlur(wm, blurMode)
-            if (nextBlurRadius <= 0) {
-                CentralCommandBackdropBlur.prepareForCentralCommand(wm, forceRecapture = false, hideActiveHosts = false)
-                CentralCommandActivity.activeInstance?.updateLiveWindowBlur()
-            } else if (useScreenshot && (prevBlurRadius <= 0 || CentralCommandBackdropBlur.backdropBitmap == null)) {
-                CentralCommandBackdropBlur.prepareForCentralCommand(
-                    windowManager = wm,
-                    forceRecapture = true,
-                    settleDelayMs = 85L,
-                    hideActiveHosts = true
-                ) {
-                    CentralCommandActivity.activeInstance?.updateLiveWindowBlur()
-                }
-            } else {
+        val hasVisibleHosts = CentralCommandBackdropBlur.hasRegisteredHostWindows() ||
+            CentralCommandCaptureMaskHelper.hasVisibleHostSurfaces() ||
+            CentralCommandActivity.isActive ||
+            com.sbf.lightspeed.CockpitGearPickerActivity.isActive ||
+            com.sbf.lightspeed.system.UnifiedSystemDeckHost.isShowing()
+        if (!hasVisibleHosts) return
+
+        val wm = CentralCommandActivity.activeInstance?.windowManager
+            ?: (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)
+        val blurMode = BackdropBlurModeManager.getMode(context)
+        val useScreenshot = BackdropBlurModeManager.shouldUseScreenshotBlur(wm, blurMode)
+
+        if (nextBlurRadius <= 0 || !useScreenshot) {
+            CentralCommandBackdropBlur.clearBitmap()
+            CentralCommandActivity.activeInstance?.updateLiveWindowBlur()
+        } else {
+            CentralCommandBackdropBlur.prepareForCentralCommand(
+                windowManager = wm,
+                forceRecapture = forceRecapture,
+                settleDelayMs = 0L,
+                hideActiveHosts = true
+            ) {
                 CentralCommandActivity.activeInstance?.updateLiveWindowBlur()
             }
         }

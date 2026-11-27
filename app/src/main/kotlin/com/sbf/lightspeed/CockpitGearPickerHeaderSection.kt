@@ -4,6 +4,11 @@ import com.sbf.lightspeed.system.lsString
 
 import com.sbf.lightspeed.R
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,6 +20,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,19 +39,36 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.settings.DeckButton
+import com.sbf.lightspeed.settings.DeckDialog
+import com.sbf.lightspeed.settings.verticalScrollWithEdgeFade
+import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
+import kotlinx.coroutines.delay
 
 /**
  * Top Header and Profile info for Cockpit Gear Picker.
+ * Header subtitle rotates contextual Action Selection Menu tips; tapping opens the full tips list.
  */
 @Composable
 internal fun CockpitGearPickerHeaderRow(
@@ -59,7 +82,43 @@ internal fun CockpitGearPickerHeaderRow(
     onCloseClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val lsColors = LightspeedStyle.colors
+    val localeState = LightspeedLocaleEngine.state
+    val isArabicScript = localeState.primary == LightspeedLocaleEngine.AppLanguage.AR
+    val activeLayoutDir = LocalLayoutDirection.current
+    val tipLayoutDir = if (isArabicScript) LayoutDirection.Rtl else activeLayoutDir
+
+    val baseSubtitle = remember(isSingleSelect, isSplitMode, profileName, selectedCount, localeState) {
+        if (isSingleSelect) {
+            if (isSplitMode) lsString(R.string.picker_gear_tap_short) else lsString(R.string.picker_gear_tap_full)
+        } else {
+            lsString(R.string.picker_gear_profile, profileName, selectedCount)
+        }
+    }
+    val resolvedTips = remember(baseSubtitle, localeState) {
+        listOf(
+            baseSubtitle,
+            lsString(R.string.picker_tip_pin),
+            lsString(R.string.picker_tip_activities),
+            lsString(R.string.picker_tip_direct_call),
+            lsString(R.string.picker_tip_accordion_mode),
+            lsString(R.string.picker_tip_fast_scroll)
+        )
+    }
+
+    var tipIndex by remember { mutableIntStateOf(0) }
+    var showAllPickerTipsDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(resolvedTips.size) {
+        while (true) {
+            delay(5200L)
+            tipIndex = (tipIndex + 1) % resolvedTips.size
+        }
+    }
+
+    val safeTipIndex = tipIndex % resolvedTips.size
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -76,16 +135,43 @@ internal fun CockpitGearPickerHeaderRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = if (isSingleSelect) {
-                    if (isSplitMode) lsString(R.string.picker_gear_tap_short) else lsString(R.string.picker_gear_tap_full)
-                } else lsString(R.string.picker_gear_profile, profileName, selectedCount),
-                fontSize = 12.sp,
-                lineHeight = 15.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = dynamicSecondary
-            )
+            CompositionLocalProvider(LocalLayoutDirection provides tipLayoutDir) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable {
+                            LightspeedHapticEngine.tick(context)
+                            showAllPickerTipsDialog = true
+                        }
+                        .padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Text(
+                        text = "✦",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = dynamicSecondary
+                    )
+                    AnimatedContent(
+                        targetState = resolvedTips[safeTipIndex],
+                        transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
+                        modifier = Modifier.weight(1f),
+                        label = "picker_header_tip"
+                    ) { tipText ->
+                        Text(
+                            text = tipText,
+                            fontSize = 11.5.sp,
+                            lineHeight = 14.5.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            color = dynamicSecondary
+                        )
+                    }
+                }
+            }
         }
         IconButton(
             onClick = onCloseClick,
@@ -96,6 +182,65 @@ internal fun CockpitGearPickerHeaderRow(
         ) {
             Icon(Icons.Default.Close, contentDescription = "Close", tint = lsColors.textPrimary, modifier = Modifier.size(18.dp))
         }
+    }
+
+    if (showAllPickerTipsDialog) {
+        DeckDialog(
+            onDismissRequest = { showAllPickerTipsDialog = false },
+            scrollable = false,
+            title = {
+                Text(
+                    text = lsString(R.string.picker_tip_all_title),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                CompositionLocalProvider(LocalLayoutDirection provides tipLayoutDir) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 320.dp)
+                            .verticalScrollWithEdgeFade(topFeatherDp = 16.dp, bottomFeatherDp = 18.dp)
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        resolvedTips.forEach { tip ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(lsColors.textPrimary.copy(alpha = 0.05f))
+                                    .border(0.7.dp, dynamicSecondary.copy(alpha = 0.24f), RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Text(
+                                    text = "✦",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = dynamicSecondary
+                                )
+                                Text(
+                                    text = tip,
+                                    fontSize = 11.5.sp,
+                                    lineHeight = 16.sp,
+                                    color = lsColors.textPrimary.copy(alpha = 0.90f),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                DeckButton(
+                    text = lsString(R.string.ls_close),
+                    onClick = { showAllPickerTipsDialog = false },
+                    isActive = true
+                )
+            }
+        )
     }
 }
 

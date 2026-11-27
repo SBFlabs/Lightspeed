@@ -5,7 +5,9 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.Stable
 
+@Stable
 class CentralCommandNavState(
     val tabMode0State: MutableState<String>,
     val pinnedSection0State: MutableState<String>,
@@ -20,6 +22,7 @@ class CentralCommandNavState(
     val blueprintTabTargetState: MutableState<Int?>
 )
 
+@Stable
 class DeflectorAccordionState(
     val isCenterExpandedState: MutableState<Boolean>,
     val isTopExpandedState: MutableState<Boolean>,
@@ -36,13 +39,20 @@ class DeflectorAccordionState(
     val isBottomGeoExpandedState: MutableState<Boolean>,
     val isBottomScrubExpandedState: MutableState<Boolean>,
     val isBottomGesturesExpandedState: MutableState<Boolean>,
+    val isTrackpadExpandedState: MutableState<Boolean>,
+    val isTrackpadGeoExpandedState: MutableState<Boolean>,
+    val isTrackpadPhysicsExpandedState: MutableState<Boolean>,
     val isInnerWatchdogExpandedState: MutableState<Boolean>? = null,
     val isOuterWatchdogExpandedState: MutableState<Boolean>? = null
 )
 
+@Stable
 class HudStripAccordionState(
     val isSensorDeckExpandedState: MutableState<Boolean>,
     val isSyntheticGravityExpandedState: MutableState<Boolean>,
+    val isAstrogationAirlockExpandedState: MutableState<Boolean>,
+    val isSonicDeckExpandedState: MutableState<Boolean>,
+    val isVistaDeckExpandedState: MutableState<Boolean>,
     val isTelemetryExpandedState: MutableState<Boolean>,
     val isTacticalHardwareExpandedState: MutableState<Boolean>,
     val isRefuelingExpandedState: MutableState<Boolean>,
@@ -68,6 +78,7 @@ class HudStripAccordionState(
     val thresholdCrossedFlashState: MutableState<Boolean>
 )
 
+@Stable
 class CentralCommandDialogState(
     val showUnifyInfoDialogState: MutableState<Boolean>,
     val showSymmetryInfoDialogState: MutableState<Boolean>,
@@ -84,6 +95,7 @@ class CentralCommandDialogState(
     val pendingBackTapScopeState: MutableState<String>
 )
 
+@Stable
 class CentralCommandState(
     val nav: CentralCommandNavState,
     val leftDeflector: DeflectorAccordionState,
@@ -99,7 +111,9 @@ class CentralCommandState(
     val sectionTitles0: Map<String, String>,
     val sectionTitles1: Map<String, String>,
     val sectionTitles2: Map<String, String>,
-    val toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit
+    val toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit,
+    val toggleSubSection: (Int, String, String, Boolean, (Boolean) -> Unit) -> Unit,
+    val applyTabMode: (Int, String) -> Unit
 ) {
     // Nav Delegations
     val tabMode0State get() = nav.tabMode0State
@@ -130,10 +144,16 @@ class CentralCommandState(
     val isLeftBottomGeoExpandedState get() = leftDeflector.isBottomGeoExpandedState
     val isLeftBottomScrubExpandedState get() = leftDeflector.isBottomScrubExpandedState
     val isLeftBottomGesturesExpandedState get() = leftDeflector.isBottomGesturesExpandedState
+    val isLeftTrackpadExpandedState get() = leftDeflector.isTrackpadExpandedState
+    val isLeftTrackpadGeoExpandedState get() = leftDeflector.isTrackpadGeoExpandedState
+    val isLeftTrackpadPhysicsExpandedState get() = leftDeflector.isTrackpadPhysicsExpandedState
 
     // HUD Strip Delegations
     val isSensorDeckExpandedState get() = hudStrip.isSensorDeckExpandedState
     val isSyntheticGravityExpandedState get() = hudStrip.isSyntheticGravityExpandedState
+    val isAstrogationAirlockExpandedState get() = hudStrip.isAstrogationAirlockExpandedState
+    val isSonicDeckExpandedState get() = hudStrip.isSonicDeckExpandedState
+    val isVistaDeckExpandedState get() = hudStrip.isVistaDeckExpandedState
     val isTelemetryExpandedState get() = hudStrip.isTelemetryExpandedState
     val isTacticalHardwareExpandedState get() = hudStrip.isTacticalHardwareExpandedState
     val isRefuelingExpandedState get() = hudStrip.isRefuelingExpandedState
@@ -176,6 +196,9 @@ class CentralCommandState(
     val isBottomGeoExpandedState get() = rightDeflector.isBottomGeoExpandedState
     val isBottomScrubExpandedState get() = rightDeflector.isBottomScrubExpandedState
     val isBottomGesturesExpandedState get() = rightDeflector.isBottomGesturesExpandedState
+    val isTrackpadExpandedState get() = rightDeflector.isTrackpadExpandedState
+    val isTrackpadGeoExpandedState get() = rightDeflector.isTrackpadGeoExpandedState
+    val isTrackpadPhysicsExpandedState get() = rightDeflector.isTrackpadPhysicsExpandedState
 
     // Dialog Delegations
     val showUnifyInfoDialogState get() = dialogs.showUnifyInfoDialogState

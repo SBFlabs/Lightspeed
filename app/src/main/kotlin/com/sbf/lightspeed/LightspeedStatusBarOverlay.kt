@@ -243,6 +243,43 @@ class LightspeedStatusBarOverlay(
 
     internal var currentTransientHudState: TransientHudState? = null
     internal var transientDismissRunnable: Runnable? = null
+    internal var hudAlpha: Float = 0f
+    private var hudFadeAnimator: android.animation.ValueAnimator? = null
+    private var isFadingOutHud: Boolean = false
+    internal var scrubContinuumProgress: Float = 0f
+    internal var scrubContinuumTargetDeck: String? = null
+
+    private fun animateHudAlpha(target: Float, durationMs: Long, onEnd: (() -> Unit)? = null) {
+        hudFadeAnimator?.cancel()
+        if (kotlin.math.abs(hudAlpha - target) < 0.01f) {
+            hudAlpha = target
+            postInvalidateOnAnimation()
+            onEnd?.invoke()
+            return
+        }
+        var cancelled = false
+        val anim = android.animation.ValueAnimator.ofFloat(hudAlpha, target).apply {
+            duration = durationMs
+            interpolator = android.view.animation.DecelerateInterpolator()
+            addUpdateListener { va ->
+                hudAlpha = va.animatedValue as Float
+                postInvalidateOnAnimation()
+            }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationCancel(animation: android.animation.Animator) {
+                    cancelled = true
+                }
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    if (!cancelled) {
+                        hudAlpha = target
+                        onEnd?.invoke()
+                    }
+                }
+            })
+        }
+        hudFadeAnimator = anim
+        anim.start()
+    }
 
     fun displayTransientHud(
         title: String,
@@ -255,25 +292,30 @@ class LightspeedStatusBarOverlay(
     ) {
         uiHandler.post {
             val wasHidden = visibility != View.VISIBLE
+            val wasHudAlreadyVisible = currentTransientHudState != null && !isFadingOutHud
             if (wasHidden) {
                 visibility = View.VISIBLE
             }
             transientDismissRunnable?.let { uiHandler.removeCallbacks(it) }
             transientDismissRunnable = null
+            isFadingOutHud = false
             currentTransientHudState = TransientHudState(title, value, stepIndex, totalSteps, style, colorMode)
             expandForHud()
-            postInvalidate()
+            val isShadeStyle = com.sbf.lightspeed.system.LightspeedHudRenderer.isFramelessShadeStyle(style)
+            if (!isShadeStyle) {
+                hudFadeAnimator?.cancel()
+                hudAlpha = 1f
+                postInvalidate()
+            } else if (wasHudAlreadyVisible && hudAlpha >= 0.98f) {
+                hudAlpha = 1f
+                postInvalidate()
+            } else {
+                animateHudAlpha(1f, 90L)
+            }
 
             if (durationMs > 0L) {
                 val runnable = Runnable {
-                    currentTransientHudState = null
-                    if (com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState?.isActive != true) {
-                        restoreWindowLayout()
-                    }
-                    if (wasHidden) {
-                        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
-                    }
-                    postInvalidate()
+                    dismissTransientHud(0L)
                 }
                 transientDismissRunnable = runnable
                 uiHandler.postDelayed(runnable, durationMs)
@@ -286,14 +328,43 @@ class LightspeedStatusBarOverlay(
             val wasHidden = visibility != View.VISIBLE
             transientDismissRunnable?.let { uiHandler.removeCallbacks(it) }
             val runnable = Runnable {
-                currentTransientHudState = null
-                if (com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState?.isActive != true) {
-                    restoreWindowLayout()
+                transientDismissRunnable = null
+                scrubContinuumProgress = 0f
+                scrubContinuumTargetDeck = null
+                val activeHud = currentTransientHudState
+                if (activeHud == null) {
+                    if (com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState?.isActive != true) {
+                        restoreWindowLayout()
+                    }
+                    return@Runnable
                 }
-                if (wasHidden) {
-                    LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                val isShadeStyle = com.sbf.lightspeed.system.LightspeedHudRenderer.isFramelessShadeStyle(activeHud.style)
+                if (!isShadeStyle) {
+                    isFadingOutHud = false
+                    hudAlpha = 0f
+                    currentTransientHudState = null
+                    if (com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState?.isActive != true) {
+                        restoreWindowLayout()
+                    }
+                    if (wasHidden) {
+                        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                    }
+                    postInvalidate()
+                    return@Runnable
                 }
-                postInvalidate()
+                isFadingOutHud = true
+                animateHudAlpha(0f, 130L) {
+                    if (!isFadingOutHud) return@animateHudAlpha
+                    isFadingOutHud = false
+                    currentTransientHudState = null
+                    if (com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState?.isActive != true) {
+                        restoreWindowLayout()
+                    }
+                    if (wasHidden) {
+                        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                    }
+                    postInvalidate()
+                }
             }
             transientDismissRunnable = runnable
             if (delayMs > 0L) {
@@ -315,9 +386,13 @@ class LightspeedStatusBarOverlay(
         com.sbf.lightspeed.system.LightspeedKeyEngine.onNavStateListener = { state ->
             uiHandler.post {
                 if (state?.isActive == true) {
+                    isFadingOutHud = false
                     expandForHud()
+                    animateHudAlpha(1f, 95L)
                 } else {
                     if (currentTransientHudState == null) {
+                        hudFadeAnimator?.cancel()
+                        hudAlpha = 0f
                         restoreWindowLayout()
                     }
                 }
@@ -372,7 +447,11 @@ class LightspeedStatusBarOverlay(
             isScreenReceiverRegistered = false
         }
         transientDismissRunnable?.let { uiHandler.removeCallbacks(it) }
+        hudFadeAnimator?.cancel()
+        hudFadeAnimator = null
         currentTransientHudState = null
+        scrubContinuumProgress = 0f
+        scrubContinuumTargetDeck = null
         prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
         com.sbf.lightspeed.system.LightspeedNotificationListener.unregisterTelemetryListener(telemetryListener)
         com.sbf.lightspeed.system.LightspeedKeyEngine.onNavStateListener = null
@@ -384,7 +463,9 @@ class LightspeedStatusBarOverlay(
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
         val lp = layoutParams as? WindowManager.LayoutParams ?: return
         val blurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.getMode(context)
-        if (com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseScreenshotBlur(wm, blurMode) &&
+        val isShadeStyle = com.sbf.lightspeed.system.LightspeedHudRenderer.isFramelessShadeStyle(currentTransientHudState?.style)
+        if (!isShadeStyle &&
+            com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseScreenshotBlur(wm, blurMode) &&
             !com.sbf.lightspeed.settings.CentralCommandBackdropBlur.hasHudBackdrop() &&
             !com.sbf.lightspeed.settings.CentralCommandBackdropBlur.isHudCapturing
         ) {
@@ -397,7 +478,7 @@ class LightspeedStatusBarOverlay(
         val targetH = (260 * d).toInt()
         var layoutDirty = lp.height != targetH || lp.width != screenW
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val useNative = com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseNativeBlur(wm, blurMode)
+            val useNative = !isShadeStyle && com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseNativeBlur(wm, blurMode)
             val hasBlurFlag = (lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND) != 0
             if (useNative && !hasBlurFlag) {
                 lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
@@ -414,7 +495,8 @@ class LightspeedStatusBarOverlay(
             lp.y = 0
             lp.width = screenW
             lp.height = targetH
-            lp.gravity = Gravity.TOP or Gravity.START
+            @Suppress("RtlHardcoded")
+            lp.gravity = Gravity.TOP or Gravity.LEFT
             try { wm.updateViewLayout(this, lp) } catch (e: Exception) { logSwallowed("LightspeedStatusBarOverlay", "expandForHud:325", e) }
         }
     }
@@ -449,7 +531,8 @@ class LightspeedStatusBarOverlay(
         lp.height = (effectiveHeightDp * d).toInt()
         lp.x = 0
         lp.y = 0
-        lp.gravity = Gravity.TOP or Gravity.START
+        @Suppress("RtlHardcoded")
+        lp.gravity = Gravity.TOP or Gravity.LEFT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             (lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND) != 0
         ) {
@@ -501,10 +584,30 @@ class LightspeedStatusBarOverlay(
             return true
         }
 
+        fun updateScrubContinuum(progress: Float, targetDeck: String?) {
+            val inst = activeInstance ?: return
+            val clamped = progress.coerceIn(0f, 1f)
+            if (kotlin.math.abs(inst.scrubContinuumProgress - clamped) < 0.01f &&
+                inst.scrubContinuumTargetDeck == targetDeck
+            ) {
+                return
+            }
+            inst.uiHandler.post {
+                inst.scrubContinuumProgress = clamped
+                inst.scrubContinuumTargetDeck = targetDeck
+                inst.postInvalidateOnAnimation()
+            }
+        }
+
         fun hideActionHudNow() {
             val inst = activeInstance ?: return
             inst.uiHandler.post {
                 inst.transientDismissRunnable?.let { inst.uiHandler.removeCallbacks(it) }
+                inst.hudFadeAnimator?.cancel()
+                inst.isFadingOutHud = false
+                inst.hudAlpha = 0f
+                inst.scrubContinuumProgress = 0f
+                inst.scrubContinuumTargetDeck = null
                 inst.currentTransientHudState = null
                 inst.restoreWindowLayout()
                 inst.invalidate()

@@ -108,7 +108,7 @@ fun Modifier.deckGlassSurface(
     }
 
     val noiseBrush = remember(snapshot.noiseStrength, snapshot.styleId, withNoise, isCard, isMiniTile) {
-        if (!isCard && !isMiniTile && withNoise && snapshot.styleId == "acrylic" && snapshot.noiseStrength > 0.01f) {
+        if (!isCard && !isMiniTile && withNoise && (snapshot.styleId == "acrylic" || snapshot.styleId == "frosted") && snapshot.noiseStrength > 0.01f) {
             GlassNoiseTexture.getBrush()
         } else null
     }
@@ -606,7 +606,11 @@ fun Modifier.verticalEdgeFade(
     bottomFeatherDp: Dp = 22.dp
 ): Modifier = this
     .graphicsLayer {
-        compositingStrategy = CompositingStrategy.Offscreen
+        compositingStrategy = if (scrollableState.canScrollBackward || scrollableState.canScrollForward) {
+            CompositingStrategy.Offscreen
+        } else {
+            CompositingStrategy.Auto
+        }
     }
     .drawWithCache {
         val topPx = minOf(topFeatherDp.toPx(), size.height * 0.35f)

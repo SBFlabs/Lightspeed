@@ -35,6 +35,7 @@ import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.OverlayLifecycleOwner
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
@@ -98,7 +99,9 @@ object LightspeedEyeRestOverlay {
             try {
                 wm.addView(view, params)
                 composeView = view
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                dismiss()
+            }
         }
     }
 
@@ -144,7 +147,9 @@ object LightspeedEyeRestOverlay {
             try {
                 wm.addView(view, params)
                 composeView = view
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                dismiss()
+            }
         }
     }
 
@@ -152,14 +157,20 @@ object LightspeedEyeRestOverlay {
         try {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(CHANNEL_ID, "Eye Rest & Display Wellness", NotificationManager.IMPORTANCE_HIGH).apply {
-                    description = "20-20-20 Eye Care Wellness Reminders"
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    lsString(R.string.eyerest_notif_channel),
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = lsString(R.string.eyerest_notif_desc)
                 }
                 nm.createNotificationChannel(channel)
             }
 
-            val title = context.defaultPrefs().getString(LightspeedPreferences.KEY_EYE_REST_TITLE, "20-20-20 EYE CARE") ?: "20-20-20 EYE CARE"
-            val sub = context.defaultPrefs().getString(LightspeedPreferences.KEY_EYE_REST_SUBTITLE, "Look 20 feet away for 20 seconds") ?: "Look 20 feet away for 20 seconds"
+            val defaultTitle = lsString(R.string.eyerest_default_title)
+            val defaultSub = lsString(R.string.eyerest_default_sub)
+            val title = context.defaultPrefs().getString(LightspeedPreferences.KEY_EYE_REST_TITLE, defaultTitle) ?: defaultTitle
+            val sub = context.defaultPrefs().getString(LightspeedPreferences.KEY_EYE_REST_SUBTITLE, defaultSub) ?: defaultSub
 
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
@@ -177,7 +188,8 @@ object LightspeedEyeRestOverlay {
         mainHandler.post {
             val v = composeView
             if (v != null) {
-                try { windowManager?.removeView(v) } catch (_: Exception) {}
+                val wm = (v.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager) ?: windowManager
+                try { wm?.removeView(v) } catch (_: Exception) {}
                 composeView = null
             }
             lifecycleOwner?.onDestroy()
@@ -190,8 +202,10 @@ object LightspeedEyeRestOverlay {
     private fun EyeRestFullscreenContent(context: Context, onDismiss: () -> Unit, onSnooze: () -> Unit) {
         val lsColors = LightspeedStyle.colors
         val prefs = remember { context.defaultPrefs() }
-        val title = remember { prefs.getString(LightspeedPreferences.KEY_EYE_REST_TITLE, "20-20-20 EYE CARE") ?: "20-20-20 EYE CARE" }
-        val subtitle = remember { prefs.getString(LightspeedPreferences.KEY_EYE_REST_SUBTITLE, "Look 20 feet away for 20 seconds") ?: "Look 20 feet away for 20 seconds" }
+        val defaultTitle = lsString(R.string.eyerest_default_title)
+        val defaultSub = lsString(R.string.eyerest_default_sub)
+        val title = remember(defaultTitle) { prefs.getString(LightspeedPreferences.KEY_EYE_REST_TITLE, defaultTitle) ?: defaultTitle }
+        val subtitle = remember(defaultSub) { prefs.getString(LightspeedPreferences.KEY_EYE_REST_SUBTITLE, defaultSub) ?: defaultSub }
         var secondsLeft by remember { mutableIntStateOf(20) }
 
         LaunchedEffect(Unit) {
@@ -232,10 +246,10 @@ object LightspeedEyeRestOverlay {
                 Spacer(Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = onSnooze, colors = ButtonDefaults.buttonColors(containerColor = LightspeedTokens.StatusWarningOrange.copy(alpha = 0.20f)), modifier = Modifier.weight(1f)) {
-                        Text("Snooze 5m", color = LightspeedTokens.StatusWarningOrange, fontSize = 11.5.sp)
+                        Text(lsString(R.string.eyerest_snooze_5m), color = LightspeedTokens.StatusWarningOrange, fontSize = 11.5.sp)
                     }
                     Button(onClick = onDismiss, colors = ButtonDefaults.buttonColors(containerColor = tint), modifier = Modifier.weight(1f)) {
-                        Text("Dismiss", color = Color.Black, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                        Text(lsString(R.string.eyerest_dismiss), color = Color.Black, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -246,7 +260,8 @@ object LightspeedEyeRestOverlay {
     private fun EyeRestFloatingContent(context: Context, onDismiss: () -> Unit) {
         val lsColors = LightspeedStyle.colors
         val prefs = remember { context.defaultPrefs() }
-        val title = remember { prefs.getString(LightspeedPreferences.KEY_EYE_REST_TITLE, "20-20-20 EYE CARE") ?: "20-20-20 EYE CARE" }
+        val defaultTitle = lsString(R.string.eyerest_default_title)
+        val title = remember(defaultTitle) { prefs.getString(LightspeedPreferences.KEY_EYE_REST_TITLE, defaultTitle) ?: defaultTitle }
         var secondsLeft by remember { mutableIntStateOf(20) }
 
         LaunchedEffect(Unit) {
@@ -277,10 +292,10 @@ object LightspeedEyeRestOverlay {
                     Spacer(Modifier.width(10.dp))
                     Column {
                         Text(title, color = lsColors.textPrimary, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                        Text("Look 20ft away ($secondsLeft s)", color = lsColors.textSecondary, fontSize = 9.5.sp)
+                        Text(lsString(R.string.eyerest_floating_fmt, secondsLeft), color = lsColors.textSecondary, fontSize = 9.5.sp)
                     }
                 }
-                Text("Dismiss", color = tint, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(lsString(R.string.eyerest_dismiss), color = tint, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }

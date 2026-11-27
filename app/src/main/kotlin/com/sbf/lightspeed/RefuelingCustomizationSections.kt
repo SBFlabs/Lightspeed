@@ -36,16 +36,18 @@ import com.sbf.lightspeed.settings.DeckSwitch
 import com.sbf.lightspeed.settings.FontWritingLoadingAnimation
 import com.sbf.lightspeed.settings.resolveOpticalColors
 import com.sbf.lightspeed.system.DeviceFontScanner
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 import kotlin.math.roundToInt
 
-private val BUILT_IN_CLOCK_FONTS: List<Triple<String, String, FontFamily>> = listOf(
-    Triple("mono", "Tactical (Mono)", FontFamily.Monospace),
-    Triple("sans", "Clean (Sans)", FontFamily.SansSerif),
-    Triple("serif", "Classic (Serif)", FontFamily.Serif),
-    Triple("cyber", "Cyber (HUD)", FontFamily.Monospace)
+private fun builtInClockFonts(): List<Triple<String, String, FontFamily>> = listOf(
+    Triple("mono", lsString(R.string.ref_studio_font_mono), FontFamily.Monospace),
+    Triple("sans", lsString(R.string.ref_studio_font_sans), FontFamily.SansSerif),
+    Triple("serif", lsString(R.string.ref_studio_font_serif), FontFamily.Serif),
+    Triple("cyber", lsString(R.string.ref_studio_font_cyber), FontFamily.Monospace)
 )
 
 @Composable
@@ -58,7 +60,7 @@ internal fun ClockFormatSection(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "CHRONO CLOCK FORMAT",
+                text = lsString(R.string.ref_studio_clock_fmt_hdr),
                 fontSize = 10.5.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -77,8 +79,7 @@ internal fun ClockFormatSection(
         }
         if (showOrbitalInfo) {
             Text(
-                text = "STARDATE uses the Solar Calendar Stardate: SD <year>.<day of year> · <24h time>. " +
-                    "Example: SD 2026.292 · 16:38 means year 2026, day 292 of the year, at 16:38.",
+                text = lsString(R.string.ref_studio_stardate_info),
                 fontSize = 9.5.sp,
                 fontFamily = FontFamily.Monospace,
                 color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.7f),
@@ -90,11 +91,11 @@ internal fun ClockFormatSection(
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             val formats = listOf(
-                "24h_sec" to "24H+S",
-                "24h" to "24H",
-                "12h_sec" to "12H+S",
-                "12h" to "12H",
-                "stardate" to "STARDATE"
+                "24h_sec" to lsString(R.string.ref_studio_fmt_24h_s),
+                "24h" to lsString(R.string.ref_studio_fmt_24h),
+                "12h_sec" to lsString(R.string.ref_studio_fmt_12h_s),
+                "12h" to lsString(R.string.ref_studio_fmt_12h),
+                "stardate" to lsString(R.string.ref_studio_fmt_stardate)
             )
             formats.forEach { (key, label) ->
                 val isSelected = clockFormat == key || (key == "stardate" && clockFormat == "orbital")
@@ -116,7 +117,7 @@ internal fun DateFormatSection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            text = "DATE DISPLAY FORMAT",
+            text = lsString(R.string.ref_studio_date_fmt_hdr),
             fontSize = 10.5.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
@@ -127,11 +128,11 @@ internal fun DateFormatSection(
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             val dateFormats = listOf(
-                "full" to "FULL",
-                "short" to "SHORT",
-                "iso" to "ISO",
-                "compact" to "COMPACT",
-                "hidden" to "HIDE"
+                "full" to lsString(R.string.ref_studio_date_full),
+                "short" to lsString(R.string.ref_studio_date_short),
+                "iso" to lsString(R.string.ref_studio_date_iso),
+                "compact" to lsString(R.string.ref_studio_date_compact),
+                "hidden" to lsString(R.string.ref_studio_date_hide)
             )
             dateFormats.forEach { (key, label) ->
                 ModalDeckChipButton(
@@ -159,7 +160,8 @@ internal fun FontAndAlarmSection(
     val opticalColors = snapshot.resolveOpticalColors()
     val shape = RoundedCornerShape((snapshot.cornerRadiusDp * 0.42f).coerceIn(8f, 14f).dp)
 
-    val builtInMatch = BUILT_IN_CLOCK_FONTS.firstOrNull { it.first == clockFont }
+    val builtInFonts = builtInClockFonts()
+    val builtInMatch = builtInFonts.firstOrNull { it.first == clockFont }
     val deviceMatch = deviceFonts?.firstOrNull { it.first == clockFont }
     val activeLabel = builtInMatch?.second
         ?: deviceMatch?.second
@@ -170,7 +172,7 @@ internal fun FontAndAlarmSection(
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            text = "CLOCK FONT & ALARM BADGE",
+            text = lsString(R.string.ref_studio_font_alarm_hdr),
             fontSize = 10.5.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
@@ -217,7 +219,7 @@ internal fun FontAndAlarmSection(
             }
 
             ModalDeckChipButton(
-                label = if (showAlarm) "ALARM: ON" else "ALARM: OFF",
+                label = if (showAlarm) lsString(R.string.ref_studio_alarm_on) else lsString(R.string.ref_studio_alarm_off),
                 isSelected = showAlarm,
                 onClick = { onShowAlarmChange(!showAlarm) },
                 modifier = Modifier.weight(0.95f),
@@ -255,14 +257,14 @@ internal fun FontAndAlarmSection(
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
-                            text = "BUILT-IN PRESETS",
+                            text = lsString(R.string.ref_studio_builtin_presets),
                             fontSize = 9.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             color = opticalColors.readableTintColor,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         )
-                        BUILT_IN_CLOCK_FONTS.forEach { (key, label, previewFamily) ->
+                        builtInFonts.forEach { (key, label, previewFamily) ->
                             FontPickerOptionRow(
                                 label = label,
                                 previewFamily = previewFamily,
@@ -278,7 +280,7 @@ internal fun FontAndAlarmSection(
                         )
 
                         Text(
-                            text = "SYSTEM & DEVICE FONTS (${loadedList.size})",
+                            text = lsString(R.string.ref_studio_device_fonts, loadedList.size),
                             fontSize = 9.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
@@ -356,7 +358,7 @@ internal fun BatteryStyleAndSizeSection(
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = "BATTERY GAUGE STYLE (9 ANIMATED)",
+            text = lsString(R.string.ref_studio_gauge_style_hdr),
             fontSize = 10.5.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
@@ -423,7 +425,7 @@ internal fun BatteryStyleAndSizeSection(
                     .padding(horizontal = 6.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                REFUELING_GAUGE_STYLE_OPTIONS.forEach { (key, label) ->
+                refuelingGaugeStyleOptions().forEach { (key, label) ->
                     val selected = batteryStyle == key
                     Row(
                         modifier = Modifier
@@ -468,7 +470,7 @@ internal fun BatteryStyleAndSizeSection(
         }
 
         DeckSignatureSliderRow(
-            title = "GAUGE SIZE",
+            title = lsString(R.string.ref_studio_gauge_size),
             sliderKey = LightspeedPreferences.KEY_REFUELING_GAUGE_SCALE,
             value = gaugePct.toFloat(),
             valueDisplayText = "$gaugePct%",
@@ -501,7 +503,7 @@ internal fun TelemetryGraphSection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = "CHARGING GRAPH PLACEMENT",
+            text = lsString(R.string.ref_studio_graph_place_hdr),
             fontSize = 10.5.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
@@ -511,7 +513,7 @@ internal fun TelemetryGraphSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            REFUELING_GRAPH_MODE_OPTIONS.forEach { (key, label) ->
+            refuelingGraphModeOptions().forEach { (key, label) ->
                 ModalDeckChipButton(
                     label = label,
                     isSelected = graphMode == key,
@@ -523,14 +525,14 @@ internal fun TelemetryGraphSection(
 
         if (graphMode != "off") {
             Text(
-                text = "GRAPH TIME SPAN",
+                text = lsString(R.string.ref_studio_graph_span_hdr),
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
                 color = LightspeedStyle.colors.textSecondary
             )
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                REFUELING_GRAPH_SPAN_OPTIONS.chunked(3).forEach { rowOptions ->
+                refuelingGraphSpanOptions().chunked(3).forEach { rowOptions ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -549,7 +551,7 @@ internal fun TelemetryGraphSection(
 
             if (graphSpan == "charge") {
                 Text(
-                    text = "WHEN UNPLUGGED",
+                    text = lsString(R.string.ref_studio_when_unplugged_hdr),
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -559,7 +561,7 @@ internal fun TelemetryGraphSection(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    REFUELING_GRAPH_UNPLUGGED_OPTIONS.forEach { (key, label) ->
+                    refuelingGraphUnpluggedOptions().forEach { (key, label) ->
                         ModalDeckChipButton(
                             label = label,
                             isSelected = graphUnpluggedMode == key,
@@ -570,9 +572,9 @@ internal fun TelemetryGraphSection(
                 }
                 Text(
                     text = if (graphUnpluggedMode == "last_charge") {
-                        "Freezes on your last completed charge curve when unplugged"
+                        lsString(R.string.ref_studio_unplugged_last_desc)
                     } else {
-                        "Switches to a rolling 15-minute live trend when unplugged"
+                        lsString(R.string.ref_studio_unplugged_live_desc)
                     },
                     fontSize = 10.sp,
                     color = LightspeedStyle.colors.textSecondary
@@ -587,14 +589,14 @@ internal fun TelemetryGraphSection(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "SHOW GRAPH LABELS & VALUES",
+                            text = lsString(R.string.ref_studio_graph_labels_title),
                             fontSize = 10.5.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             color = LightspeedStyle.colors.textPrimary
                         )
                         Text(
-                            text = "Off keeps clean glowing lines with no bottom text",
+                            text = lsString(R.string.ref_studio_graph_labels_sub),
                             fontSize = 10.sp,
                             color = LightspeedStyle.colors.textSecondary
                         )
@@ -616,8 +618,6 @@ internal fun LayoutRatioSection(
     onSplitRatioChange: (Float) -> Unit
 ) {
     val opticalColors = LocalDeckTheme.current.resolveOpticalColors()
-    val firstLabel = if (isLandscape) "LEFT" else "TOP"
-    val secondLabel = if (isLandscape) "RIGHT" else "BOTTOM"
     val firstPct = (splitRatio * 100f).roundToInt().coerceIn(30, 70)
     val secondPct = 100 - firstPct
     val defaultPct = if (isLandscape) 44 else 52
@@ -628,7 +628,7 @@ internal fun LayoutRatioSection(
     }
 
     DeckSignatureSliderRow(
-        title = "$firstLabel / $secondLabel LAYOUT RATIO",
+        title = if (isLandscape) lsString(R.string.ref_studio_ratio_land) else lsString(R.string.ref_studio_ratio_port),
         sliderKey = sliderKey,
         value = firstPct.toFloat(),
         valueDisplayText = "$firstPct% / $secondPct%",
@@ -657,7 +657,7 @@ internal fun InactivityActionSection(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "INACTIVITY ACTION",
+                text = lsString(R.string.ref_studio_inact_action_hdr),
                 fontSize = 10.5.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -676,7 +676,7 @@ internal fun InactivityActionSection(
         }
         if (showHardwareLockInfo) {
             Text(
-                text = "HARDWARE LOCK: Uses Shizuku ADB power commands to blank the physical display panel. Waking requires pressing the power button twice and unlocking.",
+                text = lsString(R.string.ref_studio_hw_lock_info),
                 fontSize = 9.5.sp,
                 fontFamily = FontFamily.Monospace,
                 color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.7f),
@@ -687,10 +687,13 @@ internal fun InactivityActionSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            val actions = listOf("overlay" to "OLED Shield", "screen_off" to "Hardware Lock")
+            val actions = listOf(
+                "overlay" to lsString(R.string.ref_studio_act_oled_shield),
+                "screen_off" to lsString(R.string.ref_studio_act_hw_lock)
+            )
             actions.forEach { (key, label) ->
                 ModalDeckChipButton(
-                    label = label.uppercase(),
+                    label = label,
                     isSelected = sleepAction == key,
                     onClick = { onSleepActionChange(key) },
                     modifier = Modifier.weight(1f),
@@ -707,11 +710,19 @@ internal fun InactivityTimeoutSection(
     onSleepTimeoutChange: (String) -> Unit,
     compactWrap: Boolean
 ) {
-    val timeouts = listOf("5s", "15s", "30s", "60s", "120s", "300s", "never")
+    val timeouts = listOf(
+        "5s" to lsString(R.string.ref_chip_5s),
+        "15s" to lsString(R.string.ref_chip_15s),
+        "30s" to lsString(R.string.ref_chip_30s),
+        "60s" to lsString(R.string.ref_chip_60s),
+        "120s" to lsString(R.string.ref_chip_120s),
+        "300s" to lsString(R.string.ref_chip_300s),
+        "never" to lsString(R.string.ref_chip_never)
+    )
     val rows = if (compactWrap) timeouts.chunked(4) else listOf(timeouts)
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Text(
-            text = "INACTIVITY TIMEOUT",
+            text = lsString(R.string.ref_studio_inact_timeout_hdr),
             fontSize = 10.5.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
@@ -722,11 +733,11 @@ internal fun InactivityTimeoutSection(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                rowItems.forEach { timeout ->
+                rowItems.forEach { (timeoutKey, timeoutLabel) ->
                     ModalDeckChipButton(
-                        label = timeout.uppercase(),
-                        isSelected = normalizeRefuelingTimeout(sleepTimeout) == timeout,
-                        onClick = { onSleepTimeoutChange(timeout) },
+                        label = timeoutLabel,
+                        isSelected = normalizeRefuelingTimeout(sleepTimeout) == timeoutKey,
+                        onClick = { onSleepTimeoutChange(timeoutKey) },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -750,6 +761,7 @@ internal fun ModalDeckChipButton(
 ) {
     val snapshot = LocalDeckTheme.current
     val opticalColors = snapshot.resolveOpticalColors()
+    val isArabic = LightspeedLocaleEngine.state.primary == LightspeedLocaleEngine.AppLanguage.AR
     DeckButton(
         onClick = onClick,
         isActive = isSelected,
@@ -759,7 +771,7 @@ internal fun ModalDeckChipButton(
     ) {
         Text(
             text = label,
-            fontSize = 8.5.sp,
+            fontSize = if (isArabic) 9.5.sp else 8.5.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
             color = if (isSelected) opticalColors.readableTintColor else LightspeedStyle.colors.textPrimary.copy(alpha = 0.88f),

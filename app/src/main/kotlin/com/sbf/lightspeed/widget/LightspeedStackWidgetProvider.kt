@@ -83,6 +83,7 @@ class LightspeedStackWidgetProvider : AppWidgetProvider() {
     }
 
     private fun renderStack(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, options: Bundle) {
+        LightspeedLocaleEngine.init(context)
         val minWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 260)
         val minHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 180)
         val density = context.resources.displayMetrics.density
@@ -166,7 +167,7 @@ class LightspeedStackWidgetProvider : AppWidgetProvider() {
     private fun createAppsPage(context: Context, snapshot: DeckThemeSnapshot, appWidgetId: Int): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.stack_item_tiles)
         val badge = if (com.sbf.lightspeed.BuildConfig.DEBUG) " [NIGHTLY]" else ""
-        views.setTextViewText(R.id.stack_item_title, "APPS$badge")
+        views.setTextViewText(R.id.stack_item_title, "${lsString(R.string.stack_wid_apps)}$badge")
         views.setTextColor(R.id.stack_item_title, snapshot.borderColorArgb.toInt())
 
         val activeSet = context.defaultPrefs().getInt(LightspeedPreferences.KEY_LAST_ACTIVE_SET_INDEX, 0)
@@ -207,11 +208,13 @@ class LightspeedStackWidgetProvider : AppWidgetProvider() {
     private fun createSystemPage(context: Context, snapshot: DeckThemeSnapshot, appWidgetId: Int): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.stack_item_tiles)
         val badge = if (com.sbf.lightspeed.BuildConfig.DEBUG) " [NIGHTLY]" else ""
-        views.setTextViewText(R.id.stack_item_title, "SYSTEM CONTROLS$badge")
+        views.setTextViewText(R.id.stack_item_title, "${lsString(R.string.stack_wid_sys_controls)}$badge")
         views.setTextColor(R.id.stack_item_title, snapshot.borderColorArgb.toInt())
 
         val prefs = context.defaultPrefs()
         val tint = snapshot.tintArgb.toInt()
+        val activeTxt = lsString(R.string.stack_status_active)
+        val offTxt = lsString(R.string.stack_status_off)
 
         fun tile(slot: Int, icon: Int, text: Int, status: Int, label: String, statusText: String, active: Boolean, drawable: Int, actionStr: String, reqCode: Int) {
             views.setViewVisibility(slot, View.VISIBLE)
@@ -225,15 +228,15 @@ class LightspeedStackWidgetProvider : AppWidgetProvider() {
         }
 
         val vocal = SonicVoiceIsolationEngine.isEnabled
-        tile(R.id.slot_1, R.id.slot_1_icon, R.id.slot_1_text, R.id.slot_1_status, "Vocal Boost", if (vocal) "ACTIVE" else "OFF", vocal, R.drawable.ic_music_note, ACTION_TOGGLE_VOCAL_BOOST, 11)
+        tile(R.id.slot_1, R.id.slot_1_icon, R.id.slot_1_text, R.id.slot_1_status, lsString(R.string.stack_tile_vocal), if (vocal) activeTxt else offTxt, vocal, R.drawable.ic_music_note, ACTION_TOGGLE_VOCAL_BOOST, 11)
 
         val pixels = prefs.getBoolean(LightspeedPreferences.KEY_SMART_PIXELS_ENABLED, false)
-        tile(R.id.slot_2, R.id.slot_2_icon, R.id.slot_2_text, R.id.slot_2_status, "Smart Pixels", if (pixels) "ACTIVE" else "OFF", pixels, R.drawable.ic_widgets, ACTION_TOGGLE_SMART_PIXELS, 12)
+        tile(R.id.slot_2, R.id.slot_2_icon, R.id.slot_2_text, R.id.slot_2_status, lsString(R.string.stack_tile_pixels), if (pixels) activeTxt else offTxt, pixels, R.drawable.ic_widgets, ACTION_TOGGLE_SMART_PIXELS, 12)
 
         val dim = prefs.getBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, false)
-        tile(R.id.slot_3, R.id.slot_3_icon, R.id.slot_3_text, R.id.slot_3_status, "Extra Dim", if (dim) "ACTIVE" else "OFF", dim, R.drawable.ic_flashlight, ACTION_TOGGLE_EXTRA_DIM, 13)
+        tile(R.id.slot_3, R.id.slot_3_icon, R.id.slot_3_text, R.id.slot_3_status, lsString(R.string.stack_tile_dim), if (dim) activeTxt else offTxt, dim, R.drawable.ic_flashlight, ACTION_TOGGLE_EXTRA_DIM, 13)
 
-        tile(R.id.slot_4, R.id.slot_4_icon, R.id.slot_4_text, R.id.slot_4_status, "Vista Deck", "OPEN", true, R.drawable.ic_qs_flight_armed, ACTION_OPEN_VISTA_DECK, 14)
+        tile(R.id.slot_4, R.id.slot_4_icon, R.id.slot_4_text, R.id.slot_4_status, lsString(R.string.stack_tile_vista), lsString(R.string.stack_status_open), true, R.drawable.ic_qs_flight_armed, ACTION_OPEN_VISTA_DECK, 14)
 
         return views
     }
@@ -241,20 +244,26 @@ class LightspeedStackWidgetProvider : AppWidgetProvider() {
     private fun createTelemetryPage(context: Context, snapshot: DeckThemeSnapshot, appWidgetId: Int): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.stack_item_telemetry)
         val badge = if (com.sbf.lightspeed.BuildConfig.DEBUG) " [NIGHTLY]" else ""
-        views.setTextViewText(R.id.stack_item_title, "TELEMETRY$badge")
+        views.setTextViewText(R.id.stack_item_title, "${lsString(R.string.stack_wid_telemetry)}$badge")
         views.setTextColor(R.id.stack_item_title, snapshot.borderColorArgb.toInt())
 
         val activeSet = context.defaultPrefs().getInt(LightspeedPreferences.KEY_LAST_ACTIVE_SET_INDEX, 0)
         val gearName = CockpitGearRepository.getGearSetNameByIndex(context, false, activeSet)
         val totalSets = CockpitGearRepository.getGearSetsOrder(context, false).size.coerceAtLeast(1)
 
-        views.setTextViewText(R.id.telemetry_gear_title, "GEAR: $gearName".uppercase())
-        views.setTextViewText(R.id.telemetry_gear_sub, "SET ${activeSet + 1} OF $totalSets")
+        views.setTextViewText(R.id.telemetry_gear_title, lsString(R.string.stack_gear_fmt, gearName).uppercase())
+        views.setTextViewText(R.id.telemetry_gear_sub, lsString(R.string.stack_set_of_fmt, activeSet + 1, totalSets))
         views.setTextViewText(
             R.id.telemetry_battery_text,
-            "BATTERY: ${LightspeedStackTileHelper.getBatteryTelemetry(context)} · IMMUNITY: ${LightspeedStackTileHelper.getImmunityTelemetry(context)}"
+            lsString(
+                R.string.stack_bat_imm_fmt,
+                LightspeedStackTileHelper.getBatteryTelemetry(context),
+                LightspeedStackTileHelper.getImmunityTelemetry(context)
+            )
         )
         views.setTextColor(R.id.telemetry_battery_text, snapshot.tintArgb.toInt())
+        views.setTextViewText(R.id.btn_telemetry_cycle_gear, lsString(R.string.stack_btn_cycle_gear))
+        views.setTextViewText(R.id.btn_telemetry_open_deck, lsString(R.string.stack_btn_manage_stack))
         views.setTextColor(R.id.btn_telemetry_cycle_gear, snapshot.borderColorArgb.toInt())
         views.setTextColor(R.id.btn_telemetry_open_deck, snapshot.borderColorArgb.toInt())
 
@@ -272,9 +281,9 @@ class LightspeedStackWidgetProvider : AppWidgetProvider() {
     private fun createHostedPlaceholder(context: Context, snapshot: DeckThemeSnapshot, appWidgetId: Int, hostedWidgetId: Int): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.stack_item_hosted)
         val info = AppWidgetManager.getInstance(context).getAppWidgetInfo(hostedWidgetId)
-        views.setTextViewText(R.id.hosted_widget_title, info?.loadLabel(context.packageManager) ?: "Android Widget")
+        views.setTextViewText(R.id.hosted_widget_title, info?.loadLabel(context.packageManager) ?: lsString(R.string.stack_hosted_fallback))
         val isUnsupported = hostedWidgetId in LightspeedWidgetHostEngine.unsupported
-        views.setTextViewText(R.id.hosted_widget_sub, if (isUnsupported) "TAP TO OPEN FULL WIDGET" else "SYNCING LIVE WIDGET...")
+        views.setTextViewText(R.id.hosted_widget_sub, if (isUnsupported) lsString(R.string.stack_hosted_tap) else lsString(R.string.stack_hosted_sync))
         views.setTextColor(R.id.hosted_widget_title, Color.WHITE)
 
         val icon = try { info?.loadIcon(context, context.resources.displayMetrics.densityDpi) } catch (_: Exception) { null }
@@ -332,7 +341,7 @@ class LightspeedStackWidgetProvider : AppWidgetProvider() {
             }
             ACTION_TOGGLE_EXTRA_DIM -> {
                 val cur = prefs.getBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, false)
-                val level = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 40)
+                val level = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 40).let { if (it in 10..90) it else 40 }
                 LightspeedEyeCareEngine.applyExtraDim(context, !cur, level)
                 notifyUpdate(context)
             }

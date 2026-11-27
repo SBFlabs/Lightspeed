@@ -72,17 +72,7 @@ object BackdropBlurModeManager {
 
         val wm = context.getSystemService(WindowManager::class.java)
         CentralCommandActivity.updateCrossWindowBlurState(shouldUseNativeBlur(wm, mode))
-        if (shouldUseScreenshotBlur(wm, mode)) {
-            CentralCommandBackdropBlur.prepareForCentralCommand(
-                windowManager = wm,
-                forceRecapture = true,
-                settleDelayMs = 85L,
-                hideActiveHosts = true
-            )
-        } else {
-            CentralCommandBackdropBlur.clearBitmap()
-        }
-        CentralCommandActivity.activeInstance?.updateLiveWindowBlur()
+        DeckThemeManager.syncLiveBackdropOnThemeTransition(context = context, forceRecapture = true)
     }
 
     fun init(context: Context) {

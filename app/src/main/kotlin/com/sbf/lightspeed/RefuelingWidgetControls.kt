@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.settings.DeckButton
 import com.sbf.lightspeed.settings.deckGlassSurface
 import com.sbf.lightspeed.settings.resolveOpticalColors
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
@@ -53,7 +55,9 @@ fun WidgetEngineToolbar(
     val cornerRadius = (snapshot.cornerRadiusDp * 0.40f).coerceIn(8f, 14f).dp
     val statusShape = RoundedCornerShape(cornerRadius)
     val countLabel = widgetCount.toString().padStart(2, '0')
-    val modeLabel = if (widgetLayoutMode == "smart_stack") "STACK" else "GRID"
+    val stackStr = lsString(R.string.ref_bay_mode_stack)
+    val gridStr = lsString(R.string.ref_bay_mode_grid)
+    val modeLabel = if (widgetLayoutMode == "smart_stack") stackStr else gridStr
 
     Row(
         modifier = Modifier
@@ -107,7 +111,7 @@ fun WidgetEngineToolbar(
             if (widgetLayoutMode == "smart_stack") {
                 ToolbarDeckPillButton(
                     icon = Icons.Default.Memory,
-                    label = if (isStackMemoryEnabled) "MEM:ON" else "MEM",
+                    label = if (isStackMemoryEnabled) lsString(R.string.ref_bay_mem_on) else lsString(R.string.ref_bay_mem_off),
                     isActive = isStackMemoryEnabled,
                     onClick = onToggleStackMemory
                 )
@@ -115,21 +119,21 @@ fun WidgetEngineToolbar(
 
             ToolbarDeckPillButton(
                 icon = if (isEditMode) Icons.Default.Done else Icons.Default.Tune,
-                label = if (isEditMode) "DONE" else "EDIT",
+                label = if (isEditMode) lsString(R.string.ref_bay_btn_done) else lsString(R.string.ref_bay_btn_edit),
                 isActive = isEditMode,
                 onClick = onToggleEditMode
             )
 
             ToolbarDeckPillButton(
                 icon = Icons.Default.Add,
-                label = "ADD",
+                label = lsString(R.string.ref_bay_btn_add),
                 isActive = true,
                 onClick = onAddWidget
             )
 
             ToolbarDeckPillButton(
                 icon = if (widgetLayoutMode == "smart_stack") Icons.Default.GridView else Icons.Default.ViewCarousel,
-                label = if (widgetLayoutMode == "smart_stack") "GRID" else "STACK",
+                label = if (widgetLayoutMode == "smart_stack") gridStr else stackStr,
                 isActive = false,
                 onClick = onToggleLayoutMode
             )
@@ -328,18 +332,19 @@ fun EmptyWidgetSlot(onPickWidget: () -> Unit) {
             tint = opticalColors.readableTintColor,
             modifier = Modifier.size(32.dp)
         )
+        val isArabic = LightspeedLocaleEngine.state.primary == LightspeedLocaleEngine.AppLanguage.AR
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "ADD WIDGET PANEL",
+            text = lsString(R.string.ref_bay_empty_slot_title),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace,
-            letterSpacing = 1.sp,
+            letterSpacing = if (isArabic) 0.sp else 1.sp,
             color = lsColors.textPrimary
         )
         Spacer(modifier = Modifier.height(3.dp))
         Text(
-            text = "Tap to choose an app widget",
+            text = lsString(R.string.ref_bay_empty_slot_sub),
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             color = lsColors.textSecondary.copy(alpha = 0.72f)

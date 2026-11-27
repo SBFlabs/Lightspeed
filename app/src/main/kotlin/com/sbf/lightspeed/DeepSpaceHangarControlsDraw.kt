@@ -27,6 +27,7 @@ internal data class HangarLayoutMetrics(
     val sub2Y: Float,
     val sub3Y: Float,
     val sub4Y: Float,
+    val sub5Y: Float,
     val bottomCtrlY: Float,
     val openAccordion: Int,
     val gimbalCx: Float,
@@ -41,7 +42,8 @@ internal fun computeHangarLayoutMetrics(
     d: Float,
     openAccordion: Int,
     bottomInsetPx: Float = 0f,
-    baseOuterRadiusPx: Float = 135f * d
+    baseOuterRadiusPx: Float = 135f * d,
+    isPreviewBarActive: Boolean = false
 ): HangarLayoutMetrics {
     val isLandscape = screenW > screenH
     val ctrlCx = if (isLandscape) screenW * 0.27f else screenW / 2f
@@ -60,18 +62,19 @@ internal fun computeHangarLayoutMetrics(
     val sub2Y = sub1Y + rowStep
     val sub3Y = sub2Y + rowStep
     val sub4Y = sub3Y + rowStep
+    val sub5Y = sub4Y + rowStep
 
     val bottomCtrlY = when (openAccordion) {
         0 -> sub3Y
         1 -> sub3Y
-        2 -> sub4Y
+        2 -> sub5Y
         else -> rAccY
     }
 
     val safeBaseOuter = baseOuterRadiusPx.coerceAtLeast(1f)
     val navSafeBottom = (screenH - bottomInsetPx - (if (isLandscape) 12f else 14f) * d)
         .coerceAtLeast(topHangarY + 180f * d)
-    val exitH = (if (isLandscape) 34f else 38f) * d
+    val exitH = (if (isPreviewBarActive) 58f else if (isLandscape) 34f else 38f) * d
     val exitBottom = navSafeBottom
     val exitTop = exitBottom - exitH
 
@@ -97,10 +100,11 @@ internal fun computeHangarLayoutMetrics(
         maxCy.coerceAtLeast(minCy)
     }
 
-    val exitRect = if (isLandscape) {
-        RectF(ctrlCx - (deckW * 0.44f), exitTop, ctrlCx + (deckW * 0.44f), exitBottom)
-    } else {
-        RectF(ctrlCx - (deckW * 0.42f), exitTop, ctrlCx + (deckW * 0.42f), exitBottom)
+    val exitRect = when {
+        isPreviewBarActive && isLandscape -> RectF(ctrlCx - (deckW * 0.48f), exitTop, ctrlCx + (deckW * 0.48f), exitBottom)
+        isPreviewBarActive -> RectF(leftX, exitTop, rightX, exitBottom)
+        isLandscape -> RectF(ctrlCx - (deckW * 0.44f), exitTop, ctrlCx + (deckW * 0.44f), exitBottom)
+        else -> RectF(ctrlCx - (deckW * 0.42f), exitTop, ctrlCx + (deckW * 0.42f), exitBottom)
     }
 
     return HangarLayoutMetrics(
@@ -118,6 +122,7 @@ internal fun computeHangarLayoutMetrics(
         sub2Y = sub2Y,
         sub3Y = sub3Y,
         sub4Y = sub4Y,
+        sub5Y = sub5Y,
         bottomCtrlY = bottomCtrlY,
         openAccordion = openAccordion,
         gimbalCx = gimbalCx,
@@ -157,31 +162,41 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
     val panelIn = palette.panelInnerArgb
     val panelOut = palette.panelOuterArgb
 
-    fun drawPill(rect: RectF, label: String, isSelected: Boolean, accentColor: Int = m3Primary, fontSizeDp: Float = 11.5f, isLocked: Boolean = false) {
+    fun drawPill(
+        rect: RectF,
+        label: String,
+        isSelected: Boolean,
+        accentColor: Int = m3Primary,
+        fontSizeDp: Float = 11.5f,
+        isLocked: Boolean = false,
+        isPreviewing: Boolean = false
+    ) {
         val goldColor = 0xFFFFD700.toInt()
         highlightPaint.style = Paint.Style.FILL
         highlightPaint.color = when {
+            isPreviewing -> Color.argb(95, 255, 215, 0)
             isLocked -> Color.argb(45, 255, 215, 0)
             isSelected -> Color.argb(195, Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor))
             else -> Color.argb(185, Color.red(panelOut), Color.green(panelOut), Color.blue(panelOut))
         }
         canvas.drawRoundRect(rect, 8f * d, 8f * d, highlightPaint)
         highlightPaint.style = Paint.Style.STROKE
-        highlightPaint.strokeWidth = if (isSelected || isLocked) 1.4f * d else 0.9f * d
+        highlightPaint.strokeWidth = if (isPreviewing) 2.0f * d else if (isSelected || isLocked) 1.4f * d else 0.9f * d
         highlightPaint.color = when {
+            isPreviewing -> goldColor
             isLocked -> Color.argb(165, 255, 215, 0)
             isSelected -> accentColor
             else -> Color.argb(75, Color.red(m3Secondary), Color.green(m3Secondary), Color.blue(m3Secondary))
         }
         canvas.drawRoundRect(rect, 8f * d, 8f * d, highlightPaint)
         textPaint.textSize = fontSizeDp * d * ts
-        textPaint.typeface = hangarTypeface(state.context, isBold = isSelected || isLocked)
+        textPaint.typeface = hangarTypeface(state.context, isBold = isSelected || isLocked || isPreviewing)
         textPaint.color = when {
-            isLocked -> goldColor
+            isLocked || isPreviewing -> goldColor
             isSelected -> Color.WHITE
             else -> Color.argb(240, 230, 242, 255)
         }
-        val displayLabel = if (isLocked && !label.startsWith("[LOCKED]")) "[LOCKED] $label" else label
+        val displayLabel = if (isLocked && !label.startsWith("∞")) "∞ $label" else label
         canvas.drawText(displayLabel, rect.centerX(), rect.centerY() + 3.5f * d, textPaint)
     }
 
@@ -221,7 +236,7 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
         canvas.drawRoundRect(bayRect, 9f * d, 9f * d, highlightPaint)
 
         val isBayLocked = (g >= 2 && !isInfinityUnlocked)
-        val shortLabel = if (isBayLocked) "[LOCKED] ${g + 1}: ${setName.take(4)}" else "${g + 1}: ${setName.take(6)}"
+        val shortLabel = if (isBayLocked) "∞ ${g + 1}: ${setName.take(5)}" else "${g + 1}: ${setName.take(6)}"
 
         highlightPaint.style = Paint.Style.FILL
         highlightPaint.color = when {
@@ -257,7 +272,7 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
     canvas.drawRoundRect(plusRect, 9f * d, 9f * d, highlightPaint)
     textPaint.textSize = (if (isPlusLocked) 12f * d else 16f * d) * ts
     textPaint.color = if (isPlusLocked) 0xFFFFD700.toInt() else Color.WHITE
-    canvas.drawText(if (isPlusLocked) "[LOCKED] +" else "+", plusBtnX, rBayY + 4f * d, textPaint)
+    canvas.drawText(if (isPlusLocked) "∞ +" else "+", plusBtnX, rBayY + 4f * d, textPaint)
     canvas.restore()
 
     // ROW 2: 3 COLLAPSIBLE ACCORDION TABS (Zero colored emojis; crisp tactical symbols)
@@ -338,12 +353,13 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
             val ret3Rect = RectF(leftX + (retW + gap) * 2f, layout.sub2Y - 13f * d, leftX + (retW + gap) * 2f + retW, layout.sub2Y + 13f * d)
             val ret4Rect = RectF(rightX - retW, layout.sub2Y - 13f * d, rightX, layout.sub2Y + 13f * d)
             val reticleStyle = prefs.getString(LightspeedPreferences.KEY_GEAR_RETICLE_STYLE, "tactical") ?: "tactical"
+            val previewReticle = com.sbf.lightspeed.system.CockpitGimbalConfigCache.previewReticleStyle
             val isCrossLocked = !isInfinityUnlocked
             val isDiamondLocked = !isInfinityUnlocked
-            drawPill(ret1Rect, "[ ] TACTICAL", reticleStyle == "tactical", m3Primary, 8.5f)
-            drawPill(ret2Rect, "( ) CYBER", reticleStyle == "cyber", m3Primary, 8.5f)
-            drawPill(ret3Rect, "+ CROSS", !isCrossLocked && reticleStyle == "cross", m3Primary, 8.0f, isLocked = isCrossLocked)
-            drawPill(ret4Rect, "◇ DIAMOND", !isDiamondLocked && reticleStyle == "diamond", m3Primary, 8.0f, isLocked = isDiamondLocked)
+            drawPill(ret1Rect, "[ ] TACTICAL", previewReticle == null && reticleStyle == "tactical", m3Primary, 8.5f)
+            drawPill(ret2Rect, "( ) CYBER", previewReticle == null && reticleStyle == "cyber", m3Primary, 8.5f)
+            drawPill(ret3Rect, "+ CROSS", !isCrossLocked && reticleStyle == "cross", m3Primary, 8.0f, isLocked = isCrossLocked, isPreviewing = isCrossLocked && previewReticle == "cross")
+            drawPill(ret4Rect, "◇ DIAMOND", !isDiamondLocked && reticleStyle == "diamond", m3Primary, 8.0f, isLocked = isDiamondLocked, isPreviewing = isDiamondLocked && previewReticle == "diamond")
 
             // Sub-row 3: Reticle Targeting Horizon
             val ori1Rect = RectF(leftX, layout.sub3Y - 13f * d, leftX + halfBtnW, layout.sub3Y + 13f * d)
@@ -367,14 +383,15 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
 
             // Sub-row 2: Sculpted Mockup Styles (Row 2 of 2 — Infinity Tier)
             val isInf = LightspeedInfinityManager.isUnlocked(context)
+            val previewShape = com.sbf.lightspeed.system.CockpitGimbalConfigCache.previewGearShape
             val shape5Rect = RectF(leftX, layout.sub2Y - 13f * d, leftX + shapeW, layout.sub2Y + 13f * d)
             val shape6Rect = RectF(leftX + (shapeW + gap), layout.sub2Y - 13f * d, leftX + (shapeW + gap) + shapeW, layout.sub2Y + 13f * d)
             val shape7Rect = RectF(leftX + (shapeW + gap) * 2f, layout.sub2Y - 13f * d, leftX + (shapeW + gap) * 2f + shapeW, layout.sub2Y + 13f * d)
             val shape8Rect = RectF(rightX - shapeW, layout.sub2Y - 13f * d, rightX, layout.sub2Y + 13f * d)
-            drawPill(shape5Rect, "ORBIT", isInf && currentShape == LightspeedPreferences.GEAR_SHAPE_ORBITAL, m3Primary, 8.2f, isLocked = !isInf)
-            drawPill(shape6Rect, "DMND", isInf && currentShape == LightspeedPreferences.GEAR_SHAPE_DIAMOND, m3Primary, 8.2f, isLocked = !isInf)
-            drawPill(shape7Rect, "CRESC", isInf && currentShape == LightspeedPreferences.GEAR_SHAPE_CRESCENT, m3Primary, 8.2f, isLocked = !isInf)
-            drawPill(shape8Rect, "TECH", isInf && currentShape == LightspeedPreferences.GEAR_SHAPE_TECH, m3Primary, 8.2f, isLocked = !isInf)
+            drawPill(shape5Rect, "ORBITAL", isInf && currentShape == LightspeedPreferences.GEAR_SHAPE_ORBITAL, m3Primary, 7.6f, isLocked = !isInf, isPreviewing = !isInf && previewShape == LightspeedPreferences.GEAR_SHAPE_ORBITAL)
+            drawPill(shape6Rect, "DIAMOND", isInf && currentShape == LightspeedPreferences.GEAR_SHAPE_DIAMOND, m3Primary, 7.6f, isLocked = !isInf, isPreviewing = !isInf && previewShape == LightspeedPreferences.GEAR_SHAPE_DIAMOND)
+            drawPill(shape7Rect, "CRESCENT", isInf && currentShape == LightspeedPreferences.GEAR_SHAPE_CRESCENT, m3Primary, 7.4f, isLocked = !isInf, isPreviewing = !isInf && previewShape == LightspeedPreferences.GEAR_SHAPE_CRESCENT)
+            drawPill(shape8Rect, "TECH", isInf && currentShape == LightspeedPreferences.GEAR_SHAPE_TECH, m3Primary, 7.8f, isLocked = !isInf, isPreviewing = !isInf && previewShape == LightspeedPreferences.GEAR_SHAPE_TECH)
 
             // Sub-row 3: Gimbal Diameter & DPI Independence
             val customDiameterScale = CockpitGearRepository.getGearCustomDiameterScale(context)
@@ -403,6 +420,16 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
             drawPill(col1Rect, "◈ 12-THEME", colorMode == LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12, m3Primary, 8.4f)
             drawPill(col2Rect, "✦ M3 DYNAMIC", colorMode == LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC, m3Primary, 8.4f)
             drawPill(col3Rect, ":: HYBRID", colorMode == LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION, m3Primary, 8.4f)
+
+            // Sub-row 5: Browse 13 Themes Deep-Link (Flight Control Deck)
+            val browseThemesRect = RectF(leftX, layout.sub5Y - 13f * d, rightX, layout.sub5Y + 13f * d)
+            drawPill(
+                browseThemesRect,
+                com.sbf.lightspeed.system.lsString(R.string.ck_browse_13_themes).ifBlank { "◈ BROWSE 13 THEMES (FLIGHT DECK) ▸" },
+                false,
+                m3Primary,
+                8.8f
+            )
         }
     }
 

@@ -49,6 +49,7 @@ fun BilingualTitleText(
             text = title,
             fontWeight = fontWeight,
             fontSize = effectiveSize,
+            lineHeight = effectiveSize * 1.28f,
             color = color,
             maxLines = maxLines,
             overflow = overflow,
@@ -62,6 +63,7 @@ fun BilingualTitleText(
             text = title,
             fontWeight = fontWeight,
             fontSize = effectiveSize,
+            lineHeight = effectiveSize * 1.28f,
             color = color,
             maxLines = maxLines,
             overflow = overflow,
@@ -70,6 +72,7 @@ fun BilingualTitleText(
         Text(
             text = secondary,
             fontSize = effectiveSize * 0.72f,
+            lineHeight = effectiveSize * 0.96f,
             fontWeight = FontWeight.Normal,
             color = color.copy(alpha = 0.56f),
             maxLines = maxLines,

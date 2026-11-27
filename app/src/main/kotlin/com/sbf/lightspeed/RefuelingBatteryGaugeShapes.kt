@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
+import com.sbf.lightspeed.system.lsString
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -27,20 +28,32 @@ import kotlin.math.sin
  * Canonical battery gauge styles for Refueling Bay — layered sculpted instruments
  * with live orbital, kinetic, and charge-reactive motion.
  */
-internal val REFUELING_GAUGE_STYLE_OPTIONS: List<Pair<String, String>> = listOf(
-    "halo" to "Orbital Halo",
-    "reactor_ticks" to "Reactor Turbine",
-    "dual_wings" to "Twin Wings",
-    "tachometer" to "Warp Tachometer",
-    "hex_core" to "Quantum Hex Core",
-    "warp_rail" to "Warp Plasma Rails",
-    "cell_matrix" to "Fusion Cell Towers",
-    "stealth_diamond" to "Aegis Prism",
-    "oscilloscope" to "Harmonic Wave Core"
+internal val REFUELING_GAUGE_STYLE_KEYS: List<String> = listOf(
+    "halo",
+    "reactor_ticks",
+    "dual_wings",
+    "tachometer",
+    "hex_core",
+    "warp_rail",
+    "cell_matrix",
+    "stealth_diamond",
+    "oscilloscope"
 )
 
-internal fun resolveGaugeStyleLabel(styleKey: String): String =
-    REFUELING_GAUGE_STYLE_OPTIONS.firstOrNull { it.first == styleKey }?.second ?: "Orbital Halo"
+internal fun resolveGaugeStyleLabel(styleKey: String): String = when (styleKey) {
+    "reactor_ticks" -> lsString(R.string.ref_gauge_reactor_ticks)
+    "dual_wings" -> lsString(R.string.ref_gauge_dual_wings)
+    "tachometer" -> lsString(R.string.ref_gauge_tachometer)
+    "hex_core" -> lsString(R.string.ref_gauge_hex_core)
+    "warp_rail" -> lsString(R.string.ref_gauge_warp_rail)
+    "cell_matrix" -> lsString(R.string.ref_gauge_cell_matrix)
+    "stealth_diamond" -> lsString(R.string.ref_gauge_stealth_diamond)
+    "oscilloscope" -> lsString(R.string.ref_gauge_oscilloscope)
+    else -> lsString(R.string.ref_gauge_halo)
+}
+
+internal fun refuelingGaugeStyleOptions(): List<Pair<String, String>> =
+    REFUELING_GAUGE_STYLE_KEYS.map { it to resolveGaugeStyleLabel(it) }
 
 @Composable
 fun RefuelingGaugeMiniPreview(

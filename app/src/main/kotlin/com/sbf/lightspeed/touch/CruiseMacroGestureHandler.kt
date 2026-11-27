@@ -131,19 +131,38 @@ internal fun LightspeedCruiseOverlay.processMacroGestureMove(rawX: Float, rawY: 
             val isVistaDockEnabled = prefs().getBoolean(LightspeedPreferences.KEY_VISTA_DECK_ENABLED, true) &&
                 prefs().getBoolean(LightspeedPreferences.KEY_VISTA_DECK_RIGHT_ENABLED, true)
 
-            val horizontalPull = kotlin.math.abs(rawX - scrubStartX)
-            if (horizontalPull > 80f * density && ((isVolume && isAudioDockEnabled) || (isBrightness && isVistaDockEnabled))) {
+            val inwardPull = (if (isOpenedFromLeftFlank) (rawX - scrubStartX) else (scrubStartX - rawX)).coerceAtLeast(0f)
+            val distToHalfScreen = if (isOpenedFromLeftFlank) ((screenW * 0.5f) - scrubStartX) else (scrubStartX - (screenW * 0.5f))
+            val remainingInwardRoom = if (isOpenedFromLeftFlank) (screenW - scrubStartX) else scrubStartX
+            val basePullThreshold = minOf(80f * density, maxOf(56f * density, distToHalfScreen))
+            val pullThreshold = minOf(basePullThreshold, (remainingInwardRoom * 0.75f).coerceAtLeast(32f * density))
+            val deadzone = 12f * density
+            val targetDeck = when {
+                isVolume && isAudioDockEnabled -> "SONIC"
+                isBrightness && isVistaDockEnabled -> "VISTA"
+                else -> null
+            }
+            if (targetDeck != null) {
+                val progress = if (inwardPull <= deadzone) {
+                    0f
+                } else {
+                    ((inwardPull - deadzone) / (pullThreshold - deadzone).coerceAtLeast(1f)).coerceIn(0f, 1f)
+                }
+                LightspeedStatusBarOverlay.updateScrubContinuum(progress, targetDeck)
+            }
+            if (inwardPull >= pullThreshold && targetDeck != null) {
                 currentDetectedGesture = MacroGesture.NONE
                 macroTrackingActive = false
                 isCruising = false
                 dismissOverlay()
                 com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorDeepPull(context)
                 LightspeedStatusBarOverlay.dismissActionHud(0L)
-                if (isVolume) {
-                    service?.let { SonicDeckManager.show(it) }
+                val targetMode = if (isVolume) {
+                    com.sbf.lightspeed.system.SystemDeckMode.SONIC
                 } else {
-                    service?.let { com.sbf.lightspeed.system.VistaDeckManager.show(it) }
+                    com.sbf.lightspeed.system.SystemDeckMode.VISTA
                 }
+                service?.let { com.sbf.lightspeed.system.UnifiedSystemDeckHost.show(it, targetMode, fromContinuum = true) }
                 return true
             }
 

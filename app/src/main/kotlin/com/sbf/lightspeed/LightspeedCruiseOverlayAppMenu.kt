@@ -304,6 +304,11 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
         telemetry.profile.hasInternet -> "NET"
         else -> "OFFLINE"
     }
+    val netLabel = when (netKind) {
+        "BLOCKED" -> com.sbf.lightspeed.system.lsString(R.string.app_menu_net_blocked)
+        "OFFLINE" -> com.sbf.lightspeed.system.lsString(R.string.app_menu_net_offline)
+        else -> com.sbf.lightspeed.system.lsString(R.string.app_menu_net_online)
+    }
     val netColor = when (netKind) {
         "BLOCKED" -> Color.rgb(239, 68, 68)
         "OFFLINE" -> Color.rgb(34, 197, 94)
@@ -345,7 +350,7 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
         left = infoRect.right + 5f * dp,
         top = pillTop,
         height = pillH,
-        label = netKind,
+        label = netLabel,
         iconKind = netKind,
         pillColor = netColor,
         bgAlpha = 48,
@@ -356,7 +361,7 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
     )
     pinnedMenuNetPillRect.set(netPillRect)
 
-    val alertLabel = "${telemetry.alertCount} ALERTS"
+    val alertLabel = com.sbf.lightspeed.system.lsString(R.string.app_menu_alerts_fmt, telemetry.alertCount)
     paint.typeface = overlayTypeface(isBold = true)
     paint.textSize = 7.6f * dp
     val estAlertW = 19f * dp + paint.measureText(alertLabel)
@@ -415,7 +420,15 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
     val fontMetrics = paint.fontMetrics
     val textYOffset = (fontMetrics.descent + fontMetrics.ascent) / 2f
 
-    val menuItems = listOf("App info", "Split with...", "Split screen", "Pop-up window", "Change category", "Change icon", "Uninstall")
+    val menuItems = listOf(
+        com.sbf.lightspeed.system.lsString(R.string.app_menu_info),
+        com.sbf.lightspeed.system.lsString(R.string.app_menu_split_with),
+        com.sbf.lightspeed.system.lsString(R.string.app_menu_split_screen),
+        com.sbf.lightspeed.system.lsString(R.string.app_menu_popup),
+        com.sbf.lightspeed.system.lsString(R.string.app_menu_change_cat),
+        com.sbf.lightspeed.system.lsString(R.string.app_menu_change_icon),
+        com.sbf.lightspeed.system.lsString(R.string.app_menu_uninstall)
+    )
     menuItems.forEachIndexed { i, label ->
         val isUninstall = (i == menuItems.lastIndex)
         val centerY = listTop + (rowH * i) + (rowH / 2f)
@@ -485,7 +498,7 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppCategoryMenu(canvas: Canvas, p
         val textX = cellLeft + 14f * dp
 
         paint.color = Color.argb(245, 240, 245, 255)
-        canvas.drawText(cat.label, textX, centerY - textYOffset, paint)
+        canvas.drawText(LightspeedDataBridge.localizedCategoryLabel(cat.id, cat.label), textX, centerY - textYOffset, paint)
     }
 }
 

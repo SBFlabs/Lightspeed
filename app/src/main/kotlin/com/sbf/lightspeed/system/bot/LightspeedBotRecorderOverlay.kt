@@ -214,7 +214,8 @@ object LightspeedBotRecorderOverlay {
             paint.isFakeBoldText = true
             isSingleLine = true
             ellipsize = android.text.TextUtils.TruncateAt.END
-            gravity = Gravity.CENTER_VERTICAL or Gravity.END
+            @Suppress("RtlHardcoded")
+            gravity = Gravity.CENTER_VERTICAL or Gravity.RIGHT
         }
         windowBadgeView = windowBadge
 
@@ -461,7 +462,8 @@ object LightspeedBotRecorderOverlay {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             }
-            gravity = Gravity.TOP or Gravity.START
+            @Suppress("RtlHardcoded")
+            gravity = Gravity.TOP or Gravity.LEFT
         }
 
         try {

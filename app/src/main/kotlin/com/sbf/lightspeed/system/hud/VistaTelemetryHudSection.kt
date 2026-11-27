@@ -6,22 +6,25 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.CenterFocusStrong
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Text
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.settings.DeckSegmentedRow
+import com.sbf.lightspeed.settings.DeckStylePresets
 import com.sbf.lightspeed.settings.DeckSubChip
 import com.sbf.lightspeed.settings.DeckSwitch
 import com.sbf.lightspeed.system.ElevatedTaskCloser
@@ -31,13 +34,15 @@ import com.sbf.lightspeed.system.VistaDeckManager
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.display.LightspeedRefreshRateEngine
 import com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay
+import com.sbf.lightspeed.system.display.LightspeedTelemetryHudRenderer
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 
 /**
- * Vista Deck Accordion: Overdrive Refresh Rate & Per-App Tactical Telemetry Micro-HUD.
+ * Vista Deck Accordion: Overdrive Refresh Rate & Pass-Through Dual-Handle Telemetry Micro-HUD.
  *
- * Strictly adheres to the 12-Theme Command Domain token system (LightspeedStyle.colors,
- * DeckSwitch, DeckSubChip) with zero emojis and hardware-adaptive refresh rate discovery.
+ * Uses modern tonal 12-Theme / M3 cards, `DeckSubChip` capsules, and `DeckSegmentedRow` tracks.
  */
 @Composable
 fun VistaTelemetryHudSection(
@@ -45,6 +50,9 @@ fun VistaTelemetryHudSection(
     onOpenTelemetryAppPicker: () -> Unit
 ) {
     val lsColors = LightspeedStyle.colors
+    val colorScheme = MaterialTheme.colorScheme
+    val snapshot = LocalDeckTheme.current
+    val isM3 = snapshot.styleId == DeckStylePresets.MATERIAL_3.styleId
     val prefs = service.defaultPrefs()
 
     val supportedRates = remember { LightspeedRefreshRateEngine.getSupportedRefreshRates(service) }
@@ -65,9 +73,17 @@ fun VistaTelemetryHudSection(
     var hudEnabled by remember {
         mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_ENABLED, false))
     }
-    var selectedApps by remember {
-        mutableStateOf(prefs.getStringSet(LightspeedPreferences.KEY_TELEMETRY_HUD_PACKAGES, emptySet()) ?: emptySet())
+    var hudStyle by remember {
+        mutableStateOf(
+            LightspeedTelemetryHudRenderer.normalizeStyleKey(
+                prefs.getString(LightspeedPreferences.KEY_TELEMETRY_HUD_STYLE, LightspeedPreferences.DEFAULT_TELEMETRY_HUD_STYLE)
+            )
+        )
     }
+    var hudCompact by remember {
+        mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_COMPACT, false))
+    }
+    val selectedApps = prefs.getStringSet(LightspeedPreferences.KEY_TELEMETRY_HUD_PACKAGES, emptySet()) ?: emptySet()
 
     var showFps by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_FPS, true)) }
     var showCpu by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_CPU, true)) }
@@ -76,16 +92,20 @@ fun VistaTelemetryHudSection(
     var showBat by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_BAT, true)) }
     var showWatt by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_WATT, true)) }
 
+    val cardShape = RoundedCornerShape(14.dp)
+    val cardBg = if (isM3) colorScheme.surfaceContainerLow else lsColors.textPrimary.copy(alpha = 0.05f)
+    val cardMod = if (isM3) {
+        Modifier.fillMaxWidth().clip(cardShape).background(cardBg).padding(12.dp)
+    } else {
+        Modifier.fillMaxWidth().clip(cardShape).background(cardBg)
+            .border(0.75.dp, lsColors.textPrimary.copy(alpha = 0.10f), cardShape).padding(12.dp)
+    }
+    val badgeBg = if (isM3) colorScheme.secondaryContainer else lsColors.accent.copy(alpha = 0.18f)
+    val badgeText = if (isM3) colorScheme.onSecondaryContainer else lsColors.accent
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // --- CARD 1: Hardware Refresh Rate Overdrive ---
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(lsColors.dialogSurface.copy(alpha = 0.25f))
-                .border(0.6.dp, lsColors.accent.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                .padding(10.dp)
-        ) {
+        Box(modifier = cardMod) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -98,160 +118,101 @@ fun VistaTelemetryHudSection(
                     val effectiveLowestHz = lowestHz.takeIf { it > 0 } ?: (supportedRates.minOrNull() ?: 60)
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Hardware Refresh Rate",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
+                            text = lsString(R.string.thud_rr_title),
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = lsColors.textPrimary
                         )
                         Text(
                             text = if (isSingleFixedRate) {
-                                "Fixed ${supportedRates.firstOrNull() ?: 60}Hz hardware panel detected"
+                                lsString(R.string.thud_rr_fixed_fmt, supportedRates.firstOrNull() ?: 60)
                             } else if (floorMode == LightspeedPreferences.OVERDRIVE_FLOOR_LOCKED) {
-                                "Locked floor & ceiling at ${targetHz}Hz"
+                                lsString(R.string.thud_rr_locked_fmt, targetHz)
                             } else {
-                                "Dynamic ${effectiveLowestHz}Hz to ${targetHz}Hz adaptive peak"
+                                lsString(R.string.thud_rr_adaptive_fmt, effectiveLowestHz, targetHz)
                             },
-                            fontSize = 8.5.sp,
+                            fontSize = 9.5.sp,
                             color = lsColors.textSecondary
                         )
                     }
 
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(lsColors.accent.copy(alpha = 0.16f))
-                            .border(0.5.dp, lsColors.accent.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 7.dp, vertical = 2.5.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(badgeBg)
+                            .padding(horizontal = 9.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = if (isSingleFixedRate) {
-                                "${supportedRates.firstOrNull() ?: 60}Hz NATIVE"
+                                lsString(R.string.thud_badge_native_fmt, supportedRates.firstOrNull() ?: 60)
                             } else if (floorMode == LightspeedPreferences.OVERDRIVE_FLOOR_LOCKED) {
-                                "${targetHz}Hz LOCKED"
+                                lsString(R.string.thud_badge_locked_fmt, targetHz)
                             } else {
-                                "${targetHz}Hz PEAK"
+                                lsString(R.string.thud_badge_peak_fmt, targetHz)
                             },
-                            fontSize = 9.sp,
+                            fontSize = 9.5.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
-                            color = lsColors.accent
+                            color = badgeText
                         )
                     }
                 }
 
                 if (!isSingleFixedRate) {
-                    // Discrete Hardware Hz Mode Pills (60Hz / 90Hz / 120Hz / 144Hz / 165Hz / 185Hz+)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         supportedRates.forEach { hz ->
-                            val isSelected = targetHz == hz
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(
-                                        if (isSelected) lsColors.accent.copy(alpha = 0.24f)
-                                        else lsColors.dialogSurface.copy(alpha = 0.35f)
-                                    )
-                                    .border(
-                                        width = if (isSelected) 1.dp else 0.5.dp,
-                                        color = if (isSelected) lsColors.accent else lsColors.borderSubtle,
-                                        shape = RoundedCornerShape(6.dp)
-                                    )
-                                    .clickable {
-                                        LightspeedHapticEngine.tick(service)
-                                        if (!Settings.System.canWrite(service) && !ElevatedTaskCloser.isShizukuActive) {
-                                            VistaDeckManager.dismiss()
-                                            val intent = Intent(
-                                                Settings.ACTION_MANAGE_WRITE_SETTINGS,
-                                                Uri.parse("package:${service.packageName}")
-                                            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                            try { service.startActivity(intent) } catch (_: Exception) {}
-                                        } else {
-                                            targetHz = hz
-                                            LightspeedRefreshRateEngine.applyRefreshRate(service, hz, floorMode)
-                                        }
+                            DeckSubChip(
+                                text = "${hz}Hz",
+                                isActive = targetHz == hz,
+                                snapshot = snapshot,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    LightspeedHapticEngine.tick(service)
+                                    if (!Settings.System.canWrite(service) && !ElevatedTaskCloser.isShizukuActive) {
+                                        VistaDeckManager.dismiss()
+                                        val intent = Intent(
+                                            Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                                            Uri.parse("package:${service.packageName}")
+                                        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        try { service.startActivity(intent) } catch (_: Exception) {}
+                                    } else {
+                                        targetHz = hz
+                                        LightspeedRefreshRateEngine.applyRefreshRate(service, hz, floorMode)
                                     }
-                                    .padding(vertical = 6.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "${hz}Hz",
-                                    fontSize = 9.5.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) lsColors.accent else lsColors.textPrimary,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                                }
+                            )
                         }
                     }
 
-                    // Adaptive Peak vs Locked Floor Mode Selector (uses true hardware minimum floor)
                     if (supportedRates.size > 1 || targetHz >= 60) {
                         val lowestHz = remember(supportedRates) {
                             LightspeedRefreshRateEngine.getLowestHardwareRefreshRate(service)
                         }
                         val effectiveLowestHz = lowestHz.takeIf { it > 0 } ?: (supportedRates.minOrNull() ?: 60)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            val modes = listOf(
-                                LightspeedPreferences.OVERDRIVE_FLOOR_ADAPTIVE to "ADAPTIVE (${effectiveLowestHz}-${targetHz}Hz)",
-                                LightspeedPreferences.OVERDRIVE_FLOOR_LOCKED to "LOCKED (${targetHz}Hz FLOOR)"
-                            )
-                            modes.forEach { (modeKey, modeLabel) ->
-                                val active = floorMode == modeKey
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(
-                                            if (active) lsColors.accent.copy(alpha = 0.18f)
-                                            else lsColors.dialogSurface.copy(alpha = 0.25f)
-                                        )
-                                        .border(
-                                            width = if (active) 0.8.dp else 0.5.dp,
-                                            color = if (active) lsColors.accent.copy(alpha = 0.8f) else lsColors.borderSubtle,
-                                            shape = RoundedCornerShape(6.dp)
-                                        )
-                                        .clickable {
-                                            LightspeedHapticEngine.tick(service)
-                                            floorMode = modeKey
-                                            LightspeedRefreshRateEngine.applyRefreshRate(service, targetHz, modeKey)
-                                        }
-                                        .padding(vertical = 5.dp, horizontal = 4.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = modeLabel,
-                                        fontSize = 8.5.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (active) lsColors.accent else lsColors.textSecondary,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
-                        }
+                        DeckSegmentedRow(
+                            options = listOf(
+                                LightspeedPreferences.OVERDRIVE_FLOOR_ADAPTIVE to lsString(R.string.thud_mode_adaptive_fmt, effectiveLowestHz, targetHz),
+                                LightspeedPreferences.OVERDRIVE_FLOOR_LOCKED to lsString(R.string.thud_mode_locked_fmt, targetHz)
+                            ),
+                            selectedKey = floorMode,
+                            onSelect = { nextMode ->
+                                LightspeedHapticEngine.tick(service)
+                                floorMode = nextMode
+                                LightspeedRefreshRateEngine.applyRefreshRate(service, targetHz, nextMode)
+                            },
+                            snapshot = snapshot
+                        )
                     }
                 }
             }
         }
 
-        // --- CARD 2: Per-App Tactical Telemetry Micro-HUD ---
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(lsColors.dialogSurface.copy(alpha = 0.25f))
-                .border(0.6.dp, lsColors.accent.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                .padding(10.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // --- CARD 2: Pass-Through Telemetry Micro-HUD ---
+        Box(modifier = cardMod) {
+            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -259,18 +220,18 @@ fun VistaTelemetryHudSection(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Per-App Telemetry Micro-HUD",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
+                            text = lsString(R.string.thud_title),
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = lsColors.textPrimary
                         )
                         Text(
                             text = if (selectedApps.isEmpty()) {
-                                "Select target games or apps below to activate visor"
+                                lsString(R.string.thud_sub_empty)
                             } else {
-                                "Draggable micro-visor armed for ${selectedApps.size} selected app(s)"
+                                lsString(R.string.thud_sub_armed_fmt, selectedApps.size)
                             },
-                            fontSize = 8.5.sp,
+                            fontSize = 9.5.sp,
                             color = lsColors.textSecondary
                         )
                     }
@@ -285,23 +246,35 @@ fun VistaTelemetryHudSection(
                     )
                 }
 
-                // Target Apps & Reset Position Controls
+                // Target Apps, Compact Toggle, Preview, Reset
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     DeckSubChip(
-                        text = "Target Apps (${selectedApps.size})",
+                        text = lsString(R.string.thud_btn_apps_fmt, selectedApps.size),
                         icon = Icons.Default.Apps,
                         isActive = selectedApps.isNotEmpty(),
+                        snapshot = snapshot,
+                        modifier = Modifier.weight(1f),
                         onClick = onOpenTelemetryAppPicker
                     )
-
                     DeckSubChip(
-                        text = "Reset Position",
+                        text = lsString(R.string.thud_btn_preview),
+                        icon = Icons.Default.Visibility,
+                        isActive = false,
+                        snapshot = snapshot,
+                        onClick = {
+                            LightspeedHapticEngine.tick(service)
+                            LightspeedTelemetryHudOverlay.triggerLivePreview(service)
+                        }
+                    )
+                    DeckSubChip(
+                        text = lsString(R.string.thud_btn_reset),
                         icon = Icons.Default.CenterFocusStrong,
                         isActive = false,
+                        snapshot = snapshot,
                         onClick = {
                             LightspeedHapticEngine.tick(service)
                             LightspeedTelemetryHudOverlay.resetPosition(service)
@@ -309,84 +282,129 @@ fun VistaTelemetryHudSection(
                     )
                 }
 
-                // Individual Telemetry Readout Toggles (FPS, CPU, TEMP, RAM, BAT, WATT)
+                // HUD Style Selector (4 Modern Styles)
                 Text(
-                    text = "Active Visor Readouts (Drag left 6-dot grip to reposition)",
-                    fontSize = 8.5.sp,
+                    text = lsString(R.string.thud_style_hdr),
+                    fontSize = 9.5.sp,
                     color = lsColors.textSecondary
                 )
-
-                val toggleItemsRow1 = listOf(
-                    Triple("FPS", showFps) { next: Boolean ->
-                        showFps = next
-                        prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_FPS, next).apply()
-                        LightspeedTelemetryHudOverlay.refreshState(service)
-                    },
-                    Triple("CPU", showCpu) { next: Boolean ->
-                        showCpu = next
-                        prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_CPU, next).apply()
-                        LightspeedTelemetryHudOverlay.refreshState(service)
-                    },
-                    Triple("TEMP", showTemp) { next: Boolean ->
-                        showTemp = next
-                        prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_TEMP, next).apply()
-                        LightspeedTelemetryHudOverlay.refreshState(service)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val styleRows = LightspeedTelemetryHudRenderer.TELEMETRY_HUD_STYLES.chunked(2)
+                    styleRows.forEach { rowPairs ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            rowPairs.forEach { (key, _) ->
+                                DeckSubChip(
+                                    text = LightspeedTelemetryHudRenderer.localizedStyleLabel(key),
+                                    isActive = hudStyle == key,
+                                    snapshot = snapshot,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        LightspeedHapticEngine.tick(service)
+                                        hudStyle = key
+                                        prefs.edit().putString(LightspeedPreferences.KEY_TELEMETRY_HUD_STYLE, key).apply()
+                                        LightspeedTelemetryHudOverlay.triggerLivePreview(service)
+                                    }
+                                )
+                            }
+                        }
                     }
+                }
+
+                // Animated Device Font & Scale Picker
+                VistaTelemetryTypographyControls(service = service, snapshot = snapshot)
+
+                // Compact Mode Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = lsString(R.string.thud_compact_title),
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = lsColors.textPrimary
+                        )
+                        Text(
+                            text = lsString(R.string.thud_compact_sub),
+                            fontSize = 9.sp,
+                            color = lsColors.textSecondary
+                        )
+                    }
+                    DeckSwitch(
+                        checked = hudCompact,
+                        onCheckedChange = {
+                            hudCompact = it
+                            prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_COMPACT, it).apply()
+                            LightspeedTelemetryHudOverlay.refreshState(service)
+                        },
+                        modifier = Modifier.height(22.dp)
+                    )
+                }
+
+                // Individual Readout Chips (FPS, CPU, TEMP, RAM, BAT, WATT)
+                Text(
+                    text = lsString(R.string.thud_readouts_hdr),
+                    fontSize = 9.5.sp,
+                    color = lsColors.textSecondary
+                )
+                val toggleRows = listOf(
+                    listOf(
+                        Triple("FPS", showFps) { next: Boolean ->
+                            showFps = next
+                            prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_FPS, next).apply()
+                            LightspeedTelemetryHudOverlay.refreshState(service)
+                        },
+                        Triple("CPU", showCpu) { next: Boolean ->
+                            showCpu = next
+                            prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_CPU, next).apply()
+                            LightspeedTelemetryHudOverlay.refreshState(service)
+                        },
+                        Triple("TEMP", showTemp) { next: Boolean ->
+                            showTemp = next
+                            prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_TEMP, next).apply()
+                            LightspeedTelemetryHudOverlay.refreshState(service)
+                        }
+                    ),
+                    listOf(
+                        Triple("RAM", showRam) { next: Boolean ->
+                            showRam = next
+                            prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_RAM, next).apply()
+                            LightspeedTelemetryHudOverlay.refreshState(service)
+                        },
+                        Triple("BAT", showBat) { next: Boolean ->
+                            showBat = next
+                            prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_BAT, next).apply()
+                            LightspeedTelemetryHudOverlay.refreshState(service)
+                        },
+                        Triple("WATT", showWatt) { next: Boolean ->
+                            showWatt = next
+                            prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_WATT, next).apply()
+                            LightspeedTelemetryHudOverlay.refreshState(service)
+                        }
+                    )
                 )
 
-                val toggleItemsRow2 = listOf(
-                    Triple("RAM", showRam) { next: Boolean ->
-                        showRam = next
-                        prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_RAM, next).apply()
-                        LightspeedTelemetryHudOverlay.refreshState(service)
-                    },
-                    Triple("BAT", showBat) { next: Boolean ->
-                        showBat = next
-                        prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_BAT, next).apply()
-                        LightspeedTelemetryHudOverlay.refreshState(service)
-                    },
-                    Triple("WATT", showWatt) { next: Boolean ->
-                        showWatt = next
-                        prefs.edit().putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_WATT, next).apply()
-                        LightspeedTelemetryHudOverlay.refreshState(service)
-                    }
-                )
-
-                listOf(toggleItemsRow1, toggleItemsRow2).forEach { rowItems ->
+                toggleRows.forEach { rowItems ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         rowItems.forEach { (label, isChecked, onToggle) ->
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(
-                                        if (isChecked) lsColors.accent.copy(alpha = 0.22f)
-                                        else lsColors.dialogSurface.copy(alpha = 0.3f)
-                                    )
-                                    .border(
-                                        width = if (isChecked) 0.9.dp else 0.5.dp,
-                                        color = if (isChecked) lsColors.accent else lsColors.borderSubtle,
-                                        shape = RoundedCornerShape(6.dp)
-                                    )
-                                    .clickable {
-                                        LightspeedHapticEngine.tick(service)
-                                        onToggle(!isChecked)
-                                    }
-                                    .padding(vertical = 5.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 9.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isChecked) lsColors.accent else lsColors.textSecondary,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                            DeckSubChip(
+                                text = label,
+                                isActive = isChecked,
+                                snapshot = snapshot,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    LightspeedHapticEngine.tick(service)
+                                    onToggle(!isChecked)
+                                }
+                            )
                         }
                     }
                 }

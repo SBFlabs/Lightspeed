@@ -9,6 +9,14 @@ import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 
+internal class RotatedDepthSheet(
+    val sheetPath: Path,
+    val shadowPath: android.graphics.Path,
+    val fillPaint: androidx.compose.ui.graphics.Paint,
+    val tintPaint: androidx.compose.ui.graphics.Paint,
+    val borderPaint: androidx.compose.ui.graphics.Paint
+)
+
 internal fun buildUnifiedDepthSheets(
     rect: Rect,
     cr: CornerRadius,

@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -117,6 +118,14 @@ fun GuidebookLanguageSlider(modifier: Modifier = Modifier) {
                     LightspeedLocaleEngine.selectBilingual(context)
                 }
                 showBilingualDialog = true
+            }
+        )
+
+        RtlLayoutPillButton(
+            rtlActive = state.rtlLayout,
+            onClick = {
+                LightspeedHapticEngine.tick(context)
+                LightspeedLocaleEngine.toggleRtlLayout(context)
             }
         )
     }
@@ -412,6 +421,54 @@ private fun BilingualMorphToggleButton(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun RtlLayoutPillButton(
+    rtlActive: Boolean,
+    onClick: () -> Unit
+) {
+    val lsColors = LightspeedStyle.colors
+    val colorScheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = Modifier
+            .height(44.dp)
+            .width(48.dp)
+            .clip(shape)
+            .background(
+                if (rtlActive) colorScheme.primary.copy(alpha = 0.20f)
+                else lsColors.textPrimary.copy(alpha = 0.06f)
+            )
+            .border(
+                width = if (rtlActive) 1.1.dp else 0.9.dp,
+                color = if (rtlActive) colorScheme.primary.copy(alpha = 0.75f)
+                else lsColors.textPrimary.copy(alpha = 0.14f),
+                shape = shape
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.SwapHoriz,
+                contentDescription = lsString(R.string.ls_rtl_layout_title),
+                tint = if (rtlActive) colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.75f),
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = lsString(R.string.ls_rtl_chip_short),
+                fontSize = 8.5.sp,
+                fontWeight = if (rtlActive) FontWeight.Bold else FontWeight.SemiBold,
+                color = if (rtlActive) colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.7f),
+                maxLines = 1
+            )
         }
     }
 }

@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.settings.DeckSlider
 import com.sbf.lightspeed.settings.DeckThemeSnapshot
 import com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine
@@ -151,7 +152,7 @@ internal fun SonicAppMixerSection(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Icon(Icons.Default.Layers, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
-            Text("PER-APP MIXER, ROUTING & SOVEREIGNTY", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(lsString(R.string.sdeck_mixer_hdr), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
 
         if (showBypassWarning) {
@@ -175,7 +176,7 @@ internal fun SonicAppMixerSection(
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = "AUDIO ROUTED OUTSIDE ISOLATION",
+                            text = lsString(R.string.sdeck_bypass_title),
                             color = LightspeedTokens.StatusWarning,
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold
@@ -183,7 +184,7 @@ internal fun SonicAppMixerSection(
                     }
 
                     Text(
-                        text = "This app is routed directly to a dedicated hardware output. Voice isolation and background muffling will be bypassed for this stream.",
+                        text = lsString(R.string.sdeck_bypass_body),
                         color = Color.White.copy(alpha = 0.9f),
                         fontSize = 9.sp,
                         lineHeight = 13.sp
@@ -214,7 +215,7 @@ internal fun SonicAppMixerSection(
                             )
                             Spacer(Modifier.width(2.dp))
                             Text(
-                                "Don't show again",
+                                lsString(R.string.sdeck_dont_show),
                                 color = Color.White.copy(alpha = 0.8f),
                                 fontSize = 8.5.sp
                             )
@@ -233,7 +234,7 @@ internal fun SonicAppMixerSection(
                             modifier = Modifier.height(24.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = LightspeedTokens.StatusWarning)
                         ) {
-                            Text("OK", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text(lsString(R.string.cc_dlg_got_it_caps), color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -241,10 +242,10 @@ internal fun SonicAppMixerSection(
         }
 
         if (activeApps.isEmpty() && hiddenApps.isEmpty()) {
-            Text("No active or pinned audio applications.", color = Color.Gray, fontSize = 10.sp)
+            Text(lsString(R.string.sdeck_no_apps), color = com.sbf.lightspeed.ui.theme.LightspeedStyle.colors.textSecondary, fontSize = 10.sp)
         } else {
             if (activeApps.isEmpty()) {
-                Text("All detected audio applications are hidden.", color = Color.Gray, fontSize = 10.sp)
+                Text(lsString(R.string.sdeck_all_hidden), color = com.sbf.lightspeed.ui.theme.LightspeedStyle.colors.textSecondary, fontSize = 10.sp)
             } else {
                 for (pkg in activeApps) {
                     key(pkg) {
@@ -414,17 +415,17 @@ private fun SonicAppRow(
                 SonicChannelRouter.ROUTE_SPEAKER -> Triple(
                     Icons.Default.Speaker,
                     LightspeedTokens.StatusSky,
-                    "Speaker"
+                    lsString(R.string.sdeck_cd_speaker)
                 )
                 SonicChannelRouter.ROUTE_BLUETOOTH, SonicChannelRouter.ROUTE_WIRED -> Triple(
                     Icons.Default.Headphones,
                     LightspeedTokens.StatusOkSoft,
-                    "Headphones"
+                    lsString(R.string.sdeck_cd_headphones)
                 )
                 else -> Triple(
                     Icons.AutoMirrored.Filled.VolumeUp,
                     if (tint == Color.White) LightspeedTokens.StatusSlate else tint,
-                    "Default Audio Route"
+                    lsString(R.string.sdeck_cd_route_default)
                 )
             }
             Box(
@@ -481,7 +482,7 @@ private fun SonicAppRow(
             ) {
                 Icon(
                     imageVector = if (isAlwaysOn) Icons.Default.Lock else Icons.Default.LockOpen,
-                    contentDescription = if (isAlwaysOn) "Always-On Focus" else "Duckable",
+                    contentDescription = if (isAlwaysOn) lsString(R.string.sdeck_cd_focus_on) else lsString(R.string.sdeck_cd_focus_off),
                     tint = lockColor,
                     modifier = Modifier.size(15.dp)
                 )
@@ -504,7 +505,7 @@ private fun SonicAppRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.PushPin,
-                    contentDescription = if (isPinned) "Unpin App" else "Pin to Top",
+                    contentDescription = if (isPinned) lsString(R.string.sdeck_cd_unpin) else lsString(R.string.sdeck_cd_pin),
                     tint = if (isPinned) pinAccent else Color.White.copy(alpha = 0.65f),
                     modifier = Modifier.size(15.dp)
                 )
@@ -526,7 +527,7 @@ private fun SonicAppRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.VisibilityOff,
-                    contentDescription = "Hide App",
+                    contentDescription = lsString(R.string.sdeck_cd_hide),
                     tint = Color.White.copy(alpha = 0.50f),
                     modifier = Modifier.size(14.dp)
                 )
@@ -574,7 +575,7 @@ private fun SonicHiddenAppsSubAccordion(
                     modifier = Modifier.size(14.dp)
                 )
                 Text(
-                    text = "HIDDEN APPLICATIONS",
+                    text = lsString(R.string.sdeck_hidden_hdr),
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White.copy(alpha = 0.85f),
@@ -597,7 +598,7 @@ private fun SonicHiddenAppsSubAccordion(
 
             Icon(
                 imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = if (isExpanded) "Collapse" else "Expand",
+                contentDescription = null,
                 tint = Color.White.copy(alpha = 0.65f),
                 modifier = Modifier.size(18.dp)
             )
@@ -701,7 +702,7 @@ private fun SonicHiddenAppRow(
         ) {
             Icon(
                 imageVector = Icons.Default.Visibility,
-                contentDescription = "Unhide App",
+                contentDescription = lsString(R.string.sdeck_cd_unhide),
                 tint = lsColors.accentOk,
                 modifier = Modifier.size(13.dp)
             )

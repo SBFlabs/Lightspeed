@@ -41,6 +41,9 @@ fun HudStripTabContent(
     isSubPowerExpandedState: MutableState<Boolean>,
     isSubVolumeExpandedState: MutableState<Boolean>,
     isSyntheticGravityExpandedState: MutableState<Boolean>,
+    isAstrogationAirlockExpandedState: MutableState<Boolean>,
+    isSonicDeckExpandedState: MutableState<Boolean>,
+    isVistaDeckExpandedState: MutableState<Boolean>,
     isTacticalHardwareExpandedState: MutableState<Boolean>,
     isTelemetryExpandedState: MutableState<Boolean>,
     listState1: androidx.compose.foundation.lazy.LazyListState,
@@ -59,7 +62,8 @@ fun HudStripTabContent(
     singlePressTapCountState: MutableIntState,
     thresholdCrossedFlashState: MutableState<Boolean>,
     toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit,
-    tokenLabelCache: Map<String, String>
+    tokenLabelCache: Map<String, String>,
+    onApplyCustomPinned: () -> Unit = {}
 ) {
     var blueprintTabTarget by blueprintTabTargetState
     var currentThreshold by currentThresholdState
@@ -82,6 +86,9 @@ fun HudStripTabContent(
     var isSubPowerExpanded by isSubPowerExpandedState
     var isSubVolumeExpanded by isSubVolumeExpandedState
     var isSyntheticGravityExpanded by isSyntheticGravityExpandedState
+    var isAstrogationAirlockExpanded by isAstrogationAirlockExpandedState
+    var isSonicDeckExpanded by isSonicDeckExpandedState
+    var isVistaDeckExpanded by isVistaDeckExpandedState
     var isTacticalHardwareExpanded by isTacticalHardwareExpandedState
     var isTelemetryExpanded by isTelemetryExpandedState
     var pendingBackTapScope by pendingBackTapScopeState
@@ -132,8 +139,10 @@ fun HudStripTabContent(
             onPinSection = {
                 pinnedSection1 = it
                 prefs.edit().putString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_1, it).apply()
+                onApplyCustomPinned()
             },
-            onExitBlueprint = { blueprintTabTarget = null }
+            onExitBlueprint = { blueprintTabTarget = null },
+            fillViewport = true
         )
     } else {
         LazyColumn(
@@ -282,6 +291,12 @@ fun HudStripTabContent(
                             onRefreshNeeded = onRefreshNeeded,
                             isSyntheticGravityExpanded = isSyntheticGravityExpanded,
                             onToggleSyntheticGravity = { isSyntheticGravityExpanded = it },
+                            isAstrogationAirlockExpanded = isAstrogationAirlockExpanded,
+                            onToggleAstrogationAirlock = { isAstrogationAirlockExpanded = it },
+                            isSonicDeckExpanded = isSonicDeckExpanded,
+                            onToggleSonicDeck = { isSonicDeckExpanded = it },
+                            isVistaDeckExpanded = isVistaDeckExpanded,
+                            onToggleVistaDeck = { isVistaDeckExpanded = it },
                             isRefuelingExpanded = isRefuelingExpanded,
                             onToggleRefueling = { isRefuelingExpanded = it },
                             onShowAmoledWarning = { showAmoledWarningDialog = true },

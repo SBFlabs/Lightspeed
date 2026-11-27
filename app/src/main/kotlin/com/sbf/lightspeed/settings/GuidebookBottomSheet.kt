@@ -195,6 +195,12 @@ fun GuidebookBottomSheet(
     }
 
     val activeDensity = LocalDensity.current
+    val activeLayoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+    val targetAndroidDir = if (activeLayoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl) {
+        android.view.View.LAYOUT_DIRECTION_RTL
+    } else {
+        android.view.View.LAYOUT_DIRECTION_LTR
+    }
     val activeSnapshot = LocalDeckTheme.current
     val cornerDp = activeSnapshot.cornerRadiusDp.dp
     // Top two corners curved to theme radius; bottom two corners razor-sharp (0.dp) to feel rooted behind the bottom screen edge
@@ -211,7 +217,28 @@ fun GuidebookBottomSheet(
         dragHandle = null,
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
     ) {
-        CompositionLocalProvider(LocalDensity provides activeDensity) {
+        val sheetView = LocalView.current
+        val sheetWindow = (sheetView.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            if (sheetView.layoutDirection != targetAndroidDir) {
+                sheetView.layoutDirection = targetAndroidDir
+            }
+            sheetView.rootView?.let { root ->
+                if (root.layoutDirection != targetAndroidDir) {
+                    root.layoutDirection = targetAndroidDir
+                }
+            }
+        }
+        DisposableEffect(sheetWindow) {
+            CentralCommandBackdropBlur.registerHostWindow(sheetWindow)
+            onDispose {
+                CentralCommandBackdropBlur.unregisterHostWindow(sheetWindow)
+            }
+        }
+        CompositionLocalProvider(
+            LocalDensity provides activeDensity,
+            androidx.compose.ui.platform.LocalLayoutDirection provides activeLayoutDirection
+        ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()

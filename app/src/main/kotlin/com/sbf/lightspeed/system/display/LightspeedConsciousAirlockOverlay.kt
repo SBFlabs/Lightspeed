@@ -338,7 +338,8 @@ object LightspeedConsciousAirlockOverlay {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             }
-            gravity = Gravity.TOP or Gravity.START
+            @Suppress("RtlHardcoded")
+            gravity = Gravity.TOP or Gravity.LEFT
             x = 0
             y = 0
         }
@@ -360,7 +361,9 @@ object LightspeedConsciousAirlockOverlay {
                     } catch (_: Exception) {}
                 }
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+            dismiss()
+        }
     }
 
     fun dismiss() {
@@ -434,15 +437,18 @@ object LightspeedConsciousAirlockOverlay {
             } catch (_: Exception) { packageName.substringAfterLast('.') }
         }
 
+        val localeState = com.sbf.lightspeed.system.LightspeedLocaleEngine.state
+        val isArabic = localeState.primary == com.sbf.lightspeed.system.LightspeedLocaleEngine.AppLanguage.AR
         val hasUsageAccess = remember { LightspeedUsageStats.hasUsageAccess(service) }
         var isTelemetryLoaded by remember(packageName) { mutableStateOf(false) }
         var flipTick by remember { mutableIntStateOf(0) }
         var isFlipPhaseActive by remember(packageName) { mutableStateOf(true) }
 
         val telemetryTriple by produceState(
-            initialValue = Triple("Other", lsString(R.string.airlock_time_m_today, 0), lsString(R.string.airlock_time_m_today, 0)),
+            initialValue = Triple(lsString(R.string.airlock_other_sector), lsString(R.string.airlock_time_m_today, 0), lsString(R.string.airlock_time_m_today, 0)),
             key1 = packageName,
-            key2 = hasUsageAccess
+            key2 = hasUsageAccess,
+            key3 = localeState
         ) {
             val loaded = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 val usageMap = if (hasUsageAccess) LightspeedUsageStats.usageMillisByPackage(service, days = 1) else emptyMap()
@@ -464,7 +470,10 @@ object LightspeedConsciousAirlockOverlay {
                 }
 
                 val categoryNode = LightspeedDataBridge.DRAWER_CATEGORIES.firstOrNull { it.id == catId }
-                val catLabel = categoryNode?.label ?: "Other"
+                val catLabel = LightspeedDataBridge.localizedCategoryLabel(
+                    catId,
+                    categoryNode?.label ?: lsString(R.string.airlock_other_sector)
+                )
 
                 var sectorMs = 0L
                 for ((pkg, ms) in usageMap) {
@@ -596,7 +605,7 @@ object LightspeedConsciousAirlockOverlay {
                     color = airlockAccent,
                     fontWeight = FontWeight.Bold,
                     fontSize = 11.sp,
-                    letterSpacing = 1.8.sp
+                    letterSpacing = if (isArabic) 0.sp else 1.8.sp
                 )
 
                 if (isLandscape) {
@@ -755,7 +764,7 @@ object LightspeedConsciousAirlockOverlay {
                             color = airlockAccent,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.5.sp
+                            letterSpacing = if (isArabic) 0.sp else 1.5.sp
                         )
                     }
 

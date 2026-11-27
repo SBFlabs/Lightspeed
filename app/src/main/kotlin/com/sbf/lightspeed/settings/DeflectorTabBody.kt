@@ -27,6 +27,7 @@ fun DeflectorTabBody(
     listState: LazyListState,
     onRefreshNeeded: () -> Unit,
     toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit,
+    toggleSubSection: (Int, String, String, Boolean, (Boolean) -> Unit) -> Unit,
     pinnedSectionState: MutableState<String>,
     sectionOrderStrState: MutableState<String>,
     sectionTitles: Map<String, String>,
@@ -46,7 +47,11 @@ fun DeflectorTabBody(
     isBottomExpandedState: MutableState<Boolean>,
     isBottomGeoExpandedState: MutableState<Boolean>,
     isBottomGesturesExpandedState: MutableState<Boolean>,
-    isBottomScrubExpandedState: MutableState<Boolean>
+    isBottomScrubExpandedState: MutableState<Boolean>,
+    isTrackpadExpandedState: MutableState<Boolean>,
+    isTrackpadGeoExpandedState: MutableState<Boolean>,
+    isTrackpadPhysicsExpandedState: MutableState<Boolean>,
+    onApplyCustomPinned: () -> Unit = {}
 ) {
     var blueprintTabTarget by blueprintTabTargetState
     var isFlankUnified by isFlankUnifiedState
@@ -71,6 +76,9 @@ fun DeflectorTabBody(
     var isBottomGeoExpanded by isBottomGeoExpandedState
     var isBottomGesturesExpanded by isBottomGesturesExpandedState
     var isBottomScrubExpanded by isBottomScrubExpandedState
+    var isTrackpadExpanded by isTrackpadExpandedState
+    var isTrackpadGeoExpanded by isTrackpadGeoExpandedState
+    var isTrackpadPhysicsExpanded by isTrackpadPhysicsExpandedState
 
     val coroutineScope = rememberCoroutineScope()
     var subBlueprintTarget by remember { mutableStateOf<String?>(null) }
@@ -78,25 +86,52 @@ fun DeflectorTabBody(
     var showOverridesDeck by remember { mutableStateOf(false) }
 
     val secPrefix = if (isLeft) "left_" else ""
+    val flankKey = if (isLeft) "left" else "right"
     val topSecId = "${secPrefix}top"
     val bottomSecId = "${secPrefix}bottom"
     val unifiedSecId = "${secPrefix}unified"
     val centerSecId = "${secPrefix}center"
     val trackpadSecId = "${secPrefix}trackpad"
 
-    val customVectors = remember(isLeft, com.sbf.lightspeed.system.LightspeedLocaleEngine.state) { getCustomVectorsForFlank(isLeft) }
-    val isTrackpadLabsEnabled = com.sbf.lightspeed.system.bot.LightspeedBotContract.isLabsEnabled(prefs)
-
-    val defaultOrder = buildList {
-        add(centerSecId)
-        if (isFlankUnified) {
-            add(unifiedSecId)
-        } else {
-            add(topSecId)
-            add(bottomSecId)
+    var prefsChangeTrigger by remember { mutableIntStateOf(0) }
+    DisposableEffect(prefs) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key != null && (
+                    key.endsWith("_height") ||
+                    key.endsWith("_height_landscape") ||
+                    key == LightspeedPreferences.KEY_DEFLECTOR_LANDSCAPE_MODE ||
+                    key == "sys_override_edge_gesture" ||
+                    key == com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_LABS_ENABLED ||
+                    key == com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_LEFT_ENABLED ||
+                    key == com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_RIGHT_ENABLED
+                )
+            ) {
+                prefsChangeTrigger++
+            }
         }
-        if (isTrackpadLabsEnabled) {
-            add(trackpadSecId)
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    val customVectors = remember(isLeft, com.sbf.lightspeed.system.LightspeedLocaleEngine.state) { getCustomVectorsForFlank(isLeft) }
+    val isTrackpadLabsEnabled = remember(prefsChangeTrigger) {
+        com.sbf.lightspeed.system.bot.LightspeedBotContract.isLabsEnabled(prefs)
+    }
+
+    val defaultOrder = remember(centerSecId, unifiedSecId, topSecId, bottomSecId, trackpadSecId, isFlankUnified, isTrackpadLabsEnabled) {
+        buildList {
+            add(centerSecId)
+            if (isFlankUnified) {
+                add(unifiedSecId)
+            } else {
+                add(topSecId)
+                add(bottomSecId)
+            }
+            if (isTrackpadLabsEnabled) {
+                add(trackpadSecId)
+            }
         }
     }
     val currentOrder = remember(sectionOrderStr, isFlankUnified, isTrackpadLabsEnabled, isLeft) {
@@ -107,22 +142,39 @@ fun DeflectorTabBody(
 
     val defaultSub = remember { listOf("geo", "scrub", "gestures") }
     var currentSubTop by remember(topSecId) {
-        val raw = prefs.getString("pref_sub_order_${topSecId}_2", "geo,scrub,gestures")!!
+        val raw = prefs.getString("pref_sub_order_$topSecId", null)
+            ?: prefs.getString("pref_sub_order_${topSecId}_2", "geo,scrub,gestures")!!
         mutableStateOf(raw.split(",").filter { it in defaultSub }.let { it + (defaultSub - it.toSet()) })
     }
 
     var currentSubBottom by remember(bottomSecId) {
-        val raw = prefs.getString("pref_sub_order_${bottomSecId}_2", "geo,scrub,gestures")!!
+        val raw = prefs.getString("pref_sub_order_$bottomSecId", null)
+            ?: prefs.getString("pref_sub_order_${bottomSecId}_2", "geo,scrub,gestures")!!
         mutableStateOf(raw.split(",").filter { it in defaultSub }.let { it + (defaultSub - it.toSet()) })
     }
 
     var currentSubUnified by remember(unifiedSecId) {
-        val raw = prefs.getString("pref_sub_order_${unifiedSecId}_2", "geo,scrub,gestures")!!
+        val raw = prefs.getString("pref_sub_order_$unifiedSecId", null)
+            ?: prefs.getString("pref_sub_order_${unifiedSecId}_2", "geo,scrub,gestures")!!
         mutableStateOf(raw.split(",").filter { it in defaultSub }.let { it + (defaultSub - it.toSet()) })
+    }
+
+    val defaultTrackpadSub = remember { listOf("geo", "physics") }
+    var currentSubTrackpad by remember(trackpadSecId) {
+        val raw = prefs.getString("pref_sub_order_$trackpadSecId", "geo,physics") ?: "geo,physics"
+        mutableStateOf(raw.split(",").filter { it in defaultTrackpadSub }.let { it + (defaultTrackpadSub - it.toSet()) })
     }
 
     val sectionOrderPrefKey = if (isLeft) LightspeedPreferences.KEY_TAB_SECTION_ORDER_0 else LightspeedPreferences.KEY_TAB_SECTION_ORDER_2
     val pinnedAccordionPrefKey = if (isLeft) LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_0 else LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_2
+    val handlePinSection: (String) -> Unit = { secId ->
+        pinnedSection = secId
+        prefs.edit().putString(pinnedAccordionPrefKey, secId).apply()
+        listOf(unifiedSecId, topSecId, bottomSecId, trackpadSecId).firstOrNull { secId.startsWith("${it}_") }?.let { parentId ->
+            prefs.edit().putString("pref_sub_pinned_$parentId", secId.removePrefix("${parentId}_")).apply()
+        }
+        onApplyCustomPinned()
+    }
 
     if (blueprintTabTarget == tabIndex) {
         DeflectorBlueprintSection(
@@ -133,37 +185,27 @@ fun DeflectorTabBody(
             topSecId = topSecId,
             bottomSecId = bottomSecId,
             unifiedSecId = unifiedSecId,
+            trackpadSecId = if (isTrackpadLabsEnabled) trackpadSecId else null,
             currentSubTop = currentSubTop,
             currentSubBottom = currentSubBottom,
             currentSubUnified = currentSubUnified,
+            currentSubTrackpad = currentSubTrackpad,
             sectionOrderPrefKey = sectionOrderPrefKey,
             pinnedAccordionPrefKey = pinnedAccordionPrefKey,
             prefs = prefs,
             onOrderChange = { sectionOrderStr = it },
-            onPinnedChange = { pinnedSection = it },
+            onPinnedChange = handlePinSection,
             onExitBlueprint = { blueprintTabTarget = null },
             onSubTopChange = { currentSubTop = it },
             onSubBottomChange = { currentSubBottom = it },
-            onSubUnifiedChange = { currentSubUnified = it }
+            onSubUnifiedChange = { currentSubUnified = it },
+            onSubTrackpadChange = { currentSubTrackpad = it }
         )
     } else {
         val configuration = LocalConfiguration.current
         val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
         val landscapeMode = prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_LANDSCAPE_MODE, LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM) ?: LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM
         val isCustomLandscape = isLandscape && (landscapeMode == LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM)
-
-        var prefsChangeTrigger by remember { mutableIntStateOf(0) }
-        DisposableEffect(prefs) {
-            val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-                if (key != null && (key.contains("sidebar") || key.contains("deflector"))) {
-                    prefsChangeTrigger++
-                }
-            }
-            prefs.registerOnSharedPreferenceChangeListener(listener)
-            onDispose {
-                prefs.unregisterOnSharedPreferenceChangeListener(listener)
-            }
-        }
 
         val sidebarPrefKey = if (isLeft) "pref_sidebar_left_" else "pref_sidebar_"
         val centerHeight = remember(prefsChangeTrigger, isCustomLandscape, isLeft) {
@@ -204,6 +246,82 @@ fun DeflectorTabBody(
         val isDismissedEdgeCard = prefs.getBoolean(LightspeedPreferences.KEY_DISMISS_EDGE_CONFLICT_CARD, false)
         var isEdgeNoticeDemoted by remember { mutableStateOf(isDismissedEdgeCard) }
         val showEdgeSovereigntyNotice = !isNativeInsetsZeroed
+        val expStates = remember(
+            tabIndex,
+            centerSecId,
+            unifiedSecId,
+            topSecId,
+            bottomSecId,
+            trackpadSecId,
+            flankKey,
+            isCenterExpanded,
+            isCenterGeoExpanded,
+            isUnifiedExpanded,
+            isTopExpanded,
+            isBottomExpanded,
+            isUnifiedGeoExpanded,
+            isUnifiedScrubExpanded,
+            isUnifiedGesturesExpanded,
+            isTopGeoExpanded,
+            isTopScrubExpanded,
+            isTopGesturesExpanded,
+            isBottomGeoExpanded,
+            isBottomScrubExpanded,
+            isBottomGesturesExpanded,
+            isTrackpadExpanded,
+            isTrackpadGeoExpanded,
+            isTrackpadPhysicsExpanded,
+            toggleSection,
+            toggleSubSection
+        ) {
+            buildDeflectorExpansionStates(
+                tabIndex = tabIndex,
+                centerSecId = centerSecId,
+                unifiedSecId = unifiedSecId,
+                topSecId = topSecId,
+                bottomSecId = bottomSecId,
+                trackpadSecId = trackpadSecId,
+                flankKey = flankKey,
+                isCenterExpanded = isCenterExpanded,
+                isCenterGeoExpanded = isCenterGeoExpanded,
+                isUnifiedExpanded = isUnifiedExpanded,
+                isTopExpanded = isTopExpanded,
+                isBottomExpanded = isBottomExpanded,
+                isUnifiedGeoExpanded = isUnifiedGeoExpanded,
+                isUnifiedScrubExpanded = isUnifiedScrubExpanded,
+                isUnifiedGesturesExpanded = isUnifiedGesturesExpanded,
+                isTopGeoExpanded = isTopGeoExpanded,
+                isTopScrubExpanded = isTopScrubExpanded,
+                isTopGesturesExpanded = isTopGesturesExpanded,
+                isBottomGeoExpanded = isBottomGeoExpanded,
+                isBottomScrubExpanded = isBottomScrubExpanded,
+                isBottomGesturesExpanded = isBottomGesturesExpanded,
+                isTrackpadExpanded = isTrackpadExpanded,
+                isTrackpadGeoExpanded = isTrackpadGeoExpanded,
+                isTrackpadPhysicsExpanded = isTrackpadPhysicsExpanded,
+                prefs = prefs,
+                toggleSection = toggleSection,
+                toggleSubSection = toggleSubSection,
+                onSetCenterExpanded = { isCenterExpanded = it },
+                onSetCenterGeoExpanded = { isCenterGeoExpanded = it },
+                onSetUnifiedExpanded = { isUnifiedExpanded = it },
+                onSetTopExpanded = { isTopExpanded = it },
+                onSetBottomExpanded = { isBottomExpanded = it },
+                onSetUnifiedGeoExpanded = { isUnifiedGeoExpanded = it },
+                onSetUnifiedScrubExpanded = { isUnifiedScrubExpanded = it },
+                onSetUnifiedGesturesExpanded = { isUnifiedGesturesExpanded = it },
+                onSetTopGeoExpanded = { isTopGeoExpanded = it },
+                onSetTopScrubExpanded = { isTopScrubExpanded = it },
+                onSetTopGesturesExpanded = { isTopGesturesExpanded = it },
+                onSetBottomGeoExpanded = { isBottomGeoExpanded = it },
+                onSetBottomScrubExpanded = { isBottomScrubExpanded = it },
+                onSetBottomGesturesExpanded = { isBottomGesturesExpanded = it },
+                onSetTrackpadExpanded = { isTrackpadExpanded = it },
+                onSetTrackpadGeoExpanded = { isTrackpadGeoExpanded = it },
+                onSetTrackpadPhysicsExpanded = { isTrackpadPhysicsExpanded = it },
+                onRefreshNeeded = onRefreshNeeded
+            )
+        }
 
         LazyColumn(
             state = listState,
@@ -290,45 +408,6 @@ fun DeflectorTabBody(
                 )
             }
 
-            val expStates = buildDeflectorExpansionStates(
-                tabIndex = tabIndex,
-                centerSecId = centerSecId,
-                unifiedSecId = unifiedSecId,
-                topSecId = topSecId,
-                bottomSecId = bottomSecId,
-                isCenterExpanded = isCenterExpanded,
-                isCenterGeoExpanded = isCenterGeoExpanded,
-                isUnifiedExpanded = isUnifiedExpanded,
-                isTopExpanded = isTopExpanded,
-                isBottomExpanded = isBottomExpanded,
-                isUnifiedGeoExpanded = isUnifiedGeoExpanded,
-                isUnifiedScrubExpanded = isUnifiedScrubExpanded,
-                isUnifiedGesturesExpanded = isUnifiedGesturesExpanded,
-                isTopGeoExpanded = isTopGeoExpanded,
-                isTopScrubExpanded = isTopScrubExpanded,
-                isTopGesturesExpanded = isTopGesturesExpanded,
-                isBottomGeoExpanded = isBottomGeoExpanded,
-                isBottomScrubExpanded = isBottomScrubExpanded,
-                isBottomGesturesExpanded = isBottomGesturesExpanded,
-                prefs = prefs,
-                toggleSection = toggleSection,
-                onSetCenterExpanded = { isCenterExpanded = it },
-                onSetCenterGeoExpanded = { isCenterGeoExpanded = it },
-                onSetUnifiedExpanded = { isUnifiedExpanded = it },
-                onSetTopExpanded = { isTopExpanded = it },
-                onSetBottomExpanded = { isBottomExpanded = it },
-                onSetUnifiedGeoExpanded = { isUnifiedGeoExpanded = it },
-                onSetUnifiedScrubExpanded = { isUnifiedScrubExpanded = it },
-                onSetUnifiedGesturesExpanded = { isUnifiedGesturesExpanded = it },
-                onSetTopGeoExpanded = { isTopGeoExpanded = it },
-                onSetTopScrubExpanded = { isTopScrubExpanded = it },
-                onSetTopGesturesExpanded = { isTopGesturesExpanded = it },
-                onSetBottomGeoExpanded = { isBottomGeoExpanded = it },
-                onSetBottomScrubExpanded = { isBottomScrubExpanded = it },
-                onSetBottomGesturesExpanded = { isBottomGesturesExpanded = it },
-                onRefreshNeeded = onRefreshNeeded
-            )
-
             renderDeflectorOrderedSections(
                 currentOrder = currentOrder,
                 centerSecId = centerSecId,
@@ -336,6 +415,7 @@ fun DeflectorTabBody(
                 topSecId = topSecId,
                 bottomSecId = bottomSecId,
                 trackpadSecId = trackpadSecId,
+                isTrackpadLabsEnabled = isTrackpadLabsEnabled,
                 isFlankUnified = isFlankUnified,
                 isLeft = isLeft,
                 context = context,
@@ -349,6 +429,16 @@ fun DeflectorTabBody(
                 onSubBlueprintToggle = { secId ->
                     subBlueprintTarget = if (subBlueprintTarget == secId) null else secId
                 },
+                pinnedSection = pinnedSection,
+                currentSubTop = currentSubTop,
+                currentSubBottom = currentSubBottom,
+                currentSubUnified = currentSubUnified,
+                currentSubTrackpad = currentSubTrackpad,
+                onSubTopChange = { currentSubTop = it },
+                onSubBottomChange = { currentSubBottom = it },
+                onSubUnifiedChange = { currentSubUnified = it },
+                onSubTrackpadChange = { currentSubTrackpad = it },
+                onPinSection = handlePinSection,
                 exp = expStates,
                 onMooringConfirm = { pendingMooringConfirm = it },
                 onRefreshNeeded = onRefreshNeeded

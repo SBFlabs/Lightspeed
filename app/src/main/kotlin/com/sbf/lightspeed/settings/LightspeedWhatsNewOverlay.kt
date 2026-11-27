@@ -1,5 +1,7 @@
 package com.sbf.lightspeed.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -34,6 +36,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,6 +50,7 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import kotlinx.coroutines.delay
 
 /** Provides a callback into nested Settings sections so manual "What's New" morphs the full Central Command window. */
@@ -65,7 +69,13 @@ internal fun openExternalUrl(context: Context, url: String) {
         }
         context.startActivity(intent)
     } catch (_: Exception) {
-        Toast.makeText(context, lsString(R.string.wn_unable_browser), Toast.LENGTH_SHORT).show()
+        try {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            clipboard?.setPrimaryClip(ClipData.newPlainText("Lightspeed Link", url))
+            Toast.makeText(context, lsString(R.string.about_no_browser), Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {
+            Toast.makeText(context, lsString(R.string.wn_unable_browser), Toast.LENGTH_SHORT).show()
+        }
     }
 }
 
@@ -169,18 +179,17 @@ object SupporterReminderController {
         val shown30d = prefs.getBoolean(LightspeedPreferences.KEY_SUPPORTER_SHOWN_30D, false)
         val shown7d = prefs.getBoolean(LightspeedPreferences.KEY_SUPPORTER_SHOWN_7D, false)
 
-        if (elapsedDays >= 30L && !shown30d) {
-            prefs.edit()
-                .putBoolean(LightspeedPreferences.KEY_SUPPORTER_SHOWN_30D, true)
-                .putBoolean(LightspeedPreferences.KEY_SUPPORTER_SHOWN_7D, true)
-                .apply()
-            return lsString(R.string.wn_milestone_30d)
-        }
         if (elapsedDays >= 7L && !shown7d) {
             prefs.edit()
                 .putBoolean(LightspeedPreferences.KEY_SUPPORTER_SHOWN_7D, true)
                 .apply()
             return lsString(R.string.wn_milestone_7d)
+        }
+        if (elapsedDays >= 30L && shown7d && !shown30d) {
+            prefs.edit()
+                .putBoolean(LightspeedPreferences.KEY_SUPPORTER_SHOWN_30D, true)
+                .apply()
+            return lsString(R.string.wn_milestone_30d)
         }
         return null
     }
@@ -194,6 +203,7 @@ object SupporterReminderController {
 fun CentralCommandWhatsNewMorphPanel(
     context: Context,
     startOnWelcome: Boolean = false,
+    isFreshInstallGate: Boolean = false,
     onDismiss: () -> Unit,
     onOpenInfinityUnlock: () -> Unit
 ) {
@@ -337,7 +347,7 @@ fun CentralCommandWhatsNewMorphPanel(
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
 
-                if (!isWelcomeStep) {
+                if (!isWelcomeStep && !isFreshInstallGate) {
                     InfinitySupportMissionLine(
                         isUnlocked = isUnlocked,
                         onOpenInfinity = onOpenInfinityUnlock
@@ -360,7 +370,12 @@ fun CentralCommandWhatsNewMorphPanel(
                     } else {
                         ReleaseHighlightCardsContent(revealedSteps = revealedSteps)
                         StaggeredRevealCard(visible = revealedSteps >= 5) {
-                            SupporterCommunityCard(isUnlocked = isUnlocked)
+                            SupporterCommunityCard(
+                                context = context,
+                                isUnlocked = isUnlocked,
+                                hideShopButtons = isFreshInstallGate,
+                                onOpenInfinityUnlock = onOpenInfinityUnlock
+                            )
                         }
                         StaggeredRevealCard(visible = revealedSteps >= 6) {
                             CommunityLinksRow(context = context)
@@ -383,6 +398,7 @@ fun CentralCommandWhatsNewMorphPanel(
                         context = context,
                         isUnlocked = isUnlocked,
                         isUpdateBanner = true,
+                        hideUnlockCta = isFreshInstallGate,
                         onDismiss = onDismiss,
                         onBeforeAction = {},
                         onOpenInfinityUnlock = onOpenInfinityUnlock
@@ -496,7 +512,14 @@ fun LightspeedSupporterReminderDialog(
                 if (isUpdateBanner) {
                     ReleaseHighlightCardsContent(revealedSteps = Int.MAX_VALUE)
                 }
-                SupporterCommunityCard(isUnlocked = isUnlocked)
+                SupporterCommunityCard(
+                    context = context,
+                    isUnlocked = isUnlocked,
+                    onOpenInfinityUnlock = {
+                        saveOptOutIfChecked()
+                        onOpenInfinityUnlock()
+                    }
+                )
                 CommunityLinksRow(context = context)
             }
 
@@ -574,7 +597,7 @@ private fun InfinitySupportMissionLine(
         lsString(R.string.wn_mission_locked)
     }
     Text(
-        text = buildGooglePayAnnotatedText(bannerText),
+        text = bannerText,
         fontSize = 11.8.sp,
         lineHeight = 16.sp,
         fontWeight = FontWeight.Medium,
@@ -601,8 +624,7 @@ private fun ReleaseHighlightCardsContent(revealedSteps: Int) {
             bullets = listOf(
                 lsString(R.string.wn_hl_cruise_b1),
                 lsString(R.string.wn_hl_cruise_b2),
-                lsString(R.string.wn_hl_cruise_b3),
-                lsString(R.string.wn_hl_cruise_b4)
+                lsString(R.string.wn_hl_cruise_b3)
             )
         )
     }
@@ -638,7 +660,12 @@ private fun ReleaseHighlightCardsContent(revealedSteps: Int) {
 }
 
 @Composable
-private fun SupporterCommunityCard(isUnlocked: Boolean) {
+private fun SupporterCommunityCard(
+    context: Context,
+    isUnlocked: Boolean,
+    hideShopButtons: Boolean = false,
+    onOpenInfinityUnlock: () -> Unit = {}
+) {
     val lsColors = LightspeedStyle.colors
     Column(
         modifier = Modifier
@@ -647,7 +674,7 @@ private fun SupporterCommunityCard(isUnlocked: Boolean) {
             .background(lsColors.textPrimary.copy(alpha = 0.05f))
             .border(0.8.dp, lsColors.textPrimary.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
             .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = if (isUnlocked) lsString(R.string.wn_supporter_title_unlocked) else lsString(R.string.wn_supporter_title_locked),
@@ -665,6 +692,57 @@ private fun SupporterCommunityCard(isUnlocked: Boolean) {
             lineHeight = 18.sp,
             color = lsColors.textPrimary.copy(alpha = 0.88f)
         )
+        if (!isUnlocked) {
+            Text(
+                text = lsString(R.string.wn_supporter_pricing_note),
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                color = lsColors.textSecondary.copy(alpha = 0.75f)
+            )
+        }
+        if (!isUnlocked && !hideShopButtons) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = { openExternalUrl(context, INFINITY_SHOP_URL) },
+                    modifier = Modifier.weight(1.35f),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = LightspeedTokens.StatusGoldAlt)
+                ) {
+                    RocketFuelCanIcon(modifier = Modifier.size(14.dp), tint = Color.Black)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = lsString(R.string.inf_btn_get_key_short),
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.Black,
+                        maxLines = 1
+                    )
+                }
+                OutlinedButton(
+                    onClick = onOpenInfinityUnlock,
+                    modifier = Modifier.weight(0.95f),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = lsColors.accentGold.copy(alpha = 0.12f),
+                        contentColor = lsColors.accentGold
+                    ),
+                    border = BorderStroke(0.9.dp, lsColors.accentGold.copy(alpha = 0.50f))
+                ) {
+                    Text(
+                        text = lsString(R.string.wn_btn_enter_key),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
     }
 }
 

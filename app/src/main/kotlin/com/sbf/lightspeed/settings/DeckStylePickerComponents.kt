@@ -131,16 +131,19 @@ fun rememberCentralCommandSnapshotVisuals(
 }
 
 /**
- * Compact 12-style grid picker for the Flight Control Deck.
+ * Compact 4-row 13-style grid picker for the Flight Control Deck.
  * Shows each style's display name, a two-tone preset swatch (panel + tint/border),
- * and a lock indicator for non-free styles when Infinity is not unlocked.
+ * a live-preview highlight when previewing an Infinity style, and a lock indicator
+ * for non-free styles when Infinity is not unlocked.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DeckStylePickerGrid(
     context: Context,
     isInfinityUnlocked: Boolean,
-    onLockedClick: () -> Unit,
+    previewStyleId: String? = null,
+    onLockedClick: (styleDisplayName: String) -> Unit,
+    onPreviewLockedStyle: (DeckThemeSnapshot) -> Unit = { onLockedClick(it.localizedName()) },
     onCustomizeStyle: (styleId: String) -> Unit = {},
     onPrismLongClick: () -> Unit = {},
     onCustomizationRequested: () -> Unit = onPrismLongClick,
@@ -150,6 +153,7 @@ fun DeckStylePickerGrid(
     val colorScheme = MaterialTheme.colorScheme
     val fontScale = LocalDensity.current.fontScale
     val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val localeState = com.sbf.lightspeed.system.LightspeedLocaleEngine.state
 
     LaunchedEffect(context) {
         DeckThemeManager.getStyleId(context)
@@ -157,9 +161,21 @@ fun DeckStylePickerGrid(
     val activeStyleId by DeckThemeManager.styleIdFlow.collectAsState()
     val customizations by ThemeCustomizationManager.customizationsFlow.collectAsState()
     val activePreset = remember(activeStyleId) { DeckStylePresets.resolve(activeStyleId) }
-    val customizedPresets = remember(customizations, activeStyleId) {
-        DeckStylePresets.ALL.map { base ->
-            ThemeCustomizationManager.getCustomization(context, base.styleId).toSnapshot(base)
+    val customizedById = remember(customizations, activeStyleId) {
+        DeckStylePresets.ALL.associate { base ->
+            base.styleId to ThemeCustomizationManager.getCustomization(context, base.styleId).toSnapshot(base)
+        }
+    }
+
+    // Balanced 4-row layout (3 + 3 + 3 + 4 = all 13 themes, zero orphan row)
+    val rows = remember(customizedById) {
+        listOf(
+            listOf(DeckStylePresets.MATERIAL_3, DeckStylePresets.PRISM, DeckStylePresets.JELLY),
+            listOf(DeckStylePresets.FROSTED, DeckStylePresets.PROGRESSIVE, DeckStylePresets.GLASSMORPHISM),
+            listOf(DeckStylePresets.ADAPTIVE, DeckStylePresets.GAUSSIAN, DeckStylePresets.DEPTH),
+            listOf(DeckStylePresets.BLUR, DeckStylePresets.NEON, DeckStylePresets.ACRYLIC, DeckStylePresets.DARK)
+        ).map { row ->
+            row.map { base -> customizedById[base.styleId] ?: base }
         }
     }
 
@@ -177,13 +193,13 @@ fun DeckStylePickerGrid(
                 letterSpacing = 1.sp
             )
             Text(
-                activePreset.displayName,
+                activePreset.localizedName(),
                 fontSize = 10.sp,
-                color = lsColors.textSecondary.copy(alpha = 0.75f)
+                color = if (previewStyleId != null) lsColors.accentGold else lsColors.textSecondary.copy(alpha = 0.75f),
+                fontWeight = if (previewStyleId != null) FontWeight.Bold else FontWeight.Normal
             )
         }
 
-        val rows = remember(customizedPresets) { customizedPresets.chunked(3) }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             rows.forEach { rowPresets ->
                 Row(
@@ -193,7 +209,8 @@ fun DeckStylePickerGrid(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     rowPresets.forEach { preset ->
-                        val isSelected = activeStyleId == preset.styleId
+                        val isPreviewing = previewStyleId == preset.styleId
+                        val isSelected = activeStyleId == preset.styleId && !isPreviewing
                         val isLocked = !preset.freeTier && !isInfinityUnlocked
                         val miniCorner = (preset.cornerRadiusDp * 0.42f).dp
 
@@ -209,19 +226,25 @@ fun DeckStylePickerGrid(
                                     colorScheme = colorScheme
                                 )
                                 .then(
-                                    if (isSelected) {
-                                        Modifier.border(
+                                    when {
+                                        isPreviewing -> Modifier.border(
+                                            1.8.dp,
+                                            lsColors.accentGold,
+                                            RoundedCornerShape(miniCorner)
+                                        )
+                                        isSelected -> Modifier.border(
                                             1.6.dp,
                                             colorScheme.primary,
                                             RoundedCornerShape(miniCorner)
                                         )
-                                    } else Modifier
+                                        else -> Modifier
+                                    }
                                 )
                                 .combinedClickable(
                                     onClick = {
                                         if (isLocked) {
-                                            LightspeedHapticEngine.triggerWarning(context)
-                                            onLockedClick()
+                                            LightspeedHapticEngine.tick(context)
+                                            onPreviewLockedStyle(preset)
                                         } else if (isSelected) {
                                             LightspeedHapticEngine.tick(context)
                                             onCustomizeStyle(preset.styleId)
@@ -235,7 +258,7 @@ fun DeckStylePickerGrid(
                                     onLongClick = {
                                         if (isLocked) {
                                             LightspeedHapticEngine.triggerWarning(context)
-                                            onLockedClick()
+                                            onLockedClick(preset.localizedName())
                                         } else {
                                             LightspeedHapticEngine.tick(context)
                                             onCustomizeStyle(preset.styleId)
@@ -250,7 +273,15 @@ fun DeckStylePickerGrid(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
                             ) {
-                                if (isSelected) {
+                                if (isPreviewing) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(5.5.dp)
+                                            .clip(CircleShape)
+                                            .background(lsColors.accentGold)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                } else if (isSelected) {
                                     Box(
                                         modifier = Modifier
                                             .size(5.5.dp)
@@ -271,14 +302,17 @@ fun DeckStylePickerGrid(
                                     preset.styleId == DeckStylePresets.MATERIAL_3.styleId &&
                                         colorScheme.surfaceContainerLow.luminance() > 0.5f
                                 val baseTileFg = if (isLightMaterialTile) colorScheme.onSurface else Color.White
-                                var tileFontSizeSp by remember(preset.displayName, isLocked, isSelected, fontScale) {
+                                val localizedPresetName = remember(preset.styleId, localeState) {
+                                    preset.localizedName()
+                                }
+                                var tileFontSizeSp by remember(localizedPresetName, isLocked, isSelected, isPreviewing, fontScale) {
                                     mutableFloatStateOf(9.5f)
                                 }
                                 Text(
-                                    text = preset.displayName,
+                                    text = localizedPresetName,
                                     fontSize = tileFontSizeSp.sp,
-                                    lineHeight = 11.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                    lineHeight = 13.5.sp,
+                                    fontWeight = if (isSelected || isPreviewing) FontWeight.ExtraBold else FontWeight.SemiBold,
                                     color = if (isLocked) lsColors.accentGold else if (isSelected) baseTileFg else baseTileFg.copy(alpha = 0.88f),
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                     maxLines = 1,

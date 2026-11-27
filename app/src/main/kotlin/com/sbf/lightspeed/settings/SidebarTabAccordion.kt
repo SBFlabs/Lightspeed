@@ -77,8 +77,8 @@ fun TabAccordionPopover(
                 )
 
                 val modes = listOf(
-                    Triple("sticky", "Remember Last State (Sticky)", "Preserve the exact open and collapsed states of each section across app restarts."),
                     Triple("custom_pinned", "Anchored Solo", "Designated anchor card stays open; non-pinned cards swap in Solo focus mode."),
+                    Triple("sticky", "Remember Last State (Sticky)", "Preserve the exact open and collapsed states of each section across app restarts."),
                     Triple("solo", "Focus / Solo Mode", "Expanding any card automatically snaps all other cards shut."),
                     Triple("all_expanded", "All Expanded", "All accordion cards default open on tab entry."),
                     Triple("all_collapsed", "All Collapsed", "All accordion cards default closed on tab entry.")
@@ -108,8 +108,28 @@ fun TabAccordionPopover(
                                 colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Column {
-                                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = LightspeedStyle.colors.textPrimary)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = LightspeedStyle.colors.textPrimary)
+                                    if (modeKey == "custom_pinned") {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                            border = androidx.compose.foundation.BorderStroke(0.6.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                                        ) {
+                                            Text(
+                                                text = "DEFAULT",
+                                                fontSize = 8.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(desc, fontSize = 10.5.sp, color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.75f), lineHeight = 13.sp)
                                 if (modeKey == "custom_pinned" && pinnedSectionId != null && pinnedSectionId != "none" && pinnedSectionId.isNotEmpty()) {
@@ -120,7 +140,7 @@ fun TabAccordionPopover(
                                         border = androidx.compose.foundation.BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
                                     ) {
                                         Text(
-                                            text = "Anchor: ${sectionTitles[pinnedSectionId] ?: pinnedSectionId}",
+                                            text = "Anchor: ${resolvePinnedAnchorLabel(pinnedSectionId, sectionTitles)}",
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary,
@@ -134,29 +154,51 @@ fun TabAccordionPopover(
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
-                OutlinedButton(
+                DeckButton(
+                    text = "Edit Section Blueprint & Reorder",
+                    icon = Icons.Default.DashboardCustomize,
+                    isActive = true,
+                    modifier = Modifier.fillMaxWidth(),
                     onClick = {
                         onToggleBlueprintMode()
                         onDismiss()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f))
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                        Icon(Icons.Default.DashboardCustomize, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Edit Section Blueprint & Reorder", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
                     }
-                }
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            }
+            DeckButton(
+                text = "Close",
+                onClick = onDismiss
+            )
         }
     )
+}
+
+private fun resolvePinnedAnchorLabel(
+    pinnedId: String,
+    sectionTitles: Map<String, String>
+): String {
+    sectionTitles[pinnedId]?.let { return it }
+    val suffixes = listOf(
+        "_geo" to "Sensor Geometry",
+        "_scrub" to "Inward Scrubbing Control",
+        "_gestures" to "Gesture Actions & Macro Mappings",
+        "_physics" to "Cursor Physics"
+    )
+    for ((suffix, subLabel) in suffixes) {
+        if (pinnedId.endsWith(suffix)) {
+            val parentId = pinnedId.removeSuffix(suffix)
+            val parentTitle = sectionTitles[parentId] ?: parentId
+            val resolvedSub = when {
+                suffix == "_geo" && parentId.contains("trackpad") -> "Geometry & Calibration"
+                suffix == "_scrub" && parentId.endsWith("unified") -> "Separate Deflector Controls"
+                else -> subLabel
+            }
+            return "$parentTitle › $resolvedSub"
+        }
+    }
+    return pinnedId
 }
 
 data class AttitudeTargetItem(

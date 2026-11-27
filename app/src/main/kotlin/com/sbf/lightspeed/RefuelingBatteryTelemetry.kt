@@ -17,6 +17,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import java.util.Locale
 import kotlin.math.PI
@@ -254,11 +256,12 @@ fun BatteryTelemetryCircle(
                 )
             }
 
+            val isArabic = LightspeedLocaleEngine.state.primary == LightspeedLocaleEngine.AppLanguage.AR
             Text(
-                text = if (isFull) "FULL TANK" else chargeTypeLabel,
+                text = if (isFull) lsString(R.string.ref_bay_full_tank) else chargeTypeLabel,
                 fontSize = (10f * textScale).coerceIn(8.5f, 13f).sp,
                 fontWeight = FontWeight.Medium,
-                letterSpacing = 0.8.sp,
+                letterSpacing = if (isArabic) 0.sp else 0.8.sp,
                 color = lsColors.textPrimary.copy(alpha = 0.75f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -268,9 +271,11 @@ fun BatteryTelemetryCircle(
                 val hours = timeRemainingMinutes / 60
                 val mins = timeRemainingMinutes % 60
                 val etaText = if (isCharging) {
-                    if (hours > 0) "Full in ${hours}h ${mins}m" else "Full in ${mins}m"
+                    if (hours > 0) lsString(R.string.ref_bay_eta_full_hm, hours, mins)
+                    else lsString(R.string.ref_bay_eta_full_m, mins)
                 } else {
-                    if (hours > 0) "~${hours}h ${mins}m left" else "~${mins}m left"
+                    if (hours > 0) lsString(R.string.ref_bay_eta_left_hm, hours, mins)
+                    else lsString(R.string.ref_bay_eta_left_m, mins)
                 }
                 Text(
                     text = etaText,

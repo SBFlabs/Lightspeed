@@ -366,6 +366,9 @@ object LightspeedPreferences :
     const val KEY_SECTION_REFUELING_EXPANDED = "pref_section_refueling_expanded"
     const val KEY_SECTION_BACKUP_EXPANDED = "pref_section_backup_expanded"
     const val KEY_SECTION_SYSTEM_OVERRIDES_EXPANDED = "pref_section_system_overrides_expanded"
+    const val KEY_SECTION_ASTROGATION_AIRLOCK_EXPANDED = "pref_section_astrogation_airlock_expanded"
+    const val KEY_SECTION_SONIC_DECK_EXPANDED = "pref_section_sonic_deck_expanded"
+    const val KEY_SECTION_VISTA_DECK_EXPANDED = "pref_section_vista_deck_expanded"
     const val KEY_SECTION_CENTER_EXPANDED = "pref_section_center_expanded"
     const val KEY_SECTION_TOP_EXPANDED = "pref_section_top_expanded"
     const val KEY_SECTION_BOTTOM_EXPANDED = "pref_section_bottom_expanded"
@@ -379,7 +382,7 @@ object LightspeedPreferences :
     const val KEY_INFINIX_STANDBY_DISMISSED = "pref_infinix_standby_dismissed"
     const val KEY_INFINIX_STANDBY_WARNING_DEMOTED = "pref_infinix_standby_warning_demoted"
     const val KEY_ORBITAL_CAPSULE_ENABLED = "pref_orbital_capsule_enabled"
-    const val KEY_SONIC_DECK_ENABLED = "pref_omniscient_audio_dock_enabled"
+    const val KEY_SONIC_DECK_ENABLED = "pref_sonic_deck_enabled"
     const val KEY_SONIC_DECK_LEFT_ENABLED = "pref_sonic_deck_left_enabled"
     const val KEY_SONIC_DECK_RIGHT_ENABLED = "pref_sonic_deck_right_enabled"
     const val KEY_SONIC_POWER_WARNING_DISMISSED = "pref_sonic_power_warning_dismissed"
@@ -517,6 +520,13 @@ object LightspeedPreferences :
     const val KEY_TELEMETRY_HUD_SHOW_WATT = "pref_telemetry_hud_show_watt"
     const val KEY_TELEMETRY_HUD_POS_X = "pref_telemetry_hud_pos_x"
     const val KEY_TELEMETRY_HUD_POS_Y = "pref_telemetry_hud_pos_y"
+    const val KEY_TELEMETRY_HUD_STYLE = "pref_telemetry_hud_style"
+    const val KEY_TELEMETRY_HUD_COMPACT = "pref_telemetry_hud_compact"
+    const val KEY_TELEMETRY_HUD_FONT = "pref_telemetry_hud_font"
+    const val KEY_TELEMETRY_HUD_SCALE = "pref_telemetry_hud_scale"
+    const val DEFAULT_TELEMETRY_HUD_STYLE = "alpha_shade"
+    const val DEFAULT_TELEMETRY_HUD_FONT = "system_default"
+    const val DEFAULT_TELEMETRY_HUD_SCALE = 100
     const val KEY_CLOAK_RESET_REFRESH_RATE = "pref_cloak_reset_refresh_rate"
 
     // Category Cruise Per-Category Top HUD Strip & Custom Icon Lists Keys
@@ -636,6 +646,22 @@ object LightspeedPreferences :
     fun keySliderTapToJump(sliderKey: String): String = "pref_slider_tap_to_jump_$sliderKey"
 
     const val KEY_DEFAULTS_INITIALIZED = "pref_defaults_initialized_v3"
+
+    // Legacy key migrated silently into KEY_SONIC_DECK_ENABLED
+    private const val LEGACY_SONIC_DECK_KEY = "pref_omniscient" + "_audio_dock_enabled"
+
+    fun migrateLegacyPreferences(prefs: SharedPreferences) {
+        if (prefs.contains(LEGACY_SONIC_DECK_KEY)) {
+            val legacyEnabled = prefs.getBoolean(LEGACY_SONIC_DECK_KEY, false)
+            prefs.edit().apply {
+                if (!prefs.contains(KEY_SONIC_DECK_ENABLED)) {
+                    putBoolean(KEY_SONIC_DECK_ENABLED, legacyEnabled)
+                }
+                remove(LEGACY_SONIC_DECK_KEY)
+                apply()
+            }
+        }
+    }
 
     // Defaults Initialization Delegate
     fun initializeDefaults(context: Context) = LightspeedPreferencesDefaults.initializeDefaults(context)

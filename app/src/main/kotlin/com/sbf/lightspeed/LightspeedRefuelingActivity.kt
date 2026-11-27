@@ -20,8 +20,10 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.lsString
 
 /**
  * Refueling Bay: Ambient Charging & Cryo Dashboard for Lightspeed.
@@ -180,6 +182,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        LightspeedLocaleEngine.init(this)
         isActive = true
         isChargingSessionDismissed = false
         isCustomSleepScreenOffTriggered = false
@@ -338,7 +341,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                     isWaitingForResult = false
                     android.widget.Toast.makeText(
                         this,
-                        "Module configuration unavailable; deploying default slot",
+                        lsString(R.string.ref_bay_toast_config_unavail),
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                     saveNewWidgetId(widgetId)
@@ -438,11 +441,11 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                 } catch (ex: Exception) {
                     android.util.Log.e("RefuelingActivity", "Cannot launch reconfigure activity", ex)
                     isWaitingForResult = false
-                    android.widget.Toast.makeText(this, "Could not open widget configuration", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, lsString(R.string.ref_bay_toast_reconfig_err), android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         } else {
-            android.widget.Toast.makeText(this, "This widget has no configuration screen", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(this, lsString(R.string.ref_bay_toast_no_config), android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 

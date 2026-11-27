@@ -106,6 +106,8 @@ class CentralCommandActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         isActive = true
         activeInstance = this
+        com.sbf.lightspeed.system.LightspeedPreferences.migrateLegacyPreferences(defaultPrefs())
+        com.sbf.lightspeed.system.LightspeedLocaleEngine.init(this)
         enableEdgeToEdge()
         overrideZeroTransition()
         CentralCommandBackdropBlur.registerHostWindow(window)
@@ -173,7 +175,18 @@ class CentralCommandActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val isInternalNavigation = intent.hasExtra("target_section") || intent.hasExtra("target_tab")
+        val openFlightDeck = intent.getBooleanExtra(EXTRA_OPEN_FLIGHT_DECK, false)
+        val openTrackpadStyles = intent.getBooleanExtra(EXTRA_OPEN_TRACKPAD_STYLES, false)
+        if (openFlightDeck) {
+            CentralCommandTabNavigator.triggerFlightDeck()
+        }
+        if (openTrackpadStyles) {
+            CentralCommandTabNavigator.triggerTrackpadShowcase()
+        }
+        val isInternalNavigation = intent.hasExtra("target_section") ||
+            intent.hasExtra("target_tab") ||
+            openFlightDeck ||
+            openTrackpadStyles
         val underlyingScreenChanged = !isActive && !isInternalNavigation
         if (underlyingScreenChanged) {
             CentralCommandBackdropBlur.onWindowHidden(false)

@@ -102,19 +102,24 @@ fun GestureHudStyleDropdown(
     val signatureStyles = remember(currentRawValue, localeState) {
         when {
             currentRawValue.contains("media") -> listOf(
-                "prism_timeline" to lsString(R.string.hud_full_timeline)
+                "prism_timeline" to lsString(R.string.hud_full_timeline),
+                "signature_media_shade" to lsString(R.string.hud_full_media_shade)
             )
             currentRawValue.contains("brightness") -> listOf(
-                "signature_solar_lux" to lsString(R.string.hud_full_solar_lux)
+                "signature_solar_lux" to lsString(R.string.hud_full_solar_lux),
+                "signature_solar_shade" to lsString(R.string.hud_full_solar_shade)
             )
             currentRawValue.contains("timeout") -> listOf(
-                "signature_chrono_dial" to lsString(R.string.hud_full_chrono_dial)
+                "signature_chrono_dial" to lsString(R.string.hud_full_chrono_dial),
+                "signature_chrono_shade" to lsString(R.string.hud_full_chrono_shade)
             )
             currentRawValue.contains("scroll") -> listOf(
-                "signature_kinetic_thruster" to lsString(R.string.hud_full_thruster)
+                "signature_kinetic_thruster" to lsString(R.string.hud_full_thruster),
+                "signature_thruster_shade" to lsString(R.string.hud_full_thruster_shade)
             )
             else -> listOf(
-                "signature_sonic_eq" to lsString(R.string.hud_full_sonic_eq)
+                "signature_sonic_eq" to lsString(R.string.hud_full_sonic_eq),
+                "signature_sonic_shade" to lsString(R.string.hud_full_sonic_shade)
             )
         }
     }
@@ -160,10 +165,15 @@ fun GestureHudStyleDropdown(
     Box {
         val hudName = when (hudStyle) {
             "prism_timeline" -> lsString(R.string.hud_name_timeline)
+            "signature_media_shade" -> lsString(R.string.hud_name_media_shade)
             "signature_sonic_eq" -> lsString(R.string.hud_name_sonic_eq)
+            "signature_sonic_shade" -> lsString(R.string.hud_name_sonic_shade)
             "signature_solar_lux" -> lsString(R.string.hud_name_solar_lux)
+            "signature_solar_shade" -> lsString(R.string.hud_name_solar_shade)
             "signature_chrono_dial" -> lsString(R.string.hud_name_chrono_dial)
+            "signature_chrono_shade" -> lsString(R.string.hud_name_chrono_shade)
             "signature_kinetic_thruster" -> lsString(R.string.hud_name_thruster)
+            "signature_thruster_shade" -> lsString(R.string.hud_name_thruster_shade)
             "modern_symbol_pill" -> lsString(R.string.hud_name_symbol_pill)
             "modern_floating_orb" -> lsString(R.string.hud_name_symbol_orb)
             "modern_slim_slider" -> lsString(R.string.hud_name_glass_slider)
@@ -419,7 +429,8 @@ fun GestureMediaQuickAccessControl(
     key: String,
     currentRawValue: String,
     onActionSelected: (String) -> Unit,
-    activeSnapshot: DeckThemeSnapshot
+    activeSnapshot: DeckThemeSnapshot,
+    allowScrub: Boolean = false
 ) {
     val lsColors = LightspeedStyle.colors
     var showMediaQuickMenu by remember { mutableStateOf(false) }
@@ -440,15 +451,17 @@ fun GestureMediaQuickAccessControl(
         ) {
             val skipForwardSec = LightspeedPreferences.getMediaSkipSeconds(prefs, forward = true)
             val skipBackwardSec = LightspeedPreferences.getMediaSkipSeconds(prefs, forward = false)
-            val mediaItems = listOf(
-                "system:media_play_pause" to lsString(R.string.media_play_pause),
-                "system:media_next" to lsString(R.string.media_next),
-                "system:media_prev" to lsString(R.string.media_prev),
-                "system:media_skip_forward" to lsString(R.string.media_skip_fwd, skipForwardSec),
-                "system:media_skip_backward" to lsString(R.string.media_skip_back, skipBackwardSec),
-                "system:media_scrubber" to lsString(R.string.act_media_scrubber),
-                "system:media_stop" to lsString(R.string.media_stop)
-            )
+            val mediaItems = buildList {
+                add("system:media_play_pause" to lsString(R.string.media_play_pause))
+                add("system:media_next" to lsString(R.string.media_next))
+                add("system:media_prev" to lsString(R.string.media_prev))
+                add("system:media_skip_forward" to lsString(R.string.media_skip_fwd, skipForwardSec))
+                add("system:media_skip_backward" to lsString(R.string.media_skip_back, skipBackwardSec))
+                if (allowScrub) {
+                    add("system:media_scrubber" to lsString(R.string.act_media_scrubber))
+                }
+                add("system:media_stop" to lsString(R.string.media_stop))
+            }
 
             mediaItems.forEach { (token, title) ->
                 val isSelected = currentRawValue == token

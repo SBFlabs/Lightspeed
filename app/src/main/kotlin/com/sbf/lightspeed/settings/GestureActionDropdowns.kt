@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -166,7 +167,7 @@ fun GestureToolsQuickAccessControl(
         DeckSubChip(
             text = lsString(R.string.chip_actions),
             icon = Icons.Default.Bolt,
-            isActive = currentRawValue.startsWith("system:") || currentRawValue.startsWith("app:") || currentRawValue.startsWith("shortcut:"),
+            isActive = currentRawValue.startsWith("system:") || currentRawValue.startsWith("app:") || currentRawValue.startsWith("shortcut:") || currentRawValue.startsWith("caller;"),
             snapshot = activeSnapshot,
             onClick = { showToolsQuickMenu = true }
         )
@@ -404,6 +405,27 @@ fun GestureHudThemeToggleChip(
                         )
                     }
                 }
+            }
+            val openFlightDeck = LocalOpenFlightControlDeck.current
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                modifier = Modifier.padding(horizontal = 10.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        showColorEngineMenu = false
+                        openFlightControlDeck(actualContext, openFlightDeck)
+                    }
+                    .padding(horizontal = 14.dp, vertical = 9.dp)
+            ) {
+                Text(
+                    text = "◈ ${lsString(R.string.fc_browse_13_themes)}",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

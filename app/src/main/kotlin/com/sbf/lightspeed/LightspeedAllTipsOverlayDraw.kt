@@ -219,6 +219,9 @@ internal fun LightspeedCruiseOverlay.drawAllTipsGhostOverlay(canvas: Canvas) {
     val tips = tipResIds.map { lsString(it).trim() }.filter { it.isNotEmpty() }
     if (tips.isEmpty()) return
 
+    val titleRaw = lsString(titleResId)
+    val isRtl = isRtlScriptText(titleRaw) || tips.any { isRtlScriptText(it) }
+
     val insets = rootWindowInsets
     val topInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && insets != null) {
         insets.getInsetsIgnoringVisibility(WindowInsets.Type.statusBars() or WindowInsets.Type.displayCutout()).top.toFloat()
@@ -258,7 +261,7 @@ internal fun LightspeedCruiseOverlay.drawAllTipsGhostOverlay(canvas: Canvas) {
     }
     val countPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = boldType
-        textAlign = Paint.Align.RIGHT
+        textAlign = if (isRtl) Paint.Align.LEFT else Paint.Align.RIGHT
         textSize = (if (isLandscape) 10.8f else 11.5f) * d * textScale
         color = Color.argb(205, Color.red(accent), Color.green(accent), Color.blue(accent))
     }
@@ -274,7 +277,7 @@ internal fun LightspeedCruiseOverlay.drawAllTipsGhostOverlay(canvas: Canvas) {
     }
     val footerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = boldType
-        textAlign = Paint.Align.CENTER
+        textAlign = if (isRtl) Paint.Align.LEFT else Paint.Align.CENTER
         textSize = (if (isLandscape) 10.6f else 11.2f) * d * textScale
         color = Color.argb(195, 204, 224, 255)
     }
@@ -283,7 +286,7 @@ internal fun LightspeedCruiseOverlay.drawAllTipsGhostOverlay(canvas: Canvas) {
     val minBodySize = (if (isLandscape) 11.2f else 12.0f) * d
     val rowGap = (if (isLandscape) 9.5f else 11.0f) * d
 
-    data class MeasuredTip(val numStr: String, val lines: List<String>)
+    data class MeasuredTip(val numDigits: String, val lines: List<String>)
     lateinit var measuredTips: List<MeasuredTip>
     var numGutterW = 0f
     var lineStep = 0f
@@ -305,7 +308,7 @@ internal fun LightspeedCruiseOverlay.drawAllTipsGhostOverlay(canvas: Canvas) {
         val maxTextW = (colW - numGutterW).coerceAtLeast(60f * d)
 
         measuredTips = tips.mapIndexed { idx, txt ->
-            MeasuredTip("${idx + 1}.", wrapAllTipsLines(txt, bodyPaint, maxTextW))
+            MeasuredTip("${idx + 1}", wrapAllTipsLines(txt, bodyPaint, maxTextW, isRtl))
         }
 
         totalBodyH = if (colCount == 2) {
@@ -362,11 +365,22 @@ internal fun LightspeedCruiseOverlay.drawAllTipsGhostOverlay(canvas: Canvas) {
     val innerRight = allTipsCardRect.right - padX
     val hFm = headerPaint.fontMetrics
     val headerBaselineY = allTipsCardRect.top + padY + ((headerSectionH - 8f * d) - (hFm.descent + hFm.ascent)) * 0.5f
-    val titleText = "✦ ${lsString(titleResId)}"
     val countText = "${tips.size}"
-    canvas.drawText(countText, innerRight, headerBaselineY, countPaint)
     val maxTitleW = (innerRight - countPaint.measureText(countText) - innerLeft - 8f * d).coerceAtLeast(80f * d)
-    canvas.drawText(clipTextToWidth(titleText, maxTitleW), innerLeft, headerBaselineY, headerPaint)
+    if (!isRtl) {
+        canvas.drawText(countText, innerRight, headerBaselineY, countPaint)
+        canvas.drawText(clipTextToWidth("✦ $titleRaw", maxTitleW), innerLeft, headerBaselineY, headerPaint)
+    } else {
+        canvas.drawText(countText, innerLeft, headerBaselineY, countPaint)
+        val starW = headerPaint.measureText("✦")
+        val sp = headerPaint.measureText(" ")
+        val rtlTitle = formatCanvasRunText(titleRaw, isRtl = true)
+        val clippedTitle = clipTextToWidth(rtlTitle, (maxTitleW - starW - sp).coerceAtLeast(40f * d))
+        val starX = innerRight - starW
+        canvas.drawText("✦", starX, headerBaselineY, headerPaint)
+        val titleW = headerPaint.measureText(clippedTitle)
+        canvas.drawText(clippedTitle, starX - sp - titleW, headerBaselineY, headerPaint)
+    }
 
     val dividerY = allTipsCardRect.top + padY + headerSectionH - 6f * d
     highlightPaint.style = Paint.Style.STROKE
@@ -385,11 +399,23 @@ internal fun LightspeedCruiseOverlay.drawAllTipsGhostOverlay(canvas: Canvas) {
     val fm = bodyPaint.fontMetrics
     fun drawTipColumn(items: List<MeasuredTip>, colLeft: Float) {
         var curTop = bodyTop
+        val colRight = colLeft + colW
         for (tip in items) {
             val firstBaseY = curTop - fm.ascent
-            canvas.drawText(tip.numStr, colLeft, firstBaseY, numPaint)
-            for (lineIdx in tip.lines.indices) {
-                canvas.drawText(tip.lines[lineIdx], colLeft + numGutterW, firstBaseY + lineIdx * lineStep, bodyPaint)
+            if (!isRtl) {
+                canvas.drawText("${tip.numDigits}.", colLeft, firstBaseY, numPaint)
+                for (lineIdx in tip.lines.indices) {
+                    canvas.drawText(tip.lines[lineIdx], colLeft + numGutterW, firstBaseY + lineIdx * lineStep, bodyPaint)
+                }
+            } else {
+                val numLabel = ".${tip.numDigits}"
+                val numW = numPaint.measureText(numLabel)
+                canvas.drawText(numLabel, colRight - numW, firstBaseY, numPaint)
+                for (lineIdx in tip.lines.indices) {
+                    val rtlLine = formatCanvasRunText(tip.lines[lineIdx], isRtl = true)
+                    val lineW = bodyPaint.measureText(rtlLine)
+                    canvas.drawText(rtlLine, colRight - numGutterW - lineW, firstBaseY + lineIdx * lineStep, bodyPaint)
+                }
             }
             curTop += tip.lines.size * lineStep + rowGap
         }
@@ -410,8 +436,15 @@ internal fun LightspeedCruiseOverlay.drawAllTipsGhostOverlay(canvas: Canvas) {
     canvas.translate(0f, -allTipsState.scrollOffset)
     if (colCount == 2) {
         val splitIdx = ceil(measuredTips.size / 2.0).toInt()
-        drawTipColumn(measuredTips.subList(0, splitIdx), innerLeft)
-        drawTipColumn(measuredTips.subList(splitIdx, measuredTips.size), innerLeft + colW + colGap)
+        val firstCol = measuredTips.subList(0, splitIdx)
+        val secondCol = measuredTips.subList(splitIdx, measuredTips.size)
+        if (!isRtl) {
+            drawTipColumn(firstCol, innerLeft)
+            drawTipColumn(secondCol, innerLeft + colW + colGap)
+        } else {
+            drawTipColumn(firstCol, innerLeft + colW + colGap)
+            drawTipColumn(secondCol, innerLeft)
+        }
     } else {
         drawTipColumn(measuredTips, innerLeft)
     }
@@ -450,8 +483,19 @@ internal fun LightspeedCruiseOverlay.drawAllTipsGhostOverlay(canvas: Canvas) {
 
     val fFm = footerPaint.fontMetrics
     val footerCenterY = allTipsCardRect.bottom - padY - (footerSectionH * 0.35f)
-    val dismissText = "✦ ${lsString(R.string.all_tips_dismiss).ifBlank { "Tap anywhere to dismiss" }}"
-    canvas.drawText(dismissText, allTipsCardRect.centerX(), footerCenterY - ((fFm.descent + fFm.ascent) * 0.5f), footerPaint)
+    val footerBaselineY = footerCenterY - ((fFm.descent + fFm.ascent) * 0.5f)
+    val dismissRaw = lsString(R.string.all_tips_dismiss).ifBlank { "Tap anywhere to dismiss" }
+    if (!isRtl) {
+        canvas.drawText("✦ $dismissRaw", allTipsCardRect.centerX(), footerBaselineY, footerPaint)
+    } else {
+        val rtlDismiss = formatCanvasRunText(dismissRaw, isRtl = true)
+        val sp = footerPaint.measureText(" ")
+        val starW = footerPaint.measureText("✦")
+        val textW = footerPaint.measureText(rtlDismiss)
+        val leftX = allTipsCardRect.centerX() - (textW + sp + starW) * 0.5f
+        canvas.drawText(rtlDismiss, leftX, footerBaselineY, footerPaint)
+        canvas.drawText("✦", leftX + textW + sp, footerBaselineY, footerPaint)
+    }
 }
 
 private fun measureColumnHeight(lineCounts: List<Int>, lineStep: Float, rowGap: Float): Float {
@@ -464,15 +508,15 @@ private fun measureColumnHeight(lineCounts: List<Int>, lineStep: Float, rowGap: 
     return total
 }
 
-private fun wrapAllTipsLines(text: String, paint: Paint, maxW: Float): List<String> {
+private fun wrapAllTipsLines(text: String, paint: Paint, maxW: Float, isRtl: Boolean): List<String> {
     val clean = text.trim().replace(Regex("\\s+"), " ")
     if (clean.isEmpty()) return emptyList()
-    if (paint.measureText(clean) <= maxW) return listOf(clean)
+    if (paint.measureText(formatCanvasRunText(clean, isRtl)) <= maxW) return listOf(clean)
     val out = ArrayList<String>()
     var cur = StringBuilder()
     for (word in clean.split(' ')) {
         val cand = if (cur.isEmpty()) word else "$cur $word"
-        if (paint.measureText(cand) <= maxW || cur.isEmpty()) {
+        if (paint.measureText(formatCanvasRunText(cand, isRtl)) <= maxW || cur.isEmpty()) {
             cur = StringBuilder(cand)
         } else {
             out.add(cur.toString())

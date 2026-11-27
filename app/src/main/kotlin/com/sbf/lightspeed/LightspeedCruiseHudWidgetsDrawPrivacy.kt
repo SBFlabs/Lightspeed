@@ -518,7 +518,7 @@ internal fun LightspeedCruiseOverlay.drawWidgetChipHeader(
         if (isCompactCard && it.contains(": ")) it.substringAfter(": ") else it
     }
 
-    var nextRight = bounds.right - 12f * density
+    var nextRight = bounds.right - 11f * density
 
     if (showInfoBadge) {
         val infoW = 20f * density

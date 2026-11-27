@@ -42,6 +42,8 @@ object SonicAppVolumeEngine {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var isCallbackRegistered = false
     private var playbackCallback: AudioManager.AudioPlaybackCallback? = null
+    @Volatile
+    private var registeredAudioContext: Context? = null
 
     fun getAppVolume(context: Context, packageName: String): Float {
         packageVolumeCache[packageName]?.let { return it }
@@ -181,9 +183,37 @@ object SonicAppVolumeEngine {
         refreshActiveAudioPlayers(context)
     }
 
-    fun stopMonitoring() {
+    fun stopMonitoring(context: Context? = null) {
+        mainHandler.removeCallbacksAndMessages(null)
+        val cb = playbackCallback
+        val ctx = context?.applicationContext ?: context ?: registeredAudioContext
+        if (cb != null && ctx != null) {
+            try {
+                val audioManager = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                audioManager?.unregisterAudioPlaybackCallback(cb)
+            } catch (e: Exception) {
+                logSwallowed("SonicAppVolumeEngine", "unregisterCallback", e)
+            }
+        }
         playbackCallback = null
+        registeredAudioContext = null
         isCallbackRegistered = false
+        resetAllAppVolumesToUnity()
+    }
+
+    fun clearAllCustomAppVolumes(context: Context) {
+        val prefs = context.defaultPrefs()
+        val prefix = LightspeedPreferences.KEY_PER_APP_VOLUME_PREFIX
+        val ed = prefs.edit()
+        var removed = false
+        for (k in prefs.all.keys) {
+            if (k.startsWith(prefix)) {
+                ed.remove(k)
+                removed = true
+            }
+        }
+        if (removed) ed.apply()
+        packageVolumeCache.clear()
         resetAllAppVolumesToUnity()
     }
 
@@ -310,17 +340,21 @@ object SonicAppVolumeEngine {
 
     private fun ensurePlaybackCallback(context: Context) {
         if (isCallbackRegistered) return
-        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        val appCtx = context.applicationContext ?: context
+        val audioManager = appCtx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
         val cb = object : AudioManager.AudioPlaybackCallback() {
             override fun onPlaybackConfigChanged(configs: List<AudioPlaybackConfiguration>) {
-                mainHandler.post { refreshActiveAudioPlayers(context) }
+                mainHandler.post { refreshActiveAudioPlayers(appCtx) }
             }
         }
         playbackCallback = cb
+        registeredAudioContext = appCtx
         try {
             audioManager.registerAudioPlaybackCallback(cb, mainHandler)
             isCallbackRegistered = true
         } catch (e: Exception) {
+            playbackCallback = null
+            registeredAudioContext = null
             logSwallowed("SonicAppVolumeEngine", "registerCallback", e)
         }
     }

@@ -463,6 +463,7 @@ object LightspeedIconManager {
                 "system:core_watchdog" -> com.sbf.lightspeed.R.drawable.ic_qs_flight_armed
                 "system:central_command" -> com.sbf.lightspeed.R.drawable.ic_qs_flight_armed
                 "system:flashlight" -> com.sbf.lightspeed.R.drawable.ic_flashlight
+                "system:direct_call" -> com.sbf.lightspeed.R.drawable.ic_direct_call
                 "system:screenshot" -> com.sbf.lightspeed.R.drawable.ic_screenshot
                 "system:lock_screen" -> com.sbf.lightspeed.R.drawable.ic_lock
                 "system:power_menu" -> com.sbf.lightspeed.R.drawable.ic_lock

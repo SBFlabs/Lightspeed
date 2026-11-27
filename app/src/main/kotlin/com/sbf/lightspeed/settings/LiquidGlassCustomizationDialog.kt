@@ -101,7 +101,7 @@ fun DeckThemeCustomizationDialog(
     ) {
         val tintVal = customTintArgb
         val effectiveTint = if (basePreset.styleId == DeckStylePresets.ADAPTIVE.styleId) basePreset.tintArgb else (tintVal ?: basePreset.tintArgb)
-        val effectiveGlow = if (tintVal != null && basePreset.styleId in setOf("jelly", "depth", "neon", "prism", "cyberpunk", "hologram")) {
+        val effectiveGlow = if (tintVal != null && basePreset.styleId in setOf("jelly", "depth", "neon", "prism")) {
             tintVal
         } else basePreset.glowColorArgb
 
@@ -257,7 +257,7 @@ fun DeckThemeCustomizationDialog(
     // Discard Unsaved Changes Warning Dialog
     if (showDiscardPrompt) {
         ThemeDiscardChangesDialog(
-            presetDisplayName = basePreset.displayName,
+            presetDisplayName = basePreset.localizedName(),
             onConfirmDiscard = {
                 showDiscardPrompt = false
                 onDismiss()
@@ -312,7 +312,7 @@ fun DeckThemeCustomizationDialog(
             ) {
                 // 1. Header Bar
                 ThemeCustomizationHeader(
-                    displayName = basePreset.displayName,
+                    displayName = basePreset.localizedName(),
                     onCloseClick = { handleDismissAttempt() }
                 )
 

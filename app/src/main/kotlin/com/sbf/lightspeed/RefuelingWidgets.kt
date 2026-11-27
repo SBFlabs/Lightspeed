@@ -27,9 +27,11 @@ import com.sbf.lightspeed.settings.DeckCard
 import com.sbf.lightspeed.settings.DeckThemeSnapshot
 import com.sbf.lightspeed.settings.deckGlassSurface
 import com.sbf.lightspeed.settings.resolveOpticalColors
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 import kotlinx.coroutines.launch
@@ -112,7 +114,9 @@ fun MultiWidgetContainer(
         }
     }
 
-    val resolveLabel = remember(appWidgetManager, widgetIds) {
+    val localeState = LightspeedLocaleEngine.state
+    val widgetFallbackFmt = lsString(R.string.ref_bay_widget_fallback, 0)
+    val resolveLabel = remember(appWidgetManager, widgetIds, localeState, widgetFallbackFmt) {
         { id: Int ->
             val label = try {
                 appWidgetManager?.getAppWidgetInfo(id)
@@ -122,7 +126,7 @@ fun MultiWidgetContainer(
                 logSwallowed("RefuelingWidgets", "resolveLabel", e)
                 null
             }
-            if (label.isNullOrBlank()) "Widget #$id" else label
+            if (label.isNullOrBlank()) lsString(R.string.ref_bay_widget_fallback, id) else label
         }
     }
 
@@ -251,7 +255,7 @@ fun MultiWidgetContainer(
                                 appWidgetManager.getAppWidgetInfo(widgetId)?.configure != null
                             }
                             RefuelingEditSlotBadge(
-                                text = String.format(Locale.US, "%02d · STACK", pageIndex + 1),
+                                text = String.format(Locale.US, "%02d · %s", pageIndex + 1, lsString(R.string.ref_bay_mode_stack)),
                                 accent = opticalColors.readableTintColor,
                                 modifier = Modifier
                                     .align(Alignment.TopStart)

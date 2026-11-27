@@ -23,7 +23,8 @@ fun createFullDisplayOverlayParams(context: Context): WindowManager.LayoutParams
             WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
         PixelFormat.TRANSLUCENT
     ).apply {
-        gravity = Gravity.TOP or Gravity.START
+        @Suppress("RtlHardcoded")
+        gravity = Gravity.TOP or Gravity.LEFT
         x = 0
         y = 0
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

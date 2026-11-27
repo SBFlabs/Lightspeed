@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.outlined.UnfoldLess
 import androidx.compose.material.icons.outlined.UnfoldMore
+import kotlinx.coroutines.flow.receiveAsFlow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -97,9 +98,24 @@ fun MainSettingsScreen() {
     }
     val hadInitialLaunchGate by rememberSaveable {
         mutableStateOf(
-            initialGate != CentralCommandLaunchGate.NONE ||
+            initialGate == CentralCommandLaunchGate.FRESH_INSTALL ||
+                initialGate == CentralCommandLaunchGate.VERSION_UPDATE ||
                 initialPhase == "CORE_SETUP"
         )
+    }
+    LaunchedEffect(Unit) {
+        val launchIntent = (context as? Activity)?.intent
+        if (launchIntent?.getBooleanExtra(EXTRA_OPEN_FLIGHT_DECK, false) == true) {
+            showCentralCommandDeck = true
+        }
+        if (launchIntent?.getBooleanExtra(EXTRA_OPEN_TRACKPAD_STYLES, false) == true) {
+            CentralCommandTabNavigator.triggerTrackpadShowcase()
+        }
+    }
+    LaunchedEffect(Unit) {
+        CentralCommandTabNavigator.flightDeckChannel.receiveAsFlow().collect {
+            showCentralCommandDeck = true
+        }
     }
     var supporterReminderCheckedThisSession by rememberSaveable {
         mutableStateOf(false)
@@ -142,6 +158,8 @@ fun MainSettingsScreen() {
     var targetJumpTab by remember { mutableIntStateOf(initialTargetTab) }
     var targetJumpSection by remember { mutableStateOf<String?>(initialTargetSection) }
     var isAllExpanded by remember { mutableStateOf(false) }
+    var activeTabIndex by remember { mutableIntStateOf(if (initialTargetTab in 0..2) initialTargetTab else 1) }
+    var isBlueprintOpen by remember { mutableStateOf(false) }
 
     val dismissAction = {
         isVisible = false
@@ -178,7 +196,7 @@ fun MainSettingsScreen() {
 
     val animatedScrimAlpha by animateFloatAsState(
         targetValue = when {
-            !isVisible || isCapturing -> 0f
+            !isVisible -> 0f
             hasActiveBlur -> (effectiveBackdropOpacity * 0.85f).coerceIn(0f, 0.92f)
             else -> effectiveBackdropOpacity
         },
@@ -207,7 +225,7 @@ fun MainSettingsScreen() {
             contentAlignment = Alignment.Center
         ) {
             AnimatedVisibility(
-                visible = isVisible && !isCapturing,
+                visible = isVisible,
                 enter = slideInVertically(
                     initialOffsetY = { fullHeight -> fullHeight },
                     animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
@@ -236,6 +254,12 @@ fun MainSettingsScreen() {
                     )
 
                     CompositionLocalProvider(
+                        LocalOpenFlightControlDeck provides { _ ->
+                            showCentralCommandDeck = true
+                        },
+                        LocalNavigateToTrackpadStyles provides {
+                            CentralCommandTabNavigator.triggerTrackpadShowcase()
+                        },
                         LocalOpenWhatsNew provides {
                             replayWelcomeFromGuidebook = false
                             showWhatsNewMorph = true
@@ -325,7 +349,7 @@ fun MainSettingsScreen() {
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .size(32.dp)
                                         .clip(CircleShape)
                                         .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                         .onGloballyPositioned { coords ->
@@ -345,14 +369,14 @@ fun MainSettingsScreen() {
                                         Icons.Default.FormatSize,
                                         contentDescription = lsString(R.string.ls_cd_typography),
                                         tint = colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                                 GuidebookLanguageButton(onOpenGuidebook = { showGuidebook = true })
 
                                 Box(
                                     modifier = Modifier
-                                        .width(30.dp)
+                                        .width(28.dp)
                                         .height(38.dp)
                                         .clip(RoundedCornerShape(14.dp))
                                         .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
@@ -372,8 +396,16 @@ fun MainSettingsScreen() {
                             }
                         },
                         footer = {
+                            val activeTipWindow = when {
+                                showTypographyDialog -> CentralCommandTipWindow.TYPOGRAPHY
+                                isBlueprintOpen -> CentralCommandTipWindow.BLUEPRINT
+                                activeTabIndex == 0 -> CentralCommandTipWindow.LEFT_TAB
+                                activeTabIndex == 2 -> CentralCommandTipWindow.RIGHT_TAB
+                                else -> CentralCommandTipWindow.HUD_STRIP_TAB
+                            }
                             CentralCommandFooter(
                                 context = context,
+                                tipWindow = activeTipWindow,
                                 onVersionClick = {
                                     showWhatsNewMorph = true
                                 }
@@ -386,12 +418,15 @@ fun MainSettingsScreen() {
                             toggleAllTrigger = toggleAllTrigger,
                             jumpTargetTab = targetJumpTab,
                             jumpTargetSection = targetJumpSection,
-                            onRefreshNeeded = { /* Local state reacts immediately */ }
+                            onRefreshNeeded = { /* Local state reacts immediately */ },
+                            onWindowStateChanged = { tabIdx, blueprintActive ->
+                                activeTabIndex = tabIdx
+                                isBlueprintOpen = blueprintActive
+                            }
                         )
                     }
                             }
                         }
-                    }
 
                     val iconCenterInContainer = if (typographyIconWindowCenter != Offset.Zero) {
                         typographyIconWindowCenter - typographyRootTopLeft
@@ -464,6 +499,7 @@ fun MainSettingsScreen() {
                             context = context,
                             startOnWelcome = replayWelcomeFromGuidebook ||
                                 (!showWhatsNewMorph && startWelcomeForInitialGate),
+                            isFreshInstallGate = initialGateType == CentralCommandLaunchGate.FRESH_INSTALL.name && !showWhatsNewMorph,
                             onDismiss = {
                                 if (launchGatePhase == "WHATS_NEW") {
                                     launchGatePhase = if (!LightspeedWatchdogEngine.isAccessibilityServiceEnabled(context)) {
@@ -565,6 +601,7 @@ fun MainSettingsScreen() {
                             onDismiss = { showSupporterInfinityDialog = false }
                         )
                     }
+                    } // end CompositionLocalProvider
 
                 }
             }

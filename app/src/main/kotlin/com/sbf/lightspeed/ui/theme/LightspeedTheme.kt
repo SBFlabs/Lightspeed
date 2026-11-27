@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.Density
 import com.sbf.lightspeed.MainActivity
 import com.sbf.lightspeed.settings.CentralCommandActivity
@@ -117,8 +118,10 @@ fun LightspeedTheme(
     val resolvedFontFamily = remember(effectiveFontFamilyKey) {
         DeviceFontScanner.resolveComposeFontFamily(effectiveFontFamilyKey)
     }
-    val typography = remember(resolvedFontFamily) {
-        buildLightspeedTypography(resolvedFontFamily)
+    val localeState = LightspeedLocaleEngine.state
+    val isArabicPrimary = localeState.primary == LightspeedLocaleEngine.AppLanguage.AR
+    val typography = remember(resolvedFontFamily, isArabicPrimary) {
+        buildLightspeedTypography(resolvedFontFamily, isArabicPrimary)
     }
     // Smart Automatic Display Size Guard: protects against inflated OS Display Size magnification
     // or ultra-narrow 720p density scaling so Lightspeed cards, dialogs, and controls never crush.
@@ -284,24 +287,31 @@ fun LightspeedTheme(
     }
 }
 
-private fun buildLightspeedTypography(fontFamily: FontFamily?): Typography {
+private fun buildLightspeedTypography(
+    fontFamily: FontFamily?,
+    isArabicPrimary: Boolean
+): Typography {
     val base = Typography()
-    if (fontFamily == null) return base
+    val bidiDir = if (isArabicPrimary) TextDirection.ContentOrRtl else TextDirection.ContentOrLtr
+    val resolveStyle: (androidx.compose.ui.text.TextStyle) -> androidx.compose.ui.text.TextStyle = { style ->
+        if (fontFamily == null) style.copy(textDirection = bidiDir)
+        else style.copy(fontFamily = fontFamily, textDirection = bidiDir)
+    }
     return Typography(
-        displayLarge = base.displayLarge.copy(fontFamily = fontFamily),
-        displayMedium = base.displayMedium.copy(fontFamily = fontFamily),
-        displaySmall = base.displaySmall.copy(fontFamily = fontFamily),
-        headlineLarge = base.headlineLarge.copy(fontFamily = fontFamily),
-        headlineMedium = base.headlineMedium.copy(fontFamily = fontFamily),
-        headlineSmall = base.headlineSmall.copy(fontFamily = fontFamily),
-        titleLarge = base.titleLarge.copy(fontFamily = fontFamily),
-        titleMedium = base.titleMedium.copy(fontFamily = fontFamily),
-        titleSmall = base.titleSmall.copy(fontFamily = fontFamily),
-        bodyLarge = base.bodyLarge.copy(fontFamily = fontFamily),
-        bodyMedium = base.bodyMedium.copy(fontFamily = fontFamily),
-        bodySmall = base.bodySmall.copy(fontFamily = fontFamily),
-        labelLarge = base.labelLarge.copy(fontFamily = fontFamily),
-        labelMedium = base.labelMedium.copy(fontFamily = fontFamily),
-        labelSmall = base.labelSmall.copy(fontFamily = fontFamily)
+        displayLarge = resolveStyle(base.displayLarge),
+        displayMedium = resolveStyle(base.displayMedium),
+        displaySmall = resolveStyle(base.displaySmall),
+        headlineLarge = resolveStyle(base.headlineLarge),
+        headlineMedium = resolveStyle(base.headlineMedium),
+        headlineSmall = resolveStyle(base.headlineSmall),
+        titleLarge = resolveStyle(base.titleLarge),
+        titleMedium = resolveStyle(base.titleMedium),
+        titleSmall = resolveStyle(base.titleSmall),
+        bodyLarge = resolveStyle(base.bodyLarge),
+        bodyMedium = resolveStyle(base.bodyMedium),
+        bodySmall = resolveStyle(base.bodySmall),
+        labelLarge = resolveStyle(base.labelLarge),
+        labelMedium = resolveStyle(base.labelMedium),
+        labelSmall = resolveStyle(base.labelSmall)
     )
 }

@@ -48,6 +48,7 @@ import com.sbf.lightspeed.system.IconPackInfo
 import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedShortcutManager
+import com.sbf.lightspeed.system.lsString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,8 +56,6 @@ import com.sbf.lightspeed.settings.DeckDialog
 import com.sbf.lightspeed.settings.LightspeedInfinityDialog
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
-import com.sbf.lightspeed.ui.theme.CockpitPalette
-import com.sbf.lightspeed.ui.theme.LocalDomainPalette
 
 /** Cockpit dialog content: rename-gear and edit-item composables (split from CockpitDialogActivity.kt). */
 @Composable
@@ -79,7 +78,7 @@ fun RenameGearContent(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                "Rename Gear Set",
+                lsString(R.string.edit_rename_gear_title),
                 fontWeight = FontWeight.Bold,
                 fontSize = 19.sp,
                 color = MaterialTheme.colorScheme.onSurface
@@ -91,7 +90,7 @@ fun RenameGearContent(
         OutlinedTextField(
             value = gearNameText,
             onValueChange = { gearNameText = it },
-            label = { Text("Gear Set Name") },
+            label = { Text(lsString(R.string.edit_gear_name_lbl)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -108,7 +107,7 @@ fun RenameGearContent(
             horizontalArrangement = Arrangement.End
         ) {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(lsString(R.string.common_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
@@ -117,7 +116,7 @@ fun RenameGearContent(
                     if (clean.isNotBlank()) {
                         prefs.edit().putString("gear_set_${setId}_name", clean).apply()
                         safeReloadPreferences()
-                        Toast.makeText(context, "Renamed to $clean", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, lsString(R.string.edit_renamed_toast, clean), Toast.LENGTH_SHORT).show()
                     }
                     onDismiss()
                 },
@@ -127,7 +126,7 @@ fun RenameGearContent(
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Save", fontWeight = FontWeight.Bold)
+                Text(lsString(R.string.ed_btn_save), fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -180,7 +179,7 @@ fun EditItemContent(
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Failed to load image: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, lsString(R.string.edit_load_img_err, e.message ?: ""), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -196,7 +195,7 @@ fun EditItemContent(
                 if (openIconBrowserImmediately) {
                     LightspeedIconManager.saveCustomShortcutBitmap(context, token, bmp)
                     safeReloadPreferences()
-                    Toast.makeText(context, "Icon updated", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, lsString(R.string.edit_icon_updated), Toast.LENGTH_SHORT).show()
                     onDismiss()
                 }
             }
@@ -267,7 +266,7 @@ fun EditItemContent(
                 ) {
                     Icon(Icons.Default.Photo, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Gallery", fontSize = 12.sp)
+                    Text(lsString(R.string.edit_btn_gallery), fontSize = 12.sp)
                 }
                 FilledTonalButton(
                     onClick = { showIconPackBrowser = true },
@@ -276,7 +275,7 @@ fun EditItemContent(
                 ) {
                     Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Icon Packs", fontSize = 12.sp)
+                    Text(lsString(R.string.edit_btn_icon_packs), fontSize = 12.sp)
                 }
             }
         }
@@ -287,7 +286,7 @@ fun EditItemContent(
             OutlinedTextField(
                 value = customLabelText,
                 onValueChange = { customLabelText = it },
-                label = { Text("Display Name") },
+                label = { Text(lsString(R.string.edit_display_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -311,7 +310,7 @@ fun EditItemContent(
                     customLabelText = LightspeedShortcutManager.resolveLabel(context, token)
                     iconKeyTrigger++
                     safeReloadPreferences()
-                    Toast.makeText(context, "Reset to default", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, lsString(R.string.edit_reset_toast), Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier.align(Alignment.Start)
             ) {
@@ -322,7 +321,7 @@ fun EditItemContent(
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Reset to Default", color = MaterialTheme.colorScheme.error, fontSize = 12.5.sp)
+                Text(lsString(R.string.edit_reset_default), color = MaterialTheme.colorScheme.error, fontSize = 12.5.sp)
             }
 
             Spacer(modifier = Modifier.height(if (isLandscape) 6.dp else 12.dp))
@@ -332,7 +331,7 @@ fun EditItemContent(
                 horizontalArrangement = Arrangement.End
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(lsString(R.string.common_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
@@ -347,7 +346,7 @@ fun EditItemContent(
                             LightspeedIconManager.saveCustomShortcutBitmap(context, token, selectedBitmap!!)
                         }
                         safeReloadPreferences()
-                        Toast.makeText(context, "Item customized successfully!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, lsString(R.string.edit_item_saved), Toast.LENGTH_SHORT).show()
                         onDismiss()
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -356,7 +355,7 @@ fun EditItemContent(
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Save", fontWeight = FontWeight.Bold)
+                    Text(lsString(R.string.ed_btn_save), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -379,13 +378,13 @@ fun EditItemContent(
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    "Customize Item",
+                    lsString(R.string.edit_customize_title),
                     fontWeight = FontWeight.Bold,
                     fontSize = 19.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    "Change display label & custom icon",
+                    lsString(R.string.edit_customize_sub),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -415,14 +414,14 @@ fun EditItemContent(
     if (showSourceSelector) {
         DeckDialog(
             onDismissRequest = { showSourceSelector = false },
-            title = { Text("Choose Icon Source") },
-            text = { Text("Select where to pick your custom icon from:") },
+            title = { Text(lsString(R.string.edit_icon_source_title)) },
+            text = { Text(lsString(R.string.edit_icon_source_msg)) },
             confirmButton = {
                 TextButton(onClick = {
                     showSourceSelector = false
                     showIconPackBrowser = true
                 }) {
-                    Text("Apps & Icon Packs")
+                    Text(lsString(R.string.edit_icon_src_packs))
                 }
             },
             dismissButton = {
@@ -430,7 +429,7 @@ fun EditItemContent(
                     showSourceSelector = false
                     imagePickerLauncher.launch("image/*")
                 }) {
-                    Text("Gallery / Photos")
+                    Text(lsString(R.string.edit_icon_src_gallery))
                 }
             }
         )

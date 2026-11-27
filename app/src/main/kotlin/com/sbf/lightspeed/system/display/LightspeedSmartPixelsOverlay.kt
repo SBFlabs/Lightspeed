@@ -40,6 +40,7 @@ object LightspeedSmartPixelsOverlay {
     private var isScreenRecording: Boolean = false
     private var isCastDisplayActive: Boolean = false
     private var currentPatternPct: Int = 25
+    private var currentBlockSize: Int = 1
     private var currentShift: Int = 0
     private var displayListenerRegistered = false
     private var recordingCallbackRegistered = false
@@ -62,26 +63,47 @@ object LightspeedSmartPixelsOverlay {
         intArrayOf(63, 31, 55, 23, 61, 29, 53, 21)
     )
 
+    private fun normalizeBlockSize(raw: Int): Int = when {
+        raw >= 4 -> 4
+        raw >= 2 -> 2
+        else -> 1
+    }
+
     fun init(context: Context) {
         val prefs = context.defaultPrefs()
         if (prefs.getBoolean(LightspeedPreferences.KEY_SMART_PIXELS_ENABLED, false)) {
             val pattern = prefs.getInt(LightspeedPreferences.KEY_SMART_PIXELS_PATTERN, 25)
-            show(context, pattern)
+            val blockSize = normalizeBlockSize(prefs.getInt(LightspeedPreferences.KEY_SMART_PIXELS_BLOCK_SIZE, 1))
+            show(context, pattern, blockSize)
         }
     }
 
     fun setEnabled(context: Context, enabled: Boolean, patternPct: Int = 25) {
         val clampedPct = patternPct.coerceIn(5, 85)
+        val prefs = context.defaultPrefs()
+        val blockSize = normalizeBlockSize(prefs.getInt(LightspeedPreferences.KEY_SMART_PIXELS_BLOCK_SIZE, currentBlockSize))
         currentPatternPct = clampedPct
-        context.defaultPrefs().edit()
+        currentBlockSize = blockSize
+        prefs.edit()
             .putBoolean(LightspeedPreferences.KEY_SMART_PIXELS_ENABLED, enabled)
             .putInt(LightspeedPreferences.KEY_SMART_PIXELS_PATTERN, clampedPct)
             .apply()
 
         if (enabled) {
-            show(context, clampedPct)
+            show(context, clampedPct, blockSize)
         } else {
             hide()
+        }
+    }
+
+    fun setBlockSize(context: Context, blockSize: Int) {
+        val normalized = normalizeBlockSize(blockSize)
+        currentBlockSize = normalized
+        val prefs = context.defaultPrefs()
+        prefs.edit().putInt(LightspeedPreferences.KEY_SMART_PIXELS_BLOCK_SIZE, normalized).apply()
+        if (prefs.getBoolean(LightspeedPreferences.KEY_SMART_PIXELS_ENABLED, false)) {
+            val pattern = prefs.getInt(LightspeedPreferences.KEY_SMART_PIXELS_PATTERN, currentPatternPct)
+            show(context, pattern, normalized)
         }
     }
 
@@ -168,19 +190,26 @@ object LightspeedSmartPixelsOverlay {
         isCastDisplayActive = false
     }
 
-    private fun show(context: Context, patternPct: Int) {
+    private fun show(context: Context, patternPct: Int, blockSize: Int = currentBlockSize) {
+        val normalizedBlock = normalizeBlockSize(blockSize)
+        currentPatternPct = patternPct.coerceIn(5, 85)
+        currentBlockSize = normalizedBlock
         mainHandler.post {
             val service = LightspeedAccessibilityService.instance ?: return@post
             val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return@post
 
             registerCaptureListeners(service, wm)
 
-            if (overlayView != null && overlayView?.context !== service) {
-                overlayView = null
+            overlayView?.let { existing ->
+                if (existing.context !== service) {
+                    val oldWm = existing.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+                    try { oldWm?.removeView(existing) } catch (_: Exception) {}
+                    overlayView = null
+                }
             }
 
             if (overlayView == null) {
-                val v = SmartPixelView(service, patternPct, currentShift, currentShift).apply {
+                val v = SmartPixelView(service, currentPatternPct, normalizedBlock, currentShift, currentShift).apply {
                     alpha = 0f
                 }
                 val params = createFullDisplayOverlayParams(service)
@@ -198,7 +227,7 @@ object LightspeedSmartPixelsOverlay {
                     return@post
                 }
             } else {
-                overlayView?.updatePattern(patternPct, currentShift, currentShift)
+                overlayView?.updatePattern(currentPatternPct, normalizedBlock, currentShift, currentShift)
                 updateVisibility()
             }
 
@@ -211,13 +240,15 @@ object LightspeedSmartPixelsOverlay {
             shiftJob?.cancel()
             shiftJob = null
 
-            val service = LightspeedAccessibilityService.instance ?: return@post
-            val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return@post
-
-            unregisterCaptureListeners(service, wm)
-
-            overlayView?.let {
-                try { wm.removeView(it) } catch (_: Exception) {}
+            val v = overlayView
+            val ctx = LightspeedAccessibilityService.instance ?: v?.context
+            val wm = try { ctx?.getSystemService(Context.WINDOW_SERVICE) as? WindowManager } catch (_: Exception) { null }
+            if (ctx != null && wm != null) {
+                unregisterCaptureListeners(ctx, wm)
+            }
+            if (v != null) {
+                val viewWm = (v.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager) ?: wm
+                try { viewWm?.removeView(v) } catch (_: Exception) {}
                 overlayView = null
             }
         }
@@ -232,7 +263,8 @@ object LightspeedSmartPixelsOverlay {
             unregisterCaptureListeners(ctx, wm)
         }
         overlayView?.let { v ->
-            try { wm?.removeView(v) } catch (_: Exception) {}
+            val viewWm = (v.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager) ?: wm
+            try { viewWm?.removeView(v) } catch (_: Exception) {}
         }
         overlayView = null
     }
@@ -244,7 +276,7 @@ object LightspeedSmartPixelsOverlay {
                 delay(60_000L) // Shift subpixel mesh every 60 seconds
                 currentShift = (currentShift + 1) and 7
                 mainHandler.post {
-                    overlayView?.updatePattern(currentPatternPct, currentShift, currentShift)
+                    overlayView?.updatePattern(currentPatternPct, currentBlockSize, currentShift, currentShift)
                 }
             }
         }
@@ -253,6 +285,7 @@ object LightspeedSmartPixelsOverlay {
     private class SmartPixelView(
         context: Context,
         initialPattern: Int,
+        initialBlockSize: Int,
         initialShiftX: Int,
         initialShiftY: Int
     ) : View(context) {
@@ -268,12 +301,12 @@ object LightspeedSmartPixelsOverlay {
         init {
             isClickable = false
             isFocusable = false
-            updatePattern(initialPattern, initialShiftX, initialShiftY)
+            updatePattern(initialPattern, initialBlockSize, initialShiftX, initialShiftY)
         }
 
-        fun updatePattern(pct: Int, shiftX: Int, shiftY: Int) {
+        fun updatePattern(pct: Int, blockSize: Int, shiftX: Int, shiftY: Int) {
             val oldBmp = cachedPatternBitmap
-            val bmp = createPatternBitmap(pct, shiftX, shiftY)
+            val bmp = createPatternBitmap(pct, blockSize, shiftX, shiftY)
             cachedPatternBitmap = bmp
             shader = BitmapShader(bmp, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
             paint.shader = shader
@@ -286,21 +319,32 @@ object LightspeedSmartPixelsOverlay {
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
         }
 
-        private fun createPatternBitmap(pct: Int, shiftX: Int, shiftY: Int): Bitmap {
-            val bmp = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply {
+        private fun createPatternBitmap(pct: Int, blockSize: Int, shiftX: Int, shiftY: Int): Bitmap {
+            val bs = normalizeBlockSize(blockSize)
+            val dim = 8 * bs
+            val bmp = Bitmap.createBitmap(dim, dim, Bitmap.Config.ARGB_8888).apply {
                 density = Bitmap.DENSITY_NONE
             }
             val clampedPct = pct.coerceIn(5, 85)
             val threshold = (clampedPct * 64) / 100
+            val pixels = IntArray(dim * dim)
 
-            for (y in 0 until 8) {
-                val row = (y + shiftY) and 7
-                for (x in 0 until 8) {
-                    val col = (x + shiftX) and 7
-                    val isBlack = BAYER_8X8[row][col] < threshold
-                    bmp.setPixel(x, y, if (isBlack) Color.BLACK else Color.TRANSPARENT)
+            for (by in 0 until 8) {
+                val row = (by + shiftY) and 7
+                for (bx in 0 until 8) {
+                    val col = (bx + shiftX) and 7
+                    val color = if (BAYER_8X8[row][col] < threshold) Color.BLACK else Color.TRANSPARENT
+                    val startY = by * bs
+                    val startX = bx * bs
+                    for (dy in 0 until bs) {
+                        val rowOff = (startY + dy) * dim + startX
+                        for (dx in 0 until bs) {
+                            pixels[rowOff + dx] = color
+                        }
+                    }
                 }
             }
+            bmp.setPixels(pixels, 0, dim, 0, 0, dim, dim)
             return bmp
         }
     }

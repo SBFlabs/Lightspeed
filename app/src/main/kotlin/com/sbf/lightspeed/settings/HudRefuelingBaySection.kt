@@ -39,6 +39,7 @@ fun HudRefuelingBaySection(
     onRefreshNeeded: () -> Unit,
     languageMode: LightspeedLanguageEngine.LanguageMode = LightspeedLanguageEngine.modeFlow.value
 ) {
+    val isArabic = LightspeedLocaleEngine.state.primary == LightspeedLocaleEngine.AppLanguage.AR
     val (refuelingTitle, refuelingSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.REFUELING_BAY, languageMode)
 
     CompactAccordionSection(
@@ -173,7 +174,7 @@ fun HudRefuelingBaySection(
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                                 Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Open OEM Standby Settings", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
+                                Text(lsString(R.string.ref_open_oem_standby_btn), fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -183,15 +184,21 @@ fun HudRefuelingBaySection(
             val currentTrigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
             var isTriggerDropdownOpen by remember { mutableStateOf(false) }
             val triggerOptions = listOf(
-                "disabled" to "Disabled (Manual Launch Only)",
-                "charging_screen_off" to "Screen-Off While Charging / Plugged While Locked",
-                "charging_dock_landscape" to "Charging in Landscape Dock Orientation",
-                "screen_timeout" to "Screen-Off / Standby (Even When Not Charging)",
-                "screensaver_only" to "Android Screensaver (DreamService Only)"
+                "disabled" to lsString(R.string.ref_trig_disabled),
+                "charging_screen_off" to lsString(R.string.ref_trig_chg_screen_off),
+                "charging_dock_landscape" to lsString(R.string.ref_trig_chg_landscape),
+                "screen_timeout" to lsString(R.string.ref_trig_screen_timeout),
+                "screensaver_only" to lsString(R.string.ref_trig_screensaver)
             )
 
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Text("AUTO-LAUNCH CHARGING TRIGGER", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                Text(
+                    text = lsString(R.string.ref_trigger_hdr),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = if (isArabic) 0.sp else 1.sp
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 Box {
                     OutlinedButton(
@@ -209,7 +216,7 @@ fun HudRefuelingBaySection(
                                     it.first == currentTrigger ||
                                     (it.first == "charging_dock_landscape" && currentTrigger == "landscape_charging") ||
                                     (it.first == "charging_screen_off" && currentTrigger == "always_charging")
-                                }?.second ?: "Disabled",
+                                }?.second ?: lsString(R.string.ref_trig_disabled),
                                 color = LightspeedStyle.colors.textPrimary,
                                 fontSize = 12.sp
                             )
@@ -238,12 +245,18 @@ fun HudRefuelingBaySection(
             val currentDismissBehavior = prefs.getString(LightspeedPreferences.KEY_REFUELING_DISMISS_BEHAVIOR, "session") ?: "session"
             var isDismissDropdownOpen by remember { mutableStateOf(false) }
             val dismissOptions = listOf(
-                "session" to "Until unplugged (default)",
-                "screen_off" to "Until the screen turns off"
+                "session" to lsString(R.string.ref_dismiss_session),
+                "screen_off" to lsString(R.string.ref_dismiss_screen_off)
             )
 
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Text("WHEN DISMISSED", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                Text(
+                    text = lsString(R.string.ref_dismiss_hdr),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = if (isArabic) 0.sp else 1.sp
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 Box {
                     OutlinedButton(
@@ -257,7 +270,7 @@ fun HudRefuelingBaySection(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                dismissOptions.firstOrNull { it.first == currentDismissBehavior }?.second ?: "Until unplugged (default)",
+                                dismissOptions.firstOrNull { it.first == currentDismissBehavior }?.second ?: lsString(R.string.ref_dismiss_session),
                                 color = LightspeedStyle.colors.textPrimary,
                                 fontSize = 12.sp
                             )
@@ -296,14 +309,14 @@ fun HudRefuelingBaySection(
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                     Text(
-                        text = "Cover overlays while the Bay sleeps",
+                        text = lsString(R.string.ref_cover_overlays_title),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = LightspeedStyle.colors.textPrimary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Draws black over Lightspeed's side deflectors and other apps' overlays during Bay sleep, to protect OLED screens",
+                        text = lsString(R.string.ref_cover_overlays_sub),
                         fontSize = 11.sp,
                         color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.6f)
                     )
@@ -323,17 +336,23 @@ fun HudRefuelingBaySection(
             val currentTimeout = normalizeRefuelingTimeout(prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s") ?: "60s")
             var isTimeoutDropdownOpen by remember { mutableStateOf(false) }
             val timeoutOptions = listOf(
-                "5s" to "5 Seconds (Rapid Sleep Test)",
-                "15s" to "15 Seconds",
-                "30s" to "30 Seconds",
-                "60s" to "60 Seconds (Recommended)",
-                "120s" to "2 Minutes",
-                "300s" to "5 Minutes",
+                "5s" to lsString(R.string.ref_timeout_5s),
+                "15s" to lsString(R.string.ref_timeout_15s),
+                "30s" to lsString(R.string.ref_timeout_30s),
+                "60s" to lsString(R.string.ref_timeout_60s_rec),
+                "120s" to lsString(R.string.ref_timeout_2m),
+                "300s" to lsString(R.string.ref_timeout_5m),
                 "never" to lsString(R.string.ref_never_amoled)
             )
 
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Text(lsString(R.string.ref_sleep_hdr), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                Text(
+                    text = lsString(R.string.ref_sleep_hdr),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = if (isArabic) 0.sp else 1.sp
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 Box {
                     OutlinedButton(

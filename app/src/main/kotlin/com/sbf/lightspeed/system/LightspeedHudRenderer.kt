@@ -45,6 +45,15 @@ object LightspeedHudRenderer {
     private val backdropBitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val canopyCardRect = RectF()
 
+    fun isFramelessShadeStyle(style: String?): Boolean = when (style) {
+        "signature_sonic_shade",
+        "signature_solar_shade",
+        "signature_chrono_shade",
+        "signature_thruster_shade",
+        "signature_media_shade" -> true
+        else -> false
+    }
+
     @Volatile
     private var overlayScreenX: Int = 0
     @Volatile
@@ -151,6 +160,7 @@ object LightspeedHudRenderer {
         val offY = -overlayScreenY.toFloat()
         backdropDstRect.set(offX, offY, offX + fullW, offY + fullH)
         backdropBitmapPaint.alpha = 255
+
         canvas.save()
         canvas.clipPath(targetPath)
         canvas.drawBitmap(bmp, null, backdropDstRect, backdropBitmapPaint)
@@ -319,6 +329,13 @@ object LightspeedHudRenderer {
             "signature_solar_lux",
             "signature_chrono_dial",
             "signature_kinetic_thruster" -> LightspeedHudSignatureRenderer.drawActionSignatureHud(
+                canvas, style, title, value, stepIndex, totalSteps, centerX, topY, primaryColor, density, useCentralTheme, colorMode
+            )
+            "signature_sonic_shade",
+            "signature_solar_shade",
+            "signature_chrono_shade",
+            "signature_thruster_shade",
+            "signature_media_shade" -> LightspeedHudShadeRenderer.drawActionShadeSignatureHud(
                 canvas, style, title, value, stepIndex, totalSteps, centerX, topY, primaryColor, density, useCentralTheme, colorMode
             )
             "cockpit_reticle" -> LightspeedHudReticleRenderer.drawCockpitReticle(

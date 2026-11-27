@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -286,11 +287,11 @@ fun DeckButton(
     contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 9.dp),
     content: @Composable RowScope.() -> Unit
 ) {
-    val isM3 = snapshot.styleId == "material3"
-    // Sharp tactical rectangle (8..12.dp) to stay visually distinct from Central Command's rounded tab pills
-    val cornerRadius = if (isM3) 10.dp else (snapshot.cornerRadiusDp * 0.34f).coerceIn(8f, 12f).dp
+    val isM3 = snapshot.styleId == DeckStylePresets.MATERIAL_3.styleId
+    // Sharp tactical rectangle (8..12.dp) for glass decks; clean Material You 14.dp tonal container in M3
+    val cornerRadius = if (isM3) 14.dp else (snapshot.cornerRadiusDp * 0.34f).coerceIn(8f, 12f).dp
     val shape = RoundedCornerShape(cornerRadius)
-    val borderWidth = if (isM3) 1.dp else (snapshot.borderWidthDp * 0.75f).coerceIn(0.9f, 1.3f).dp
+    val borderWidth = if (isM3) 0.dp else (snapshot.borderWidthDp * 0.75f).coerceIn(0.9f, 1.3f).dp
 
     val opticalColors = snapshot.resolveOpticalColors()
     val colorScheme = MaterialTheme.colorScheme
@@ -302,7 +303,7 @@ fun DeckButton(
     val contentColor = when {
         !isEnabled -> colorScheme.onSurface.copy(alpha = 0.38f)
         isM3 && isDestructive -> colorScheme.onErrorContainer
-        isM3 && isActive -> colorScheme.primary
+        isM3 && isActive -> colorScheme.onSecondaryContainer
         isM3 -> colorScheme.onSurface
         isDestructive -> colorScheme.error
         isActive -> if (isLightPanel) colorScheme.primary else tintColor
@@ -313,18 +314,16 @@ fun DeckButton(
     val containerColor = when {
         !isEnabled -> colorScheme.onSurface.copy(alpha = 0.08f)
         isM3 && isDestructive -> colorScheme.errorContainer
-        isM3 && isActive -> colorScheme.primary.copy(alpha = 0.16f)
-        isM3 -> colorScheme.surfaceContainerHighest
+        isM3 && isActive -> colorScheme.secondaryContainer
+        isM3 -> colorScheme.surfaceContainerHigh
         isDestructive -> colorScheme.error.copy(alpha = 0.22f)
         isActive -> tintColor.copy(alpha = if (isLightPanel) 0.16f else 0.20f)
         else -> Color.White.copy(alpha = 0.10f)
     }
 
-    val currentBorder = when {
+    val currentBorder: BorderStroke? = when {
+        isM3 -> null
         !isEnabled -> BorderStroke(borderWidth, borderColor.copy(alpha = 0.12f))
-        isM3 && isActive -> BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.50f))
-        isM3 && isDestructive -> BorderStroke(1.dp, colorScheme.error.copy(alpha = 0.40f))
-        isM3 -> BorderStroke(1.dp, colorScheme.outlineVariant.copy(alpha = 0.65f))
         isDestructive -> BorderStroke(borderWidth, colorScheme.error.copy(alpha = 0.55f))
         isActive -> BorderStroke(borderWidth, tintColor.copy(alpha = 0.58f))
         else -> BorderStroke(borderWidth, borderColor.copy(alpha = 0.30f))
@@ -362,7 +361,9 @@ fun DeckButton(
     isActive: Boolean = false,
     isDestructive: Boolean = false,
     isEnabled: Boolean = true,
-    snapshot: DeckThemeSnapshot = LocalDeckTheme.current
+    snapshot: DeckThemeSnapshot = LocalDeckTheme.current,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 9.dp),
+    maxLines: Int = Int.MAX_VALUE
 ) {
     DeckButton(
         onClick = onClick,
@@ -370,7 +371,8 @@ fun DeckButton(
         isActive = isActive,
         isDestructive = isDestructive,
         isEnabled = isEnabled,
-        snapshot = snapshot
+        snapshot = snapshot,
+        contentPadding = contentPadding
     ) {
         val contentColor = LocalContentColor.current
         if (icon != null) {
@@ -387,7 +389,10 @@ fun DeckButton(
             fontSize = 12.5.sp,
             fontWeight = FontWeight.Bold,
             color = contentColor,
-            letterSpacing = 0.4.sp
+            letterSpacing = 0.4.sp,
+            maxLines = maxLines,
+            softWrap = maxLines > 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

@@ -21,6 +21,15 @@ internal class IsolationIntensityMixer {
 
     private var smoothedSpeechPresence = 0f
 
+    /** High-band (>7.2 kHz) air gain: full when isolation is off, follows speech presence when muffling. */
+    fun highBandAirGain(): Float {
+        val muffle = backgroundMuffleLevel.coerceIn(0f, 1f)
+        return 1f - muffle * (1f - 0.85f * smoothedSpeechPresence)
+    }
+
+    /** Stereo side-channel residual gain: fades out as background muffling rises. */
+    fun sideResidualGain(): Float = 1f - backgroundMuffleLevel.coerceIn(0f, 1f)
+
     companion object {
         private const val ISOLATED_VOICE_COMPENSATION_GAIN = 1.3f
         private const val MIN_NO_SPEECH_REDUCTION_SCALE = 0.35f
@@ -44,6 +53,8 @@ internal class IsolationIntensityMixer {
         val boost = vocalBoostLevel.coerceIn(0.0f, 1.0f)
         val muffle = backgroundMuffleLevel.coerceIn(0.0f, 1.0f)
 
+        val speechPresence = updateSpeechPresence(dryHop, speechHop, hopSize)
+
         // At 100% muffle, output 100% pure neural speech mask with zero dry background mix
         if (muffle >= 0.999f) {
             val userBoostGain = 1.0f + (boost * 1.512f)
@@ -55,7 +66,6 @@ internal class IsolationIntensityMixer {
             return
         }
 
-        val speechPresence = updateSpeechPresence(dryHop, speechHop, hopSize)
         val effectiveReduction = computeEffectiveBackgroundReduction(muffle, speechPresence)
         val backgroundGain = (1.0f - effectiveReduction).coerceIn(0.0f, 1.0f)
 

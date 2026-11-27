@@ -86,7 +86,7 @@ fun GestureMappingRow(
     val activeLabel = remember(currentRawValue, cachedLabel, localeState) {
         if (currentRawValue.isBlank() || currentRawValue == "none") {
             lsString(R.string.cc_common_none)
-        } else if (currentRawValue.startsWith("shortcut:")) {
+        } else if (currentRawValue.startsWith("shortcut:") || currentRawValue.startsWith("caller;")) {
             val resolved = LightspeedShortcutManager.resolveLabel(context, currentRawValue)
             if (resolved.isNotBlank()) resolved else (cachedLabel ?: currentRawValue)
         } else {
@@ -112,6 +112,10 @@ fun GestureMappingRow(
             currentRawValue == "system:gravity_override_sensor_portrait" ||
             currentRawValue == "system:gravity_override_landscape"
 
+    val isScrubAction = direction == ArrowDirection.SCRUB ||
+            direction == ArrowDirection.SCRUB_LEFT ||
+            direction == ArrowDirection.SCRUB_RIGHT
+
     val isMethodAction = ActionMethods.isMethodAction(currentRawValue)
 
     val hasControls = showMediaQuickAccess ||
@@ -127,10 +131,6 @@ fun GestureMappingRow(
             (currentRawValue == "system:scroll_scrub") ||
             (currentRawValue == "system:media_scrubber") ||
             (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward")
-
-    val isScrubAction = direction == ArrowDirection.SCRUB ||
-            direction == ArrowDirection.SCRUB_LEFT ||
-            direction == ArrowDirection.SCRUB_RIGHT
 
     Column(
         modifier = Modifier
@@ -244,29 +244,37 @@ fun GestureMappingRow(
                 }
             }
 
-            // Line 3: Dedicated Action Chips & Dropdowns (wrapping FlowRow so translated chips never clip)
+            // Line 3: Single-row horizontally scrollable action chips & dropdowns with smooth edge fade
             if (hasControls) {
-                val contextualGestureChips: @Composable FlowRowScope.() -> Unit = {
-                    if (isHold) {
-                        GestureHoldDurationControl(context, prefs, key, activeSnapshot, opticalColors, readableTint)
-                    }
-                    if (isOrientationAction) {
-                        GestureOrientationModeControl(context, currentRawValue, activeSnapshot)
-                    }
-                    if (isMethodAction) {
-                        GestureActionMethodControl(context, currentRawValue, activeSnapshot, opticalColors, readableTint)
-                    }
-                    if (gravityBucket != null) {
-                        GestureGravityAppControl(context, prefs, gravityBucket, activeSnapshot)
-                    }
+                val contextualGestureChips: @Composable RowScope.() -> Unit = {
                     if (showMediaQuickAccess) {
-                        GestureMediaQuickAccessControl(context, prefs, key, currentRawValue, { currentRawValue = it }, activeSnapshot)
+                        GestureMediaQuickAccessControl(
+                            context = context,
+                            prefs = prefs,
+                            key = key,
+                            currentRawValue = currentRawValue,
+                            onActionSelected = { currentRawValue = it },
+                            activeSnapshot = activeSnapshot,
+                            allowScrub = isHold || isScrubAction
+                        )
                     }
                     if (showToolsQuickAccess && installedTools.isNotEmpty()) {
                         GestureToolsQuickAccessControl(context, prefs, key, currentRawValue, installedTools, { currentRawValue = it }, activeSnapshot)
                     }
                     if (showBottomSensorQuickAccess) {
                         GestureBottomSensorSubChips(context, prefs, key, currentRawValue, { currentRawValue = it }, activeSnapshot)
+                    }
+                    if (isOrientationAction) {
+                        GestureOrientationModeControl(context, currentRawValue, activeSnapshot)
+                    }
+                    if (gravityBucket != null) {
+                        GestureGravityAppControl(context, prefs, gravityBucket, activeSnapshot)
+                    }
+                    if (isMethodAction) {
+                        GestureActionMethodControl(context, currentRawValue, activeSnapshot, opticalColors, readableTint)
+                    }
+                    if (isHold) {
+                        GestureHoldDurationControl(context, prefs, key, activeSnapshot, opticalColors, readableTint)
                     }
                 }
 
@@ -292,19 +300,12 @@ fun GestureMappingRow(
                         )
                     }
                 } else {
-                    FlowRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        contextualGestureChips()
-
+                    GestureSingleRowChipRail(modifier = Modifier.padding(top = 6.dp)) {
                         // Skip Duration Selector for Media Skip Actions
                         if (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward") {
                             GestureMediaSkipDropdown(context, prefs, currentRawValue, activeSnapshot)
                         }
+                        contextualGestureChips()
                     }
                 }
             }

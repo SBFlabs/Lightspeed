@@ -252,7 +252,7 @@ fun PickerSystemActionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .heightIn(min = 50.dp)
             .padding(start = 14.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -300,8 +300,8 @@ fun PickerSystemActionRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = TextStyle(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false),
-                        lineHeight = 16.sp
+                        platformStyle = PlatformTextStyle(includeFontPadding = true),
+                        lineHeight = 17.sp
                     )
                 )
                 Text(
@@ -310,8 +310,8 @@ fun PickerSystemActionRow(
                     fontSize = 10.sp,
                     maxLines = 1,
                     style = TextStyle(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false),
-                        lineHeight = 12.sp
+                        platformStyle = PlatformTextStyle(includeFontPadding = true),
+                        lineHeight = 13.sp
                     )
                 )
             }

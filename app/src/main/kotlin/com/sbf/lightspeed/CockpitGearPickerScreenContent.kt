@@ -87,16 +87,14 @@ internal fun CockpitGearPickerScreenContent(
         "collapsed:sys_android_native"
     )
     var systemAccordionMode by remember {
-        mutableStateOf(prefs.getString(LightspeedPreferences.KEY_SYSTEM_ACCORDION_MODE, "expanded") ?: "expanded")
+        mutableStateOf(prefs.getString(LightspeedPreferences.KEY_SYSTEM_ACCORDION_MODE, "collapsed") ?: "collapsed")
     }
     var expandedSubsections by remember {
         mutableStateOf(
-            if (systemAccordionMode == "remember") {
-                prefs.getStringSet(LightspeedPreferences.KEY_EXPANDED_SUBSECTIONS, emptySet()) ?: emptySet()
-            } else if (systemAccordionMode == "collapsed") {
-                allSysCategories.toSet()
-            } else {
-                emptySet()
+            when (systemAccordionMode) {
+                "remember" -> prefs.getStringSet(LightspeedPreferences.KEY_EXPANDED_SUBSECTIONS, null) ?: allSysCategories.toSet()
+                "expanded" -> emptySet()
+                else -> allSysCategories.toSet()
             }
         )
     }
@@ -119,8 +117,13 @@ internal fun CockpitGearPickerScreenContent(
     var showSystemAccordionPrefsDialog by remember { mutableStateOf(false) }
     var selectedAttitudeBucketForAppPicker by remember { mutableStateOf<LightspeedOrientationEngine.AttitudeBucket?>(null) }
     var selectedActionMethodForAppPicker by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showDirectCallDialog by remember { mutableStateOf(false) }
 
     fun handleTokenSelection(token: String) {
+        if (token == "system:direct_call") {
+            showDirectCallDialog = true
+            return
+        }
         if (isSingleSelect && !singleSelectPrefKey.isNullOrBlank()) {
             prefs.edit().putString(singleSelectPrefKey, token).apply()
             safeReloadPreferences()
@@ -415,5 +418,15 @@ internal fun CockpitGearPickerScreenContent(
                 safeReloadPreferences()
             }
         )
+        if (showDirectCallDialog) {
+            DirectCallActionDialog(
+                activity = activity,
+                onDismiss = { showDirectCallDialog = false },
+                onTokenCreated = { generatedToken ->
+                    showDirectCallDialog = false
+                    handleTokenSelection(generatedToken)
+                }
+            )
+        }
     }
 }

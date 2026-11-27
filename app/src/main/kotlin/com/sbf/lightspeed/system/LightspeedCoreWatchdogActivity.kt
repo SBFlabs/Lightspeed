@@ -20,6 +20,7 @@ class LightspeedCoreWatchdogActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.registerHostWindow(window)
         com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager) {
             com.sbf.lightspeed.settings.CentralCommandBackdropBlur.applyStandaloneActivityBlur(this)
         }
@@ -60,6 +61,11 @@ class LightspeedCoreWatchdogActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         com.sbf.lightspeed.settings.CentralCommandBackdropBlur.onWindowHidden(isChangingConfigurations)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.unregisterHostWindow(window)
     }
 
     override fun finish() {

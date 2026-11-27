@@ -80,8 +80,56 @@ fun CentralCommandDeckDialog(
     val dragOffsetY = remember { Animatable(0f) }
     var hasCrossedThreshold by remember { mutableStateOf(false) }
 
+    var previewLockedPreset by remember { mutableStateOf<DeckThemeSnapshot?>(null) }
+    var previewInfinityPrompt by remember { mutableStateOf<Pair<String?, Boolean>?>(null) }
+    val unlockEpoch by com.sbf.lightspeed.system.LightspeedInfinityManager.unlockEpoch.collectAsState()
+    val isInfinityUnlocked = remember(unlockEpoch) {
+        com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)
+    }
+
+    LaunchedEffect(isInfinityUnlocked) {
+        val pendingPreview = previewLockedPreset
+        if (isInfinityUnlocked && pendingPreview != null) {
+            DeckThemeManager.setStyle(context, pendingPreview.styleId)
+            previewLockedPreset = null
+            onRefreshNeeded()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            if (previewLockedPreset != null) {
+                DeckThemeManager.clearPreviewOverride(context)
+            }
+        }
+    }
+
+    val handleDismiss = {
+        previewLockedPreset = null
+        DeckThemeManager.clearPreviewOverride(context)
+        onDismiss()
+    }
+
+    if (previewInfinityPrompt != null) {
+        val (featureName, expandKey) = previewInfinityPrompt!!
+        LightspeedInfinityDialog(
+            context = context,
+            onDismiss = { previewInfinityPrompt = null },
+            onUnlocked = {
+                val pendingPreview = previewLockedPreset
+                if (pendingPreview != null) {
+                    DeckThemeManager.setStyle(context, pendingPreview.styleId)
+                    previewLockedPreset = null
+                }
+                onRefreshNeeded()
+            },
+            featureContext = featureName,
+            initialExpandKeyInput = expandKey
+        )
+    }
+
     Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = handleDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         val activeSnapshot = LocalDeckTheme.current
@@ -93,8 +141,23 @@ fun CentralCommandDeckDialog(
         )
 
         val scrimContext = androidx.compose.ui.platform.LocalContext.current
-        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        val activeLayoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+        val targetAndroidDir = if (activeLayoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl) {
+            android.view.View.LAYOUT_DIRECTION_RTL
+        } else {
+            android.view.View.LAYOUT_DIRECTION_LTR
+        }
+        val dialogView = LocalView.current
+        val dialogWindow = (dialogView.parent as? DialogWindowProvider)?.window
         SideEffect {
+            if (dialogView.layoutDirection != targetAndroidDir) {
+                dialogView.layoutDirection = targetAndroidDir
+            }
+            dialogView.rootView?.let { root ->
+                if (root.layoutDirection != targetAndroidDir) {
+                    root.layoutDirection = targetAndroidDir
+                }
+            }
             dialogWindow?.setLayout(
                 android.view.WindowManager.LayoutParams.MATCH_PARENT,
                 android.view.WindowManager.LayoutParams.MATCH_PARENT
@@ -112,11 +175,12 @@ fun CentralCommandDeckDialog(
                     .fillMaxSize()
                     .overlayScrimDismiss(
                         context = scrimContext,
-                        onTapOutside = onDismiss
+                        onTapOutside = handleDismiss
                     )
             )
             CompositionLocalProvider(
                 LocalDensity provides density,
+                androidx.compose.ui.platform.LocalLayoutDirection provides activeLayoutDirection,
                 LocalDeckCardDragOffsetY provides { if (isJelly) fluidDragOffsetY else dragOffsetY.value }
             ) {
                 DeckGlassCardSurface(
@@ -150,7 +214,7 @@ fun CentralCommandDeckDialog(
                                     onDragStart = { hasCrossedThreshold = false },
                                     onDragEnd = {
                                         if (dragOffsetY.value >= thresholdPx) {
-                                            onDismiss()
+                                            handleDismiss()
                                         } else {
                                             val releaseDamping = if (isJelly) Spring.DampingRatioHighBouncy else Spring.DampingRatioMediumBouncy
                                             val releaseStiffness = if (isJelly) Spring.StiffnessLow else Spring.StiffnessMediumLow
@@ -264,7 +328,7 @@ fun CentralCommandDeckDialog(
                             Spacer(modifier = Modifier.width(8.dp))
 
                             IconButton(
-                                onClick = onDismiss,
+                                onClick = handleDismiss,
                                 modifier = Modifier.size(32.dp),
                                 colors = IconButtonDefaults.iconButtonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.08f))
                             ) {
@@ -298,7 +362,13 @@ fun CentralCommandDeckDialog(
                     FlightControlDeckCard(
                         context = context,
                         prefs = prefs,
-                        onStateChanged = onRefreshNeeded
+                        onStateChanged = onRefreshNeeded,
+                        previewStyleId = previewLockedPreset?.styleId,
+                        onPreviewLockedStyle = { preset -> previewLockedPreset = preset },
+                        onClearPreview = {
+                            previewLockedPreset = null
+                            DeckThemeManager.clearPreviewOverride(context)
+                        }
                     )
 
                     // Card 2: System Watchdogs & Perimeter Telemetry
@@ -420,6 +490,32 @@ fun CentralCommandDeckDialog(
                     }
 
                 }
+
+                val activePreview = previewLockedPreset
+                if (activePreview != null && !isInfinityUnlocked) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    InfinityLivePreviewBar(
+                        previewName = activePreview.localizedName(),
+                        onRevert = {
+                            previewLockedPreset = null
+                            DeckThemeManager.clearPreviewOverride(context)
+                            LightspeedHapticEngine.tick(context)
+                        },
+                        onGetKey = {
+                            openExternalUrl(context, INFINITY_SHOP_URL)
+                            previewInfinityPrompt = activePreview.localizedName() to true
+                        },
+                        onEnterKey = {
+                            previewInfinityPrompt = activePreview.localizedName() to true
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                CentralCommandContextualTipBar(
+                    context = context,
+                    windowContext = CentralCommandTipWindow.FLIGHT_DECK
+                )
             }
         }
     }

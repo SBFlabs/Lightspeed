@@ -18,6 +18,7 @@ import android.widget.FrameLayout
 import android.widget.RemoteViews
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.NightlyFeatures
 import com.sbf.lightspeed.system.logSwallowed
 import java.util.concurrent.ConcurrentHashMap
 
@@ -81,6 +82,7 @@ object LightspeedWidgetHostEngine {
     }
 
     fun startIfNeeded(context: Context) {
+        if (!NightlyFeatures.isWidgetStackEnabled) return
         val hostedIds = LightspeedPreferences.getRefuelingStackWidgetIds(context)
         if (hostedIds.isNotEmpty()) {
             sync(context)
@@ -88,6 +90,10 @@ object LightspeedWidgetHostEngine {
     }
 
     fun sync(context: Context) {
+        if (!NightlyFeatures.isWidgetStackEnabled) {
+            stop()
+            return
+        }
         val app = context.applicationContext
         mainHandler.post {
             val hostedIds = LightspeedPreferences.getRefuelingStackWidgetIds(app)
@@ -193,7 +199,8 @@ object LightspeedWidgetHostEngine {
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT
             ).apply {
-                gravity = Gravity.TOP or Gravity.START
+                @Suppress("RtlHardcoded")
+                gravity = Gravity.TOP or Gravity.LEFT
                 x = -100
                 y = -100
             }

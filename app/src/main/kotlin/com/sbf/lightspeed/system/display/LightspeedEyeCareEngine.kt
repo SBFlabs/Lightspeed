@@ -16,18 +16,20 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.*
 
 /**
- * 3-Tier Eye Care & Extra Dim Suite
+ * Native OS Eye Care & Extra Dim Engine
  *
- * Tier 1 (Native): WRITE_SECURE_SETTINGS / Shizuku settings put secure
- *   - reduce_bright_colors_activated (0/1) + reduce_bright_colors_level (0-100)
- *   - night_display_activated (0/1) + night_display_color_temperature (1000-6000K)
- * Tier 2 (SurfaceFlinger 1015): Direct hardware compositor 4x4 color matrix via Shizuku
- *   - Works at hardware HAL level across 100% of devices, debounced at 80ms
- * Tier 3 (Accessibility Overlay): Full-display edge-to-edge overlay covering status bar and cutouts
+ * - Eye Care: Pure OS built-in Night Display (`night_display_activated` / `night_display_color_temperature`)
+ *   on AOSP/Infinix, and native Eye Comfort Shield (`blue_light_filter` / `blue_light_filter_opacity`) on Samsung.
+ * - Extra Dim: Native `reduce_bright_colors_activated` / `reduce_bright_colors_level` paired with a
+ *   click-through pure-black edge-to-edge dim overlay when enabled.
  */
 object LightspeedEyeCareEngine {
 
     private const val TAG = "LightspeedEyeCare"
+    const val MIN_KELVIN = 2200
+    const val MAX_KELVIN = 5000
+    const val DEFAULT_KELVIN = 3400
+
     private val mainHandler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -35,153 +37,250 @@ object LightspeedEyeCareEngine {
     private var isExtraDimEnabled: Boolean = false
     private var extraDimLevel: Int = 40
     private var isEyeCareEnabled: Boolean = false
-    private var eyeCareKelvin: Int = 3400
+    private var eyeCareKelvin: Int = DEFAULT_KELVIN
 
-    // Overlay Window State (Tier 3)
+    // Extra Dim Overlay Window State
     private var overlayView: View? = null
 
-    fun init(context: Context) {
-        val prefs = context.defaultPrefs()
-        isExtraDimEnabled = prefs.getBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, false)
-        extraDimLevel = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 40)
-        isEyeCareEnabled = prefs.getBoolean(LightspeedPreferences.KEY_EYE_CARE_ENABLED, false)
-        eyeCareKelvin = prefs.getInt(LightspeedPreferences.KEY_EYE_CARE_TEMP, 3400).coerceIn(2200, 5500)
+    private fun getNativeNightDisplayBounds(): Pair<Int, Int> {
+        val res = android.content.res.Resources.getSystem()
+        val minId = res.getIdentifier("config_nightDisplayColorTemperatureMin", "integer", "android")
+        val maxId = res.getIdentifier("config_nightDisplayColorTemperatureMax", "integer", "android")
+        val rawMin = if (minId != 0) try { res.getInteger(minId) } catch (_: Exception) { 2596 } else 2596
+        val rawMax = if (maxId != 0) try { res.getInteger(maxId) } catch (_: Exception) { 4082 } else 4082
+        val minVal = rawMin.coerceIn(1000, 5000)
+        val maxVal = rawMax.coerceAtLeast(minVal + 200).coerceAtMost(6500)
+        return minVal to maxVal
+    }
 
-        // Clear any stuck SurfaceFlinger 1015 hardware matrix to prevent screen blackout on modern Android
-        ElevatedTaskCloser.execShizuku("service call SurfaceFlinger 1015 i32 0")
+    private fun toNativeNightDisplayTemp(uiKelvin: Int, minNative: Int, maxNative: Int): Int {
+        val clamped = uiKelvin.coerceIn(MIN_KELVIN, MAX_KELVIN)
+        val warmth = ((MAX_KELVIN - clamped).toFloat() / (MAX_KELVIN - MIN_KELVIN).toFloat()).coerceIn(0f, 1f)
+        return (maxNative - warmth * (maxNative - minNative)).roundToInt().coerceIn(minNative, maxNative)
+    }
+
+    private fun fromNativeNightDisplayTemp(nativeTemp: Int, minNative: Int, maxNative: Int): Int {
+        val warmth = ((maxNative - nativeTemp).toFloat() / (maxNative - minNative).toFloat()).coerceIn(0f, 1f)
+        return (MAX_KELVIN - warmth * (MAX_KELVIN - MIN_KELVIN)).roundToInt().coerceIn(MIN_KELVIN, MAX_KELVIN)
+    }
+
+    fun init(context: Context) {
+        val appCtx = context.applicationContext ?: context
+        val prefs = appCtx.defaultPrefs()
+
+        // Purge legacy software overlay mode so Eye Care always uses pure OS built-in hardware filter
+        if (prefs.getString(LightspeedPreferences.KEY_EYE_CARE_MODE, "native") != "native") {
+            prefs.edit().putString(LightspeedPreferences.KEY_EYE_CARE_MODE, "native").apply()
+        }
+
+        isExtraDimEnabled = prefs.getBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, false)
+        val rawDimLevel = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 40)
+        extraDimLevel = if (rawDimLevel <= 0) 40 else rawDimLevel.coerceIn(10, 90)
+        if (extraDimLevel != rawDimLevel) {
+            prefs.edit().putInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, extraDimLevel).apply()
+        }
+
+        // Read-only sync from OS built-in Eye Care; never overwrite user's OS setting on startup
+        syncFromSystem(appCtx)
 
         if (isExtraDimEnabled) {
-            applyExtraDim(context, true, extraDimLevel)
+            applyExtraDim(appCtx, true, extraDimLevel)
+        } else {
+            mainHandler.post { refreshOverlay(appCtx) }
         }
-        if (isEyeCareEnabled) {
-            applyEyeCare(context, true, eyeCareKelvin)
+        LightspeedEyeRestMonitor.init(appCtx)
+    }
+
+    fun syncFromSystem(context: Context): Pair<Boolean, Int> {
+        val appCtx = context.applicationContext ?: context
+        val prefs = appCtx.defaultPrefs()
+        val storedEnabled = prefs.getBoolean(LightspeedPreferences.KEY_EYE_CARE_ENABLED, false)
+        val rawStoredTemp = prefs.getInt(LightspeedPreferences.KEY_EYE_CARE_TEMP, DEFAULT_KELVIN)
+        var nextEnabled = storedEnabled
+        var nextKelvin = rawStoredTemp.coerceIn(MIN_KELVIN, MAX_KELVIN)
+
+        val cr = appCtx.contentResolver
+        val isSamsung = Build.MANUFACTURER.contains("samsung", ignoreCase = true)
+        if (isSamsung) {
+            val activated = try { Settings.System.getInt(cr, "blue_light_filter", -1) } catch (_: Exception) { -1 }
+            if (activated >= 0) {
+                nextEnabled = (activated == 1)
+                val opacity = try { Settings.System.getInt(cr, "blue_light_filter_opacity", -1) } catch (_: Exception) { -1 }
+                if (opacity in 0..10) {
+                    val expectedFactor = ((MAX_KELVIN - nextKelvin).toFloat() / (MAX_KELVIN - MIN_KELVIN).toFloat()).coerceIn(0f, 1f)
+                    val expectedOpacity = (expectedFactor * 10f).roundToInt().coerceIn(0, 10)
+                    if (opacity != expectedOpacity) {
+                        val factor = (opacity / 10f).coerceIn(0f, 1f)
+                        nextKelvin = (MAX_KELVIN - factor * (MAX_KELVIN - MIN_KELVIN)).roundToInt().coerceIn(MIN_KELVIN, MAX_KELVIN)
+                    }
+                }
+            }
+        } else {
+            val activated = try { Settings.Secure.getInt(cr, "night_display_activated", -1) } catch (_: Exception) { -1 }
+            val nativeTemp = try { Settings.Secure.getInt(cr, "night_display_color_temperature", -1) } catch (_: Exception) { -1 }
+            val (minNative, maxNative) = getNativeNightDisplayBounds()
+            if (activated >= 0) {
+                nextEnabled = (activated == 1)
+            }
+            if (nativeTemp > 0) {
+                nextKelvin = fromNativeNightDisplayTemp(nativeTemp, minNative, maxNative)
+            }
         }
-        LightspeedEyeRestMonitor.init(context)
+
+        isEyeCareEnabled = nextEnabled
+        eyeCareKelvin = nextKelvin
+        if (nextEnabled != storedEnabled || nextKelvin != rawStoredTemp) {
+            prefs.edit()
+                .putBoolean(LightspeedPreferences.KEY_EYE_CARE_ENABLED, nextEnabled)
+                .putInt(LightspeedPreferences.KEY_EYE_CARE_TEMP, nextKelvin)
+                .apply()
+        }
+        mainHandler.post { refreshOverlay(appCtx) }
+        return nextEnabled to nextKelvin
     }
 
     // --- Extra Dim ---
 
     fun applyExtraDim(context: Context, enabled: Boolean, level: Int) {
-        val clampedLevel = level.coerceIn(0, 100)
+        val appCtx = context.applicationContext ?: context
+        val prefs = appCtx.defaultPrefs()
+        val savedLevel = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 40).let { if (it in 10..90) it else 40 }
+        val effectiveLevel = if (enabled) {
+            (if (level <= 0) savedLevel else level).coerceIn(10, 90)
+        } else {
+            if (level in 10..90) level else savedLevel
+        }
         isExtraDimEnabled = enabled
-        extraDimLevel = clampedLevel
+        extraDimLevel = effectiveLevel
 
-        context.defaultPrefs().edit()
+        prefs.edit()
             .putBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, enabled)
-            .putInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, clampedLevel)
+            .putInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, effectiveLevel)
             .apply()
 
-        val mode = context.defaultPrefs().getString(LightspeedPreferences.KEY_EYE_CARE_MODE, "native") ?: "native"
-        dispatchSync(context, mode, immediate = !enabled)
+        scope.launch {
+            val cr = appCtx.contentResolver
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Settings.Secure.putInt(cr, "reduce_bright_colors_activated", if (isExtraDimEnabled) 1 else 0)
+                    if (isExtraDimEnabled) {
+                        Settings.Secure.putInt(cr, "reduce_bright_colors_level", extraDimLevel)
+                    }
+                }
+            } catch (_: Exception) {
+                ElevatedTaskCloser.execShizuku("settings put secure reduce_bright_colors_activated ${if (isExtraDimEnabled) 1 else 0}")
+                if (isExtraDimEnabled) {
+                    ElevatedTaskCloser.execShizuku("settings put secure reduce_bright_colors_level $extraDimLevel")
+                }
+            }
+            mainHandler.post { refreshOverlay(appCtx) }
+        }
+    }
+
+    fun disableExtraDimIfActive(context: Context) {
+        val appCtx = context.applicationContext ?: context
+        if (!isExtraDimEnabled && !appCtx.defaultPrefs().getBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, false)) {
+            return
+        }
+        applyExtraDim(appCtx, false, extraDimLevel)
     }
 
     // --- Eye Care (Blue Light Filter) ---
 
-    fun applyEyeCare(context: Context, enabled: Boolean, kelvin: Int) {
-        val clampedKelvin = kelvin.coerceIn(2200, 5500)
+    fun applyEyeCare(
+        context: Context,
+        enabled: Boolean,
+        kelvin: Int = eyeCareKelvin,
+        updateTemperature: Boolean = true
+    ) {
+        val appCtx = context.applicationContext ?: context
+        val clampedKelvin = kelvin.coerceIn(MIN_KELVIN, MAX_KELVIN)
         isEyeCareEnabled = enabled
-        eyeCareKelvin = clampedKelvin
+        if (updateTemperature) {
+            eyeCareKelvin = clampedKelvin
+        }
 
-        context.defaultPrefs().edit()
+        val prefs = appCtx.defaultPrefs()
+        prefs.edit()
             .putBoolean(LightspeedPreferences.KEY_EYE_CARE_ENABLED, enabled)
-            .putInt(LightspeedPreferences.KEY_EYE_CARE_TEMP, clampedKelvin)
+            .apply {
+                if (updateTemperature) {
+                    putInt(LightspeedPreferences.KEY_EYE_CARE_TEMP, clampedKelvin)
+                }
+            }
             .apply()
 
-        val mode = context.defaultPrefs().getString(LightspeedPreferences.KEY_EYE_CARE_MODE, "native") ?: "native"
-        dispatchSync(context, mode, immediate = !enabled)
-    }
-
-    // --- Unified Dispatcher: Samsung mDNIe / AOSP Settings.Secure + Safe Stage-2 Overlay ---
-
-    private fun dispatchSync(context: Context, mode: String, immediate: Boolean) {
         scope.launch {
-            // Always ensure SurfaceFlinger 1015 matrix write is NEVER used; clear hardware matrix
-            ElevatedTaskCloser.execShizuku("service call SurfaceFlinger 1015 i32 0")
-
             val isSamsung = Build.MANUFACTURER.contains("samsung", ignoreCase = true)
-
             if (isSamsung) {
                 // Samsung One UI: Use native Eye Comfort Shield (Settings.System)
                 // NEVER write AOSP night_display_* to prevent the 0.00 SurfaceFlinger black screen collapse
-                val cr = context.contentResolver
-                val opacity = if (isEyeCareEnabled) {
-                    // Map 5500K (cool/mild) -> 0..1, 2200K (warm) -> 10
-                    val factor = 1f - ((eyeCareKelvin - 2200f) / 3300f).coerceIn(0f, 1f)
+                val cr = appCtx.contentResolver
+                val opacity = if (isEyeCareEnabled && updateTemperature) {
+                    val factor = ((MAX_KELVIN - eyeCareKelvin).toFloat() / (MAX_KELVIN - MIN_KELVIN).toFloat()).coerceIn(0f, 1f)
                     (factor * 10f).roundToInt().coerceIn(0, 10)
-                } else 0
+                } else null
 
                 try {
                     Settings.System.putInt(cr, "blue_light_filter", if (isEyeCareEnabled) 1 else 0)
-                    if (isEyeCareEnabled) {
+                    if (opacity != null) {
                         Settings.System.putInt(cr, "blue_light_filter_opacity", opacity)
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        Settings.Secure.putInt(cr, "reduce_bright_colors_activated", if (isExtraDimEnabled) 1 else 0)
-                        Settings.Secure.putInt(cr, "reduce_bright_colors_level", extraDimLevel)
                     }
                 } catch (_: Exception) {
                     ElevatedTaskCloser.execShizuku("settings put system blue_light_filter ${if (isEyeCareEnabled) 1 else 0}")
-                    if (isEyeCareEnabled) {
+                    if (opacity != null) {
                         ElevatedTaskCloser.execShizuku("settings put system blue_light_filter_opacity $opacity")
                     }
-                    ElevatedTaskCloser.execShizuku("settings put secure reduce_bright_colors_activated ${if (isExtraDimEnabled) 1 else 0}")
-                    ElevatedTaskCloser.execShizuku("settings put secure reduce_bright_colors_level $extraDimLevel")
                 }
             } else {
-                // Standard AOSP: Update native Settings.Secure
+                val nativeTemp = if (isEyeCareEnabled && updateTemperature) {
+                    val (minNative, maxNative) = getNativeNightDisplayBounds()
+                    toNativeNightDisplayTemp(eyeCareKelvin, minNative, maxNative)
+                } else null
                 try {
-                    val cr = context.contentResolver
+                    val cr = appCtx.contentResolver
                     Settings.Secure.putInt(cr, "night_display_activated", if (isEyeCareEnabled) 1 else 0)
-                    if (isEyeCareEnabled) {
-                        Settings.Secure.putInt(cr, "night_display_color_temperature", eyeCareKelvin)
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        Settings.Secure.putInt(cr, "reduce_bright_colors_activated", if (isExtraDimEnabled) 1 else 0)
-                        Settings.Secure.putInt(cr, "reduce_bright_colors_level", extraDimLevel)
+                    if (nativeTemp != null) {
+                        Settings.Secure.putInt(cr, "night_display_color_temperature", nativeTemp)
                     }
                 } catch (_: Exception) {
                     ElevatedTaskCloser.execShizuku("settings put secure night_display_activated ${if (isEyeCareEnabled) 1 else 0}")
-                    if (isEyeCareEnabled) {
-                        ElevatedTaskCloser.execShizuku("settings put secure night_display_color_temperature $eyeCareKelvin")
+                    if (nativeTemp != null) {
+                        ElevatedTaskCloser.execShizuku("settings put secure night_display_color_temperature $nativeTemp")
                     }
-                    ElevatedTaskCloser.execShizuku("settings put secure reduce_bright_colors_activated ${if (isExtraDimEnabled) 1 else 0}")
-                    ElevatedTaskCloser.execShizuku("settings put secure reduce_bright_colors_level $extraDimLevel")
                 }
             }
 
-            // Always render Eye Care Stage-2 Overlay & Extra Dim safely through the click-through full-display overlay
-            mainHandler.post {
-                val dimAlpha = if (isExtraDimEnabled) ((extraDimLevel / 100f) * 0.70f).coerceIn(0f, 0.70f) else 0f
-                // Below 3000K: augment with software amber tint overlay for deep night candlelight reading
-                val kelvinForOverlay = if (isEyeCareEnabled && (mode == "overlay" || eyeCareKelvin < 3000)) eyeCareKelvin else 0
-                updateOverlay(context, dimAlpha, kelvinForOverlay)
-            }
+            mainHandler.post { refreshOverlay(appCtx) }
         }
     }
 
-    // --- Tier 3: Edge-to-Edge Accessibility Window Overlay ---
+    private fun refreshOverlay(context: Context) {
+        val dimAlpha = if (isExtraDimEnabled) ((extraDimLevel / 100f) * 0.70f).coerceIn(0f, 0.70f) else 0f
+        updateOverlay(context, dimAlpha)
+    }
 
-    private fun updateOverlay(context: Context, dimAlpha: Float, kelvin: Int) {
-        val service = LightspeedAccessibilityService.instance ?: return
-        val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
+    // --- Pure Black Extra Dim Accessibility Window Overlay ---
 
-        // Composite Color: Amber Warm Tint + Black Dim Alpha
-        // Warm alpha strictly capped at 0.35f, and combined max alpha capped at 0.70f
-        val warmAlpha = if (kelvin > 0) {
-            val factor = 1f - ((kelvin - 2200f) / 3300f).coerceIn(0f, 1f)
-            (factor * 0.35f).coerceIn(0f, 0.35f)
-        } else 0f
-
-        if (dimAlpha <= 0.001f && warmAlpha <= 0.001f) {
-            overlayView?.let {
-                try { wm.removeView(it) } catch (_: Exception) {}
+    private fun updateOverlay(context: Context, dimAlpha: Float) {
+        if (dimAlpha <= 0.001f) {
+            overlayView?.let { v ->
+                val wm = v.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+                try { wm?.removeView(v) } catch (_: Exception) {}
                 overlayView = null
             }
             return
         }
 
-        if (overlayView != null && overlayView?.context !== service) {
-            overlayView = null
+        val service = LightspeedAccessibilityService.instance ?: return
+        val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
+
+        overlayView?.let { existing ->
+            if (existing.context !== service) {
+                val oldWm = existing.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+                try { oldWm?.removeView(existing) } catch (_: Exception) {}
+                overlayView = null
+            }
         }
 
         if (overlayView == null) {
@@ -200,31 +299,13 @@ object LightspeedEyeCareEngine {
                 wm.addView(v, params)
                 overlayView = v
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to attach eye care overlay", e)
+                Log.w(TAG, "Failed to attach extra dim overlay", e)
                 return
             }
         }
 
-        val finalColor = when {
-            dimAlpha > 0f && warmAlpha > 0.001f -> {
-                val combinedAlpha = (dimAlpha + warmAlpha * 0.4f).coerceIn(0f, 0.70f)
-                val r = (255 * (1f - dimAlpha * 0.25f)).toInt().coerceIn(0, 255)
-                val g = (175 * (1f - dimAlpha * 0.35f)).toInt().coerceIn(0, 255)
-                val b = (50 * (1f - dimAlpha * 0.5f)).toInt().coerceIn(0, 255)
-                android.graphics.Color.argb((combinedAlpha * 255).toInt(), r, g, b)
-            }
-            dimAlpha > 0f -> {
-                val safeDim = dimAlpha.coerceIn(0f, 0.70f)
-                android.graphics.Color.argb((safeDim * 255).toInt(), 0, 0, 0)
-            }
-            warmAlpha > 0.001f -> {
-                val safeWarm = warmAlpha.coerceIn(0f, 0.35f)
-                android.graphics.Color.argb((safeWarm * 255).toInt(), 255, 175, 50)
-            }
-            else -> android.graphics.Color.TRANSPARENT
-        }
-
-        overlayView?.setBackgroundColor(finalColor)
+        val safeDim = dimAlpha.coerceIn(0f, 0.70f)
+        overlayView?.setBackgroundColor(android.graphics.Color.argb((safeDim * 255).toInt(), 0, 0, 0))
     }
 
     fun onServiceDestroyed(service: Context?) {

@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import com.sbf.lightspeed.system.lsString
 
 internal fun LightspeedCruiseOverlay.drawUnsavedPrompt(canvas: Canvas, paint: Paint) {
     val dp = resources.displayMetrics.density
@@ -37,7 +38,7 @@ internal fun LightspeedCruiseOverlay.drawUnsavedPrompt(canvas: Canvas, paint: Pa
     val fontMetrics = paint.fontMetrics
     val textYOffset = (fontMetrics.descent + fontMetrics.ascent) / 2f
     val titleY = promptBounds.top + (headerH * 0.4f) - textYOffset
-    canvas.drawText("Unsaved Changes", promptBounds.centerX(), titleY, paint)
+    canvas.drawText(lsString(R.string.ed_unsaved_title), promptBounds.centerX(), titleY, paint)
 
     paint.textSize = 10.5f * dp
     paint.typeface = overlayTypeface(isBold = false)
@@ -45,7 +46,7 @@ internal fun LightspeedCruiseOverlay.drawUnsavedPrompt(canvas: Canvas, paint: Pa
     val subFontMetrics = paint.fontMetrics
     val subTextYOffset = (subFontMetrics.descent + subFontMetrics.ascent) / 2f
     val subY = promptBounds.top + (headerH * 0.75f) - subTextYOffset
-    canvas.drawText("Save modified category order?", promptBounds.centerX(), subY, paint)
+    canvas.drawText(lsString(R.string.ed_unsaved_msg), promptBounds.centerX(), subY, paint)
 
     // Divider above buttons
     val btnRowTop = promptBounds.bottom - btnRowH
@@ -61,13 +62,18 @@ internal fun LightspeedCruiseOverlay.drawUnsavedPrompt(canvas: Canvas, paint: Pa
     canvas.drawLine(promptBounds.left + btnW, btnRowTop + 4f * dp, promptBounds.left + btnW, promptBounds.bottom - 4f * dp, paint)
     canvas.drawLine(promptBounds.left + (btnW * 2f), btnRowTop + 4f * dp, promptBounds.left + (btnW * 2f), promptBounds.bottom - 4f * dp, paint)
 
+    val saveLbl = lsString(R.string.ed_btn_save)
+    val discardLbl = lsString(R.string.ed_unsaved_discard)
+    val keepLbl = lsString(R.string.ed_unsaved_keep)
+
     // Button labels
     paint.style = Paint.Style.FILL
     paint.textAlign = Paint.Align.CENTER
     paint.typeface = overlayTypeface(isBold = true)
     var btnTextSize = 10.5f * dp
     paint.textSize = btnTextSize
-    while (paint.measureText("Keep editing") > btnW - 6f * dp && btnTextSize > 7.5f * dp) {
+    val longestBtn = listOf(saveLbl, discardLbl, keepLbl).maxByOrNull { paint.measureText(it) } ?: keepLbl
+    while (paint.measureText(longestBtn) > btnW - 6f * dp && btnTextSize > 7.5f * dp) {
         btnTextSize -= 0.5f * dp
         paint.textSize = btnTextSize
     }
@@ -77,13 +83,13 @@ internal fun LightspeedCruiseOverlay.drawUnsavedPrompt(canvas: Canvas, paint: Pa
 
     // "Save"
     paint.color = Color.argb(255, 120, 210, 255)
-    canvas.drawText("Save", promptBounds.left + (btnW * 0.5f), btnRowCenterY - btnYOffset, paint)
+    canvas.drawText(saveLbl, promptBounds.left + (btnW * 0.5f), btnRowCenterY - btnYOffset, paint)
 
     // "Discard"
     paint.color = Color.argb(240, 255, 130, 130)
-    canvas.drawText("Discard", promptBounds.left + (btnW * 1.5f), btnRowCenterY - btnYOffset, paint)
+    canvas.drawText(discardLbl, promptBounds.left + (btnW * 1.5f), btnRowCenterY - btnYOffset, paint)
 
     // "Keep editing"
     paint.color = Color.argb(230, 200, 220, 255)
-    canvas.drawText("Keep editing", promptBounds.left + (btnW * 2.5f), btnRowCenterY - btnYOffset, paint)
+    canvas.drawText(keepLbl, promptBounds.left + (btnW * 2.5f), btnRowCenterY - btnYOffset, paint)
 }

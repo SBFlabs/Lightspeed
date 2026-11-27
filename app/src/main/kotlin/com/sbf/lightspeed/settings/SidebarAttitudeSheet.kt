@@ -175,6 +175,13 @@ fun AppAssignmentSheet(
             LocalTextStyle provides activeTextStyle
         ) {
             val sheetView = LocalView.current
+            val sheetWindow = (sheetView.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+            DisposableEffect(sheetWindow) {
+                CentralCommandBackdropBlur.registerHostWindow(sheetWindow)
+                onDispose {
+                    CentralCommandBackdropBlur.unregisterHostWindow(sheetWindow)
+                }
+            }
             SideEffect {
                 if (sheetView.layoutDirection != targetAndroidDir) {
                     sheetView.layoutDirection = targetAndroidDir

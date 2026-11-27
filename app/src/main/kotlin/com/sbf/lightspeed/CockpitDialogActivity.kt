@@ -3,7 +3,9 @@ package com.sbf.lightspeed
 import com.sbf.lightspeed.system.logSwallowed
 import com.sbf.lightspeed.system.safeReloadPreferences
 
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.lsString
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -59,9 +61,10 @@ import com.sbf.lightspeed.settings.blockScrimPassthrough
 import com.sbf.lightspeed.settings.overlayScrimDismiss
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
-import com.sbf.lightspeed.ui.theme.CockpitPalette
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 import com.sbf.lightspeed.ui.theme.LocalDomainPalette
+import com.sbf.lightspeed.ui.theme.ThemeDomain
+import com.sbf.lightspeed.ui.theme.rememberDomainPalette
 
 class CockpitDialogActivity : ComponentActivity() {
 
@@ -86,6 +89,8 @@ class CockpitDialogActivity : ComponentActivity() {
         const val EXTRA_HUD_SLOT_INDEX = "EXTRA_HUD_SLOT_INDEX"
         const val EXTRA_WIDGET_ID = "EXTRA_WIDGET_ID"
         const val EXTRA_OPEN_ICON_PACK_BROWSER = "EXTRA_OPEN_ICON_PACK_BROWSER"
+        const val EXTRA_FEATURE_CONTEXT = "EXTRA_FEATURE_CONTEXT"
+        const val EXTRA_EXPAND_KEY_INPUT = "EXTRA_EXPAND_KEY_INPUT"
 
         private const val REQUEST_BIND_HUD_WIDGET = 7050
         private const val REQUEST_CONFIG_HUD_WIDGET = 7051
@@ -152,6 +157,7 @@ class CockpitDialogActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        LightspeedLocaleEngine.init(this)
         val action = intent.action ?: ACTION_RENAME_GEAR
 
         if (action == ACTION_CONFIGURE_CATEGORY_HUD_WIDGET) {
@@ -171,10 +177,23 @@ class CockpitDialogActivity : ComponentActivity() {
 
         setContent {
             val isWidgetPicker = (action == ACTION_PICK_CATEGORY_HUD_WIDGET)
+            val isInfinityDialogAction = (action == ACTION_SHOW_INFINITY)
             LightspeedTheme(forceDark = true) {
                 val activeSnapshot = LocalDeckTheme.current
                 val pickerBackdropAlpha = activeSnapshot.dimAmount.coerceIn(0.32f, 0.72f)
-                CompositionLocalProvider(LocalDomainPalette provides CockpitPalette) {
+                val cockpitPalette = rememberDomainPalette(ThemeDomain.COCKPIT)
+                CompositionLocalProvider(LocalDomainPalette provides cockpitPalette) {
+                    if (isInfinityDialogAction) {
+                        // LightspeedInfinityDialog owns its own DeckDialog window, scrim & glass card —
+                        // skip the activity scrim and outer DeckGlassCardSurface to avoid double-carding.
+                        LightspeedInfinityDialog(
+                            context = this@CockpitDialogActivity,
+                            onDismiss = { finish() },
+                            onUnlocked = {},
+                            featureContext = intent.getStringExtra(EXTRA_FEATURE_CONTEXT),
+                            initialExpandKeyInput = intent.getBooleanExtra(EXTRA_EXPAND_KEY_INPUT, false)
+                        )
+                    } else {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -234,11 +253,6 @@ class CockpitDialogActivity : ComponentActivity() {
                                             token = intent.getStringExtra(EXTRA_TOKEN) ?: "",
                                             onDismiss = { finish() }
                                         )
-                                        ACTION_SHOW_INFINITY -> LightspeedInfinityDialog(
-                                            context = this@CockpitDialogActivity,
-                                            onDismiss = { finish() },
-                                            onUnlocked = {}
-                                        )
                                         ACTION_DEEP_SHORTCUTS -> com.sbf.lightspeed.settings.DeepShortcutsPinDialogContent(
                                             context = this@CockpitDialogActivity,
                                             packageName = intent.getStringExtra(EXTRA_PACKAGE_NAME) ?: "",
@@ -252,6 +266,7 @@ class CockpitDialogActivity : ComponentActivity() {
                                 }
                             }
                         }
+                    }
                     }
                 }
             }
@@ -342,8 +357,12 @@ class CockpitDialogActivity : ComponentActivity() {
         LightspeedCruiseOverlay.instance?.categoryGridCache?.clear()
 
         safeReloadPreferences()
-        val slotLabel = if (pendingHudSlotIndex == 2) "Slot 2" else if (pendingHudSlotIndex == 1) "Slot 1" else "HUD"
-        Toast.makeText(this, "Bound ${candidate.widgetLabel} to category $slotLabel", Toast.LENGTH_SHORT).show()
+        val slotLabel = when (pendingHudSlotIndex) {
+            2 -> lsString(R.string.dlg_slot_2)
+            1 -> lsString(R.string.dlg_slot_1)
+            else -> lsString(R.string.dlg_slot_hud)
+        }
+        Toast.makeText(this, lsString(R.string.dlg_bound_wid_slot, candidate.widgetLabel, slotLabel), Toast.LENGTH_SHORT).show()
         finish()
     }
 

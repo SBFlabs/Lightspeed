@@ -60,6 +60,7 @@ object LightspeedActionRegistry {
 
         // 2. Hardware & System Controls
         "system:flashlight",
+        "system:direct_call",
         "system:screenshot",
         "system:lock_screen",
         "system:power_menu",
@@ -96,7 +97,7 @@ object LightspeedActionRegistry {
         "system:core_watchdog",
         "system:battery_exemption",
         "system:central_command",
-        "system:omniscient_audio",
+        "system:sonic_deck",
 
         // 5b. Native Android Settings Shortcuts
         "system:native_wifi_settings",

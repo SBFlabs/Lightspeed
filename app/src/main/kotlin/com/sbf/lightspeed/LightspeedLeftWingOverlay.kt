@@ -177,8 +177,9 @@ class LightspeedLeftWingOverlay(
             bottomTouchBounds.setEmpty()
             centerTouchBounds.set(0f, 0f, centerTouchWidthPx, centerHeightPx)
 
-            if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.x != edgeOffsetPx || lp.gravity != (Gravity.TOP or Gravity.START)) {
-                lp.gravity = Gravity.TOP or Gravity.START
+            @Suppress("RtlHardcoded")
+            if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.x != edgeOffsetPx || lp.gravity != (Gravity.TOP or Gravity.LEFT)) {
+                lp.gravity = Gravity.TOP or Gravity.LEFT
                 lp.x = edgeOffsetPx
                 lp.y = winY
                 lp.width = winWidth
@@ -195,16 +196,25 @@ class LightspeedLeftWingOverlay(
         val bottomLimit = (centerBottom + bottomHeightPx).coerceAtMost(screenH)
 
         val maxTouchW = maxOf(centerTouchWidthPx, topTouchWidthPx, bottomTouchWidthPx)
-        val winHeight = (bottomLimit - topLimit).toInt().coerceAtLeast(100)
-        val winWidth = maxTouchW.toInt().coerceAtLeast(1)
-        val winY = topLimit.toInt()
+        val (sharedTopF, sharedBottomF, sharedWidthPx) = com.sbf.lightspeed.touch.LightspeedEdgeArbiter.computeSharedEdgeWindowBounds(
+            context = context,
+            isLeft = true,
+            deflectorTop = topLimit,
+            deflectorBottom = bottomLimit,
+            deflectorMaxWidthPx = maxTouchW
+        )
+        val winHeight = (sharedBottomF - sharedTopF).toInt().coerceAtLeast(100)
+        val winWidth = sharedWidthPx.toInt().coerceAtLeast(1)
+        val winY = sharedTopF.toInt()
+        val topPad = (topLimit - sharedTopF).coerceAtLeast(0f)
 
-        topTouchBounds.set(0f, 0f, topTouchWidthPx, topHeightPx)
-        centerTouchBounds.set(0f, topHeightPx, centerTouchWidthPx, topHeightPx + centerHeightPx)
-        bottomTouchBounds.set(0f, topHeightPx + centerHeightPx, bottomTouchWidthPx, topHeightPx + centerHeightPx + bottomHeightPx)
+        topTouchBounds.set(0f, topPad, topTouchWidthPx, topPad + topHeightPx)
+        centerTouchBounds.set(0f, topPad + topHeightPx, centerTouchWidthPx, topPad + topHeightPx + centerHeightPx)
+        bottomTouchBounds.set(0f, topPad + topHeightPx + centerHeightPx, bottomTouchWidthPx, topPad + topHeightPx + centerHeightPx + bottomHeightPx)
 
-        if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.x != edgeOffsetPx || lp.gravity != (Gravity.TOP or Gravity.START)) {
-            lp.gravity = Gravity.TOP or Gravity.START
+        @Suppress("RtlHardcoded")
+        if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.x != edgeOffsetPx || lp.gravity != (Gravity.TOP or Gravity.LEFT)) {
+            lp.gravity = Gravity.TOP or Gravity.LEFT
             lp.x = edgeOffsetPx
             lp.y = winY
             lp.width = winWidth
@@ -284,8 +294,27 @@ class LightspeedLeftWingOverlay(
         val rawY = event.rawY
         currentRawY = rawY
 
+        val centerScreenY = (resources.displayMetrics.heightPixels / 2f) + centerYOffsetPx
+        if ((event.actionMasked == MotionEvent.ACTION_DOWN || activeZoneKey != "LEFT_CENTER") && !isLockscreenPillOnly) {
+            val cTop = centerScreenY - (centerHeightPx / 2f)
+            val cBot = centerScreenY + (centerHeightPx / 2f)
+            if (com.sbf.lightspeed.touch.LightspeedEdgeArbiter.routeEdgeTouch(context, true, cTop, cBot, event)) {
+                return true
+            }
+        }
+
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                activeZoneKey = when {
+                    centerTouchBounds.contains(x, y) -> "LEFT_CENTER"
+                    !isLockscreenPillOnly && topTouchBounds.contains(x, y) -> "LEFT_TOP"
+                    !isLockscreenPillOnly && bottomTouchBounds.contains(x, y) -> "LEFT_BOTTOM"
+                    else -> {
+                        isCurrentlyTouched = false
+                        invalidate()
+                        return false
+                    }
+                }
                 pendingHoldReleaseAction = null
                 startRawX = rawX
                 startRawY = rawY
@@ -304,13 +333,7 @@ class LightspeedLeftWingOverlay(
                 activeScrubVolumePct = -1
                 activeScrubAccumulator = 0f
 
-                activeZoneKey = when {
-                    !isLockscreenPillOnly && topTouchBounds.contains(x, y) -> "LEFT_TOP"
-                    !isLockscreenPillOnly && bottomTouchBounds.contains(x, y) -> "LEFT_BOTTOM"
-                    else -> "LEFT_CENTER"
-                }
-
-                if (isLockscreenPillOnly && !centerTouchBounds.contains(x, y)) {
+                if (isLockscreenPillOnly && activeZoneKey != "LEFT_CENTER") {
                     isCurrentlyTouched = false
                     invalidate()
                     return false
@@ -321,6 +344,7 @@ class LightspeedLeftWingOverlay(
                     return true
                 }
 
+                com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prewarmForGesture(context)
                 val effectiveScrubZone = if (com.sbf.lightspeed.system.LightspeedPreferences.isScrubRegionsLinked(context, isLeft = true)) "LEFT_TOP" else activeZoneKey
                 val scrubAction = prefs.getString("pref_macro_action_${effectiveScrubZone}_SCRUBBING", "none") ?: "none"
                 scrubType = scrubAction
@@ -361,8 +385,26 @@ class LightspeedLeftWingOverlay(
                     val isVistaDockEnabled = prefs.getBoolean(LightspeedPreferences.KEY_VISTA_DECK_ENABLED, true) &&
                         prefs.getBoolean(LightspeedPreferences.KEY_VISTA_DECK_LEFT_ENABLED, true)
 
-                    val horizontalPull = kotlin.math.abs(rawX - scrubStartX)
-                    if (horizontalPull > 80f * density && ((isVolume && isAudioDockEnabled) || (isBrightness && isVistaDockEnabled))) {
+                    val inwardPull = (rawX - scrubStartX).coerceAtLeast(0f)
+                    val distToHalfScreen = (screenW * 0.5f) - scrubStartX
+                    val remainingInwardRoom = screenW - scrubStartX
+                    val basePullThreshold = minOf(80f * density, maxOf(56f * density, distToHalfScreen))
+                    val pullThreshold = minOf(basePullThreshold, (remainingInwardRoom * 0.75f).coerceAtLeast(32f * density))
+                    val deadzone = 12f * density
+                    val targetDeck = when {
+                        isVolume && isAudioDockEnabled -> "SONIC"
+                        isBrightness && isVistaDockEnabled -> "VISTA"
+                        else -> null
+                    }
+                    if (targetDeck != null) {
+                        val progress = if (inwardPull <= deadzone) {
+                            0f
+                        } else {
+                            ((inwardPull - deadzone) / (pullThreshold - deadzone).coerceAtLeast(1f)).coerceIn(0f, 1f)
+                        }
+                        LightspeedStatusBarOverlay.updateScrubContinuum(progress, targetDeck)
+                    }
+                    if (inwardPull >= pullThreshold && targetDeck != null) {
                         isScrubbing = false
                         isCurrentlyTouched = false
                         currentGesture = "NONE"
@@ -375,10 +417,13 @@ class LightspeedLeftWingOverlay(
                         LightspeedStatusBarOverlay.dismissActionHud(0L)
                         LightspeedHapticEngine.deflectorDeepPull(context)
                         invalidate()
-                        if (isVolume) {
-                            (service as? LightspeedAccessibilityService)?.let { com.sbf.lightspeed.system.SonicDeckManager.show(it) }
+                        val targetMode = if (isVolume) {
+                            com.sbf.lightspeed.system.SystemDeckMode.SONIC
                         } else {
-                            (service as? LightspeedAccessibilityService)?.let { com.sbf.lightspeed.system.VistaDeckManager.show(it) }
+                            com.sbf.lightspeed.system.SystemDeckMode.VISTA
+                        }
+                        (service as? LightspeedAccessibilityService)?.let {
+                            com.sbf.lightspeed.system.UnifiedSystemDeckHost.show(it, targetMode, fromContinuum = true)
                         }
                         return true
                     }

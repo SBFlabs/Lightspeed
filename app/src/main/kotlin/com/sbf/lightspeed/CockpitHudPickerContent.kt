@@ -52,8 +52,6 @@ import kotlinx.coroutines.withContext
 import com.sbf.lightspeed.settings.LightspeedInfinityDialog
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
-import com.sbf.lightspeed.ui.theme.CockpitPalette
-import com.sbf.lightspeed.ui.theme.LocalDomainPalette
 
 /** Cockpit dialog content: HUD widget picker and timeline countdown composables (split from CockpitDialogActivity.kt). */
 internal data class InstalledWidgetCandidate(

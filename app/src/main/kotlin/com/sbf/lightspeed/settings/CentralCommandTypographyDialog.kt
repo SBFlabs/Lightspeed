@@ -70,10 +70,12 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
@@ -161,6 +163,8 @@ fun CentralCommandTypographyMenu(
         }
     }
 
+    val activeLayoutDirection = LocalLayoutDirection.current
+    androidx.compose.runtime.CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -280,6 +284,7 @@ fun CentralCommandTypographyMenu(
                     }
 
                     // Expanding panel content beneath the fused liquid neck (scrollable on landscape screens)
+                    androidx.compose.runtime.CompositionLocalProvider(LocalLayoutDirection provides activeLayoutDirection) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -483,6 +488,7 @@ fun CentralCommandTypographyMenu(
                                                         LightspeedPreferences.setCentralCommandFontFamily(context, key)
                                                         if (applyFontGlobally) {
                                                             LightspeedCruiseOverlay.instance?.invalidate()
+                                                            com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay.refreshState(context)
                                                         }
                                                         isFontListExpanded = false
                                                     }
@@ -526,6 +532,7 @@ fun CentralCommandTypographyMenu(
                                     val next = !applyFontGlobally
                                     LightspeedPreferences.setApplyFontGlobally(context, next)
                                     LightspeedCruiseOverlay.instance?.invalidate()
+                                    com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay.refreshState(context)
                                 }
                                 .padding(horizontal = 12.dp, vertical = 9.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -549,13 +556,18 @@ fun CentralCommandTypographyMenu(
                                 onCheckedChange = { checked ->
                                     LightspeedPreferences.setApplyFontGlobally(context, checked)
                                     LightspeedCruiseOverlay.instance?.invalidate()
+                                    com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay.refreshState(context)
                                 }
                             )
                         }
+
+                        RtlLayoutToggleCard()
+                    }
                     }
                 }
             }
         }
+    }
     }
 }
 

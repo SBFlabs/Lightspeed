@@ -25,6 +25,8 @@ import com.sbf.lightspeed.settings.DeckButton
 import com.sbf.lightspeed.settings.deckGlassSurface
 import com.sbf.lightspeed.settings.resolveOpticalColors
 import com.sbf.lightspeed.system.DeviceFontScanner
+import com.sbf.lightspeed.system.LightspeedLocaleEngine
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 
@@ -118,13 +120,14 @@ fun RefuelingCustomizationPanel(
                         tint = opticalColors.readableTintColor,
                         modifier = Modifier.size(16.dp)
                     )
+                    val isArabic = LightspeedLocaleEngine.state.primary == LightspeedLocaleEngine.AppLanguage.AR
                     Text(
-                        text = "GAUGE & CLOCK STUDIO",
+                        text = lsString(R.string.ref_studio_title),
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
                         color = opticalColors.readableTintColor,
-                        letterSpacing = 1.1.sp
+                        letterSpacing = if (isArabic) 0.sp else 1.1.sp
                     )
                 }
                 IconButton(
@@ -258,7 +261,7 @@ fun RefuelingCustomizationPanel(
                 horizontalArrangement = Arrangement.End
             ) {
                 DeckButton(
-                    text = "DONE",
+                    text = lsString(R.string.ref_bay_btn_done),
                     isActive = true,
                     onClick = onDismiss
                 )

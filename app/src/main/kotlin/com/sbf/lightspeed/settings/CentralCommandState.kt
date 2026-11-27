@@ -30,7 +30,7 @@ fun rememberCentralCommandState(
     var tabMode0 by tabMode0State
     val pinnedSection0State = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_0, "left_unified_gestures") ?: "left_unified_gestures") }
     val pinnedSection0 by pinnedSection0State
-    val sectionOrder0StrState = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_0, "left_center,left_unified") ?: "left_center,left_unified") }
+    val sectionOrder0StrState = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_0, "left_center,left_unified,left_trackpad") ?: "left_center,left_unified,left_trackpad") }
 
     val tabMode1State = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_1, "custom_pinned") ?: "custom_pinned") }
     var tabMode1 by tabMode1State
@@ -40,13 +40,13 @@ fun rememberCentralCommandState(
         )
     }
     val pinnedSection1 by pinnedSection1State
-    val sectionOrder1StrState = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,tactical_hardware,synthetic_gravity,refueling_bay,system_overrides,config_vault,experimental_labs") ?: "sensor_deck,telemetry_indicators,tactical_hardware,synthetic_gravity,refueling_bay,system_overrides,config_vault,experimental_labs") }
+    val sectionOrder1StrState = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, HudStripTabOrderHelper.DEFAULT_ORDER_CSV) ?: HudStripTabOrderHelper.DEFAULT_ORDER_CSV) }
 
     val tabMode2State = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_2, "custom_pinned") ?: "custom_pinned") }
     var tabMode2 by tabMode2State
     val pinnedSection2State = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_2, "unified_gestures") ?: "unified_gestures") }
     val pinnedSection2 by pinnedSection2State
-    val sectionOrder2StrState = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_2, "center,unified") ?: "center,unified") }
+    val sectionOrder2StrState = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_2, "center,unified,trackpad") ?: "center,unified,trackpad") }
 
     val popoverTabTargetState = rememberSaveable { mutableStateOf<Int?>(null) }
     val blueprintTabTargetState = rememberSaveable { mutableStateOf<Int?>(null) }
@@ -62,6 +62,8 @@ fun rememberCentralCommandState(
     val isLeftFlankUnified by isLeftFlankUnifiedState
     val isLeftUnifiedExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_unified" || pinnedSection0.startsWith("left_unified_") else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_LEFT_UNIFIED_EXPANDED, true)) }
     var isLeftUnifiedExpanded by isLeftUnifiedExpandedState
+    val isLeftTrackpadExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_trackpad" || pinnedSection0.startsWith("left_trackpad_") else prefs.getBoolean("pref_accordion_trackpad_left", false)) }
+    var isLeftTrackpadExpanded by isLeftTrackpadExpandedState
 
     // Left Deflector Sub-Section States
     val isLeftCenterGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_GEO_LEFT_CENTER, false)) }
@@ -74,12 +76,20 @@ fun rememberCentralCommandState(
     val isLeftBottomGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_geo" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GEO_LEFT_BOTTOM, false)) }
     val isLeftBottomScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_scrub" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_SCRUB_LEFT_BOTTOM, false)) }
     val isLeftBottomGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_gestures" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GESTURES_LEFT_BOTTOM, true)) }
+    val isLeftTrackpadGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.startsWith("left_trackpad_")) pinnedSection0 == "left_trackpad_geo" else prefs.getBoolean("pref_sub_trackpad_geo_left", false)) }
+    val isLeftTrackpadPhysicsExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.startsWith("left_trackpad_")) pinnedSection0 == "left_trackpad_physics" else prefs.getBoolean("pref_sub_trackpad_physics_left", false)) }
 
     // HUD Strip Accordion States
     val isSensorDeckExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "sensor_deck" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_SENSOR_DECK_EXPANDED, false)) }
     var isSensorDeckExpanded by isSensorDeckExpandedState
     val isSyntheticGravityExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "synthetic_gravity" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED, false)) }
     var isSyntheticGravityExpanded by isSyntheticGravityExpandedState
+    val isAstrogationAirlockExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "astrogation_airlock" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_ASTROGATION_AIRLOCK_EXPANDED, false)) }
+    var isAstrogationAirlockExpanded by isAstrogationAirlockExpandedState
+    val isSonicDeckExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "sonic_deck" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_SONIC_DECK_EXPANDED, false)) }
+    var isSonicDeckExpanded by isSonicDeckExpandedState
+    val isVistaDeckExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "vista_deck" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_VISTA_DECK_EXPANDED, false)) }
+    var isVistaDeckExpanded by isVistaDeckExpandedState
     val isTelemetryExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "telemetry_indicators" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_TELEMETRY_EXPANDED, false)) }
     var isTelemetryExpanded by isTelemetryExpandedState
     val isTacticalHardwareExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "tactical_hardware" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_TACTICAL_HARDWARE_EXPANDED, false)) }
@@ -133,7 +143,11 @@ fun rememberCentralCommandState(
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
 
     // Accelerometer sampling hook
-    val isHullTapMeterActive = isTacticalHardwareExpanded && isSubHullTapExpanded && (pagerState.currentPage == 1)
+    val isHullTapMeterActive by remember {
+        derivedStateOf {
+            isTacticalHardwareExpanded && isSubHullTapExpanded && (pagerState.currentPage == 1)
+        }
+    }
     DisposableEffect(isHullTapMeterActive) {
         if (isHullTapMeterActive) {
             LightspeedBackTapEngine.startLiveSampling(context)
@@ -164,6 +178,8 @@ fun rememberCentralCommandState(
     val isRightFlankUnified by isRightFlankUnifiedState
     val isRightUnifiedExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "unified" || pinnedSection2.startsWith("unified_") else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_RIGHT_UNIFIED_EXPANDED, true)) }
     var isRightUnifiedExpanded by isRightUnifiedExpandedState
+    val isTrackpadExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "trackpad" || pinnedSection2.startsWith("trackpad_") else prefs.getBoolean("pref_accordion_trackpad_right", false)) }
+    var isTrackpadExpanded by isTrackpadExpandedState
 
     // Dual Watchdog Sub-Section States
     val isInnerWatchdogExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_INNER_WATCHDOG_LABS, true)) }
@@ -180,6 +196,8 @@ fun rememberCentralCommandState(
     val isBottomGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "bottom_geo" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GEO_BOTTOM, false)) }
     val isBottomScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "bottom_scrub" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_SCRUB_BOTTOM, false)) }
     val isBottomGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "bottom_gestures" else prefs.getBoolean(LightspeedPreferences.KEY_SUB_GESTURES_BOTTOM, true)) }
+    val isTrackpadGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.startsWith("trackpad_")) pinnedSection2 == "trackpad_geo" else prefs.getBoolean("pref_sub_trackpad_geo_right", false)) }
+    val isTrackpadPhysicsExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.startsWith("trackpad_")) pinnedSection2 == "trackpad_physics" else prefs.getBoolean("pref_sub_trackpad_physics_right", false)) }
 
     val listState0 = rememberLazyListState()
     val listState1 = rememberLazyListState()
@@ -215,18 +233,19 @@ fun rememberCentralCommandState(
     }
 
     val sectionTitles0 = remember(isLeftFlankUnified, currentLanguageMode, LightspeedLocaleEngine.state) {
+        val trackpadTitle = com.sbf.lightspeed.system.lsString(com.sbf.lightspeed.R.string.sec_cybernetic_trackpad)
         if (isLeftFlankUnified) {
             mapOf(
                 "left_center" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_ZONE),
                 "left_unified" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.UNIFIED_DEFLECTORS),
-                "left_trackpad" to "Cybernetic Trackpad"
+                "left_trackpad" to trackpadTitle
             )
         } else {
             mapOf(
                 "left_center" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_ZONE),
                 "left_top" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.UPPER_FLANK),
                 "left_bottom" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.LOWER_FLANK),
-                "left_trackpad" to "Cybernetic Trackpad"
+                "left_trackpad" to trackpadTitle
             )
         }
     }
@@ -235,115 +254,33 @@ fun rememberCentralCommandState(
         mapOf(
             "sensor_deck" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SENSOR_AREA),
             "telemetry_indicators" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TELEMETRY_AND_INDICATORS),
+            "astrogation_airlock" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.ASTROGATION_AIRLOCK, currentLanguageMode),
             "tactical_hardware" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TACTICAL_HARDWARE),
             "synthetic_gravity" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.GRAVITY_ENGINE),
             "refueling_bay" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.REFUELING_BAY),
             "system_overrides" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SYSTEM_OVERRIDES),
             "config_vault" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SHIP_DATA_VAULT),
+            "sonic_deck" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SONIC_DECK, currentLanguageMode),
+            "vista_deck" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.VISTA_DECK, currentLanguageMode),
             "experimental_labs" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.EXPERIMENTAL_LABS)
         )
     }
 
     val sectionTitles2 = remember(isRightFlankUnified, currentLanguageMode, LightspeedLocaleEngine.state) {
+        val trackpadTitle = com.sbf.lightspeed.system.lsString(com.sbf.lightspeed.R.string.sec_cybernetic_trackpad)
         if (isRightFlankUnified) {
             mapOf(
                 "center" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_ZONE),
                 "unified" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.UNIFIED_DEFLECTORS),
-                "trackpad" to "Cybernetic Trackpad"
+                "trackpad" to trackpadTitle
             )
         } else {
             mapOf(
                 "center" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_ZONE),
                 "top" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.UPPER_FLANK),
                 "bottom" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.LOWER_FLANK),
-                "trackpad" to "Cybernetic Trackpad"
+                "trackpad" to trackpadTitle
             )
-        }
-    }
-
-    val toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit = remember {
-        { tabId, sectionId, currentExpanded, onSetExpanded ->
-            val mode = when (tabId) {
-                0 -> tabMode0
-                1 -> tabMode1
-                2 -> tabMode2
-                else -> "custom_pinned"
-            }
-
-            val pinned = when (tabId) {
-                0 -> pinnedSection0
-                1 -> pinnedSection1
-                2 -> pinnedSection2
-                else -> null
-            }
-
-            if (mode == "solo") {
-                if (!currentExpanded) {
-                    when (tabId) {
-                        0 -> {
-                            isLeftCenterExpanded = false
-                            isLeftTopExpanded = false
-                            isLeftBottomExpanded = false
-                            isLeftUnifiedExpanded = false
-                        }
-                        1 -> {
-                            isSensorDeckExpanded = false
-                            isSyntheticGravityExpanded = false
-                            isTelemetryExpanded = false
-                            isTacticalHardwareExpanded = false
-                            isRefuelingExpanded = false
-                            isSystemOverridesExpanded = false
-                            isConfigVaultExpanded = false
-                            isExperimentalLabsExpanded = false
-                        }
-                        2 -> {
-                            isCenterExpanded = false
-                            isTopExpanded = false
-                            isBottomExpanded = false
-                            isRightUnifiedExpanded = false
-                        }
-                    }
-                    onSetExpanded(true)
-                } else {
-                    onSetExpanded(false)
-                }
-            } else if (mode == "custom_pinned") {
-                if (sectionId == pinned) {
-                    onSetExpanded(!currentExpanded)
-                } else {
-                    if (!currentExpanded) {
-                        when (tabId) {
-                            0 -> {
-                                if (pinned != "left_center") isLeftCenterExpanded = false
-                                if (pinned != "left_top") isLeftTopExpanded = false
-                                if (pinned != "left_bottom") isLeftBottomExpanded = false
-                                if (pinned != "left_unified") isLeftUnifiedExpanded = false
-                            }
-                            1 -> {
-                                if (pinned != "sensor_deck") isSensorDeckExpanded = false
-                                if (pinned != "telemetry_indicators") isTelemetryExpanded = false
-                                if (pinned != "tactical_hardware") isTacticalHardwareExpanded = false
-                                if (pinned != "synthetic_gravity") isSyntheticGravityExpanded = false
-                                if (pinned != "refueling_bay") isRefuelingExpanded = false
-                                if (pinned != "system_overrides") isSystemOverridesExpanded = false
-                                if (pinned != "config_vault") isConfigVaultExpanded = false
-                                if (pinned != "experimental_labs") isExperimentalLabsExpanded = false
-                            }
-                            2 -> {
-                                if (pinned != "center") isCenterExpanded = false
-                                if (pinned != "top") isTopExpanded = false
-                                if (pinned != "bottom") isBottomExpanded = false
-                                if (pinned != "unified") isRightUnifiedExpanded = false
-                            }
-                        }
-                        onSetExpanded(true)
-                    } else {
-                        onSetExpanded(false)
-                    }
-                }
-            } else {
-                onSetExpanded(!currentExpanded)
-            }
         }
     }
 
@@ -357,21 +294,27 @@ fun rememberCentralCommandState(
                     isLeftTopExpanded = allExpandedState
                     isLeftBottomExpanded = allExpandedState
                     isLeftUnifiedExpanded = allExpandedState
+                    isLeftTrackpadExpanded = allExpandedState
                     val leftGeoActive = allExpandedState && (
                         isLeftCenterGeoExpandedState.value ||
-                        (if (isLeftFlankUnified) isLeftUnifiedGeoExpandedState.value else isLeftTopGeoExpandedState.value || isLeftBottomGeoExpandedState.value)
+                        (if (isLeftFlankUnified) isLeftUnifiedGeoExpandedState.value else isLeftTopGeoExpandedState.value || isLeftBottomGeoExpandedState.value) ||
+                        isLeftTrackpadGeoExpandedState.value
                     )
                     prefs.edit()
                         .putBoolean(LightspeedPreferences.KEY_SECTION_LEFT_CENTER_EXPANDED, allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_LEFT_TOP_EXPANDED, allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_LEFT_BOTTOM_EXPANDED, allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_LEFT_UNIFIED_EXPANDED, allExpandedState)
+                        .putBoolean("pref_accordion_trackpad_left", allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW, leftGeoActive)
                         .apply()
                 }
                 1 -> {
                     isSensorDeckExpanded = allExpandedState
                     isSyntheticGravityExpanded = allExpandedState
+                    isAstrogationAirlockExpanded = allExpandedState
+                    isSonicDeckExpanded = allExpandedState
+                    isVistaDeckExpanded = allExpandedState
                     isTelemetryExpanded = allExpandedState
                     isTacticalHardwareExpanded = allExpandedState
                     isRefuelingExpanded = allExpandedState
@@ -384,6 +327,9 @@ fun rememberCentralCommandState(
                     prefs.edit()
                         .putBoolean(LightspeedPreferences.KEY_SECTION_SENSOR_DECK_EXPANDED, allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_ASTROGATION_AIRLOCK_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_SONIC_DECK_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_VISTA_DECK_EXPANDED, allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_TELEMETRY_EXPANDED, allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_TACTICAL_HARDWARE_EXPANDED, allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_REFUELING_EXPANDED, allExpandedState)
@@ -401,15 +347,18 @@ fun rememberCentralCommandState(
                     isTopExpanded = allExpandedState
                     isBottomExpanded = allExpandedState
                     isRightUnifiedExpanded = allExpandedState
+                    isTrackpadExpanded = allExpandedState
                     val rightGeoActive = allExpandedState && (
                         isCenterGeoExpandedState.value ||
-                        (if (isRightFlankUnified) isRightUnifiedGeoExpandedState.value else isTopGeoExpandedState.value || isBottomGeoExpandedState.value)
+                        (if (isRightFlankUnified) isRightUnifiedGeoExpandedState.value else isTopGeoExpandedState.value || isBottomGeoExpandedState.value) ||
+                        isTrackpadGeoExpandedState.value
                     )
                     prefs.edit()
                         .putBoolean(LightspeedPreferences.KEY_SECTION_CENTER_EXPANDED, allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_TOP_EXPANDED, allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_BOTTOM_EXPANDED, allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_RIGHT_UNIFIED_EXPANDED, allExpandedState)
+                        .putBoolean("pref_accordion_trackpad_right", allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, rightGeoActive)
                         .apply()
                 }
@@ -417,117 +366,162 @@ fun rememberCentralCommandState(
         }
     }
 
-    val navState = CentralCommandNavState(
-        tabMode0State = tabMode0State,
-        pinnedSection0State = pinnedSection0State,
-        sectionOrder0StrState = sectionOrder0StrState,
-        tabMode1State = tabMode1State,
-        pinnedSection1State = pinnedSection1State,
-        sectionOrder1StrState = sectionOrder1StrState,
-        tabMode2State = tabMode2State,
-        pinnedSection2State = pinnedSection2State,
-        sectionOrder2StrState = sectionOrder2StrState,
-        popoverTabTargetState = popoverTabTargetState,
-        blueprintTabTargetState = blueprintTabTargetState
-    )
+    val navState = remember {
+        CentralCommandNavState(
+            tabMode0State = tabMode0State,
+            pinnedSection0State = pinnedSection0State,
+            sectionOrder0StrState = sectionOrder0StrState,
+            tabMode1State = tabMode1State,
+            pinnedSection1State = pinnedSection1State,
+            sectionOrder1StrState = sectionOrder1StrState,
+            tabMode2State = tabMode2State,
+            pinnedSection2State = pinnedSection2State,
+            sectionOrder2StrState = sectionOrder2StrState,
+            popoverTabTargetState = popoverTabTargetState,
+            blueprintTabTargetState = blueprintTabTargetState
+        )
+    }
 
-    val leftDeflectorState = DeflectorAccordionState(
-        isCenterExpandedState = isLeftCenterExpandedState,
-        isTopExpandedState = isLeftTopExpandedState,
-        isBottomExpandedState = isLeftBottomExpandedState,
-        isFlankUnifiedState = isLeftFlankUnifiedState,
-        isUnifiedExpandedState = isLeftUnifiedExpandedState,
-        isCenterGeoExpandedState = isLeftCenterGeoExpandedState,
-        isUnifiedGeoExpandedState = isLeftUnifiedGeoExpandedState,
-        isUnifiedScrubExpandedState = isLeftUnifiedScrubExpandedState,
-        isUnifiedGesturesExpandedState = isLeftUnifiedGesturesExpandedState,
-        isTopGeoExpandedState = isLeftTopGeoExpandedState,
-        isTopScrubExpandedState = isLeftTopScrubExpandedState,
-        isTopGesturesExpandedState = isLeftTopGesturesExpandedState,
-        isBottomGeoExpandedState = isLeftBottomGeoExpandedState,
-        isBottomScrubExpandedState = isLeftBottomScrubExpandedState,
-        isBottomGesturesExpandedState = isLeftBottomGesturesExpandedState
-    )
+    val leftDeflectorState = remember {
+        DeflectorAccordionState(
+            isCenterExpandedState = isLeftCenterExpandedState,
+            isTopExpandedState = isLeftTopExpandedState,
+            isBottomExpandedState = isLeftBottomExpandedState,
+            isFlankUnifiedState = isLeftFlankUnifiedState,
+            isUnifiedExpandedState = isLeftUnifiedExpandedState,
+            isCenterGeoExpandedState = isLeftCenterGeoExpandedState,
+            isUnifiedGeoExpandedState = isLeftUnifiedGeoExpandedState,
+            isUnifiedScrubExpandedState = isLeftUnifiedScrubExpandedState,
+            isUnifiedGesturesExpandedState = isLeftUnifiedGesturesExpandedState,
+            isTopGeoExpandedState = isLeftTopGeoExpandedState,
+            isTopScrubExpandedState = isLeftTopScrubExpandedState,
+            isTopGesturesExpandedState = isLeftTopGesturesExpandedState,
+            isBottomGeoExpandedState = isLeftBottomGeoExpandedState,
+            isBottomScrubExpandedState = isLeftBottomScrubExpandedState,
+            isBottomGesturesExpandedState = isLeftBottomGesturesExpandedState,
+            isTrackpadExpandedState = isLeftTrackpadExpandedState,
+            isTrackpadGeoExpandedState = isLeftTrackpadGeoExpandedState,
+            isTrackpadPhysicsExpandedState = isLeftTrackpadPhysicsExpandedState
+        )
+    }
 
-    val rightDeflectorState = DeflectorAccordionState(
-        isCenterExpandedState = isCenterExpandedState,
-        isTopExpandedState = isTopExpandedState,
-        isBottomExpandedState = isBottomExpandedState,
-        isFlankUnifiedState = isRightFlankUnifiedState,
-        isUnifiedExpandedState = isRightUnifiedExpandedState,
-        isCenterGeoExpandedState = isCenterGeoExpandedState,
-        isUnifiedGeoExpandedState = isRightUnifiedGeoExpandedState,
-        isUnifiedScrubExpandedState = isRightUnifiedScrubExpandedState,
-        isUnifiedGesturesExpandedState = isRightUnifiedGesturesExpandedState,
-        isTopGeoExpandedState = isTopGeoExpandedState,
-        isTopScrubExpandedState = isTopScrubExpandedState,
-        isTopGesturesExpandedState = isTopGesturesExpandedState,
-        isBottomGeoExpandedState = isBottomGeoExpandedState,
-        isBottomScrubExpandedState = isBottomScrubExpandedState,
-        isBottomGesturesExpandedState = isBottomGesturesExpandedState,
-        isInnerWatchdogExpandedState = isInnerWatchdogExpandedState,
-        isOuterWatchdogExpandedState = isOuterWatchdogExpandedState
-    )
+    val rightDeflectorState = remember {
+        DeflectorAccordionState(
+            isCenterExpandedState = isCenterExpandedState,
+            isTopExpandedState = isTopExpandedState,
+            isBottomExpandedState = isBottomExpandedState,
+            isFlankUnifiedState = isRightFlankUnifiedState,
+            isUnifiedExpandedState = isRightUnifiedExpandedState,
+            isCenterGeoExpandedState = isCenterGeoExpandedState,
+            isUnifiedGeoExpandedState = isRightUnifiedGeoExpandedState,
+            isUnifiedScrubExpandedState = isRightUnifiedScrubExpandedState,
+            isUnifiedGesturesExpandedState = isRightUnifiedGesturesExpandedState,
+            isTopGeoExpandedState = isTopGeoExpandedState,
+            isTopScrubExpandedState = isTopScrubExpandedState,
+            isTopGesturesExpandedState = isTopGesturesExpandedState,
+            isBottomGeoExpandedState = isBottomGeoExpandedState,
+            isBottomScrubExpandedState = isBottomScrubExpandedState,
+            isBottomGesturesExpandedState = isBottomGesturesExpandedState,
+            isTrackpadExpandedState = isTrackpadExpandedState,
+            isTrackpadGeoExpandedState = isTrackpadGeoExpandedState,
+            isTrackpadPhysicsExpandedState = isTrackpadPhysicsExpandedState,
+            isInnerWatchdogExpandedState = isInnerWatchdogExpandedState,
+            isOuterWatchdogExpandedState = isOuterWatchdogExpandedState
+        )
+    }
 
-    val hudStripState = HudStripAccordionState(
-        isSensorDeckExpandedState = isSensorDeckExpandedState,
-        isSyntheticGravityExpandedState = isSyntheticGravityExpandedState,
-        isTelemetryExpandedState = isTelemetryExpandedState,
-        isTacticalHardwareExpandedState = isTacticalHardwareExpandedState,
-        isRefuelingExpandedState = isRefuelingExpandedState,
-        isConfigVaultExpandedState = isConfigVaultExpandedState,
-        isSystemOverridesExpandedState = isSystemOverridesExpandedState,
-        isExperimentalLabsExpandedState = isExperimentalLabsExpandedState,
-        singlePressTapCountState = singlePressTapCountState,
-        isSinglePressUnlockedState = isSinglePressUnlockedState,
-        isSubVolumeExpandedState = isSubVolumeExpandedState,
-        isSubPowerExpandedState = isSubPowerExpandedState,
-        isSubHullTapExpandedState = isSubHullTapExpandedState,
-        isStatusBarGeoExpandedState = isStatusBarGeoExpandedState,
-        isStatusBarScrubExpandedState = isStatusBarScrubExpandedState,
-        isStatusBarGesturesExpandedState = isStatusBarGesturesExpandedState,
-        isHorizonRailGeomExpandedState = isHorizonRailGeomExpandedState,
-        isHorizonRailColorExpandedState = isHorizonRailColorExpandedState,
-        isHorizonRailTextExpandedState = isHorizonRailTextExpandedState,
-        isNotchCalibExpandedState = isNotchCalibExpandedState,
-        isMarqueeSubSectionExpandedState = isMarqueeSubSectionExpandedState,
-        isOemNoticeDemotedState = isOemNoticeDemotedState,
-        currentZImpulseState = currentZImpulseState,
-        currentThresholdState = currentThresholdState,
-        thresholdCrossedFlashState = thresholdCrossedFlashState
-    )
+    val hudStripState = remember {
+        HudStripAccordionState(
+            isSensorDeckExpandedState = isSensorDeckExpandedState,
+            isSyntheticGravityExpandedState = isSyntheticGravityExpandedState,
+            isAstrogationAirlockExpandedState = isAstrogationAirlockExpandedState,
+            isSonicDeckExpandedState = isSonicDeckExpandedState,
+            isVistaDeckExpandedState = isVistaDeckExpandedState,
+            isTelemetryExpandedState = isTelemetryExpandedState,
+            isTacticalHardwareExpandedState = isTacticalHardwareExpandedState,
+            isRefuelingExpandedState = isRefuelingExpandedState,
+            isConfigVaultExpandedState = isConfigVaultExpandedState,
+            isSystemOverridesExpandedState = isSystemOverridesExpandedState,
+            isExperimentalLabsExpandedState = isExperimentalLabsExpandedState,
+            singlePressTapCountState = singlePressTapCountState,
+            isSinglePressUnlockedState = isSinglePressUnlockedState,
+            isSubVolumeExpandedState = isSubVolumeExpandedState,
+            isSubPowerExpandedState = isSubPowerExpandedState,
+            isSubHullTapExpandedState = isSubHullTapExpandedState,
+            isStatusBarGeoExpandedState = isStatusBarGeoExpandedState,
+            isStatusBarScrubExpandedState = isStatusBarScrubExpandedState,
+            isStatusBarGesturesExpandedState = isStatusBarGesturesExpandedState,
+            isHorizonRailGeomExpandedState = isHorizonRailGeomExpandedState,
+            isHorizonRailColorExpandedState = isHorizonRailColorExpandedState,
+            isHorizonRailTextExpandedState = isHorizonRailTextExpandedState,
+            isNotchCalibExpandedState = isNotchCalibExpandedState,
+            isMarqueeSubSectionExpandedState = isMarqueeSubSectionExpandedState,
+            isOemNoticeDemotedState = isOemNoticeDemotedState,
+            currentZImpulseState = currentZImpulseState,
+            currentThresholdState = currentThresholdState,
+            thresholdCrossedFlashState = thresholdCrossedFlashState
+        )
+    }
 
-    val dialogState = CentralCommandDialogState(
-        showUnifyInfoDialogState = showUnifyInfoDialogState,
-        showSymmetryInfoDialogState = showSymmetryInfoDialogState,
-        showPasteJsonDialogState = showPasteJsonDialogState,
-        pastedJsonTextState = pastedJsonTextState,
-        showUnifyTemplateDialogForLeftState = showUnifyTemplateDialogForLeftState,
-        showUnifyTemplateDialogForRightState = showUnifyTemplateDialogForRightState,
-        showImportOptionsDialogState = showImportOptionsDialogState,
-        showResetConfirmDialogState = showResetConfirmDialogState,
-        showOemShieldDialogState = showOemShieldDialogState,
-        showBatteryWarningDialogState = showBatteryWarningDialogState,
-        showNotificationAccessDialogState = showNotificationAccessDialogState,
-        showAmoledWarningDialogState = showAmoledWarningDialogState,
-        pendingBackTapScopeState = pendingBackTapScopeState
-    )
+    val dialogState = remember {
+        CentralCommandDialogState(
+            showUnifyInfoDialogState = showUnifyInfoDialogState,
+            showSymmetryInfoDialogState = showSymmetryInfoDialogState,
+            showPasteJsonDialogState = showPasteJsonDialogState,
+            pastedJsonTextState = pastedJsonTextState,
+            showUnifyTemplateDialogForLeftState = showUnifyTemplateDialogForLeftState,
+            showUnifyTemplateDialogForRightState = showUnifyTemplateDialogForRightState,
+            showImportOptionsDialogState = showImportOptionsDialogState,
+            showResetConfirmDialogState = showResetConfirmDialogState,
+            showOemShieldDialogState = showOemShieldDialogState,
+            showBatteryWarningDialogState = showBatteryWarningDialogState,
+            showNotificationAccessDialogState = showNotificationAccessDialogState,
+            showAmoledWarningDialogState = showAmoledWarningDialogState,
+            pendingBackTapScopeState = pendingBackTapScopeState
+        )
+    }
 
-    return CentralCommandState(
+    val toggleSection = rememberToggleSection(
+        prefs = prefs,
         nav = navState,
         leftDeflector = leftDeflectorState,
         rightDeflector = rightDeflectorState,
-        hudStrip = hudStripState,
-        dialogs = dialogState,
-        listState0 = listState0,
-        listState1 = listState1,
-        listState2 = listState2,
-        pagerState = pagerState,
-        dynamicActionTokens = dynamicActionTokens,
-        tokenLabelCache = tokenLabelCache,
-        sectionTitles0 = sectionTitles0,
-        sectionTitles1 = sectionTitles1,
-        sectionTitles2 = sectionTitles2,
-        toggleSection = toggleSection
+        hudStrip = hudStripState
     )
+    val toggleSubSection = rememberToggleSubSection(
+        prefs = prefs,
+        nav = navState,
+        leftDeflector = leftDeflectorState,
+        rightDeflector = rightDeflectorState,
+        hudStrip = hudStripState
+    )
+    val applyTabMode = rememberApplyTabMode(
+        prefs = prefs,
+        nav = navState,
+        leftDeflector = leftDeflectorState,
+        rightDeflector = rightDeflectorState,
+        hudStrip = hudStripState
+    )
+
+    return remember(sectionTitles0, sectionTitles1, sectionTitles2, dynamicActionTokens, tokenLabelCache) {
+        CentralCommandState(
+            nav = navState,
+            leftDeflector = leftDeflectorState,
+            rightDeflector = rightDeflectorState,
+            hudStrip = hudStripState,
+            dialogs = dialogState,
+            listState0 = listState0,
+            listState1 = listState1,
+            listState2 = listState2,
+            pagerState = pagerState,
+            dynamicActionTokens = dynamicActionTokens,
+            tokenLabelCache = tokenLabelCache,
+            sectionTitles0 = sectionTitles0,
+            sectionTitles1 = sectionTitles1,
+            sectionTitles2 = sectionTitles2,
+            toggleSection = toggleSection,
+            toggleSubSection = toggleSubSection,
+            applyTabMode = applyTabMode
+        )
+    }
 }

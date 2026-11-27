@@ -107,8 +107,9 @@ fun LightspeedCruiseOverlay.updateMetricsDimensions() {
 
             launchpadPillBounds.set(centerVisualBounds)
 
-            if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.x != edgeOffsetPx || lp.gravity != (Gravity.TOP or Gravity.END)) {
-                lp.gravity = Gravity.TOP or Gravity.END
+            @Suppress("RtlHardcoded")
+            if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.x != edgeOffsetPx || lp.gravity != (Gravity.TOP or Gravity.RIGHT)) {
+                lp.gravity = Gravity.TOP or Gravity.RIGHT
                 lp.x = edgeOffsetPx; lp.y = winY
                 lp.width = winWidth; lp.height = winHeight
                 wm.updateViewLayout(this, lp)
@@ -126,23 +127,32 @@ fun LightspeedCruiseOverlay.updateMetricsDimensions() {
         val bottomLimit = (centerBottom + bottomHeightPx).coerceAtMost(screenH)
 
         val maxTouchW = maxOf(centerTouchWidthPx, topTouchWidthPx, bottomTouchWidthPx)
-        val winHeight = (bottomLimit - topLimit).toInt().coerceAtLeast(100)
-        val winWidth = maxTouchW.toInt().coerceAtLeast(1)
-        val winY = topLimit.toInt()
+        val (sharedTopF, sharedBottomF, sharedWidthPx) = com.sbf.lightspeed.touch.LightspeedEdgeArbiter.computeSharedEdgeWindowBounds(
+            context = context,
+            isLeft = false,
+            deflectorTop = topLimit,
+            deflectorBottom = bottomLimit,
+            deflectorMaxWidthPx = maxTouchW
+        )
+        val winHeight = (sharedBottomF - sharedTopF).toInt().coerceAtLeast(100)
+        val winWidth = sharedWidthPx.toInt().coerceAtLeast(1)
+        val winY = sharedTopF.toInt()
         val w = winWidth.toFloat()
+        val topPad = (topLimit - sharedTopF).coerceAtLeast(0f)
 
-        topTouchBounds.set(w - topTouchWidthPx, 0f, w, topHeightPx)
-        centerTouchBounds.set(w - centerTouchWidthPx, topHeightPx, w, topHeightPx + centerHeightPx)
-        bottomTouchBounds.set(w - bottomTouchWidthPx, topHeightPx + centerHeightPx, w, topHeightPx + centerHeightPx + bottomHeightPx)
+        topTouchBounds.set(w - topTouchWidthPx, topPad, w, topPad + topHeightPx)
+        centerTouchBounds.set(w - centerTouchWidthPx, topPad + topHeightPx, w, topPad + topHeightPx + centerHeightPx)
+        bottomTouchBounds.set(w - bottomTouchWidthPx, topPad + topHeightPx + centerHeightPx, w, topPad + topHeightPx + centerHeightPx + bottomHeightPx)
 
-        topVisualBounds.set(w - topVisualWidthPx, 0f, w, topHeightPx)
-        centerVisualBounds.set(w - centerVisualWidthPx, topHeightPx, w, topHeightPx + centerHeightPx)
-        bottomVisualBounds.set(w - bottomVisualWidthPx, topHeightPx + centerHeightPx, w, topHeightPx + centerHeightPx + bottomHeightPx)
+        topVisualBounds.set(w - topVisualWidthPx, topPad, w, topPad + topHeightPx)
+        centerVisualBounds.set(w - centerVisualWidthPx, topPad + topHeightPx, w, topPad + topHeightPx + centerHeightPx)
+        bottomVisualBounds.set(w - bottomVisualWidthPx, topPad + topHeightPx + centerHeightPx, w, topPad + topHeightPx + centerHeightPx + bottomHeightPx)
 
         launchpadPillBounds.set(centerVisualBounds)
 
-        if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.x != edgeOffsetPx || lp.gravity != (Gravity.TOP or Gravity.END)) {
-            lp.gravity = Gravity.TOP or Gravity.END
+        @Suppress("RtlHardcoded")
+        if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.x != edgeOffsetPx || lp.gravity != (Gravity.TOP or Gravity.RIGHT)) {
+            lp.gravity = Gravity.TOP or Gravity.RIGHT
             lp.x = edgeOffsetPx; lp.y = winY
             lp.width = winWidth; lp.height = winHeight
             wm.updateViewLayout(this, lp)

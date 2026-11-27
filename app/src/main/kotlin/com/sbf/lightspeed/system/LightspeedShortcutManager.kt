@@ -135,11 +135,13 @@ object LightspeedShortcutManager {
                 }
                 prefs.all.forEach { (k, v) ->
                     val str = v?.toString() ?: ""
-                    if (str.startsWith("shortcut:") || str.startsWith("custom:")) {
+                    if (str.startsWith("shortcut:") || str.startsWith("custom:") || str.startsWith("caller;") || str.contains(";b64uri=")) {
                         allShortcutHashes.add(str.hashCode().toString())
                     }
                     if (k.startsWith("gear_set_") && k.contains("_packages")) {
-                        str.split(",").map { it.trim() }.filter { it.startsWith("shortcut:") || it.startsWith("custom:") }.forEach {
+                        str.split(",").map { it.trim() }.filter {
+                            it.startsWith("shortcut:") || it.startsWith("custom:") || it.startsWith("caller;") || it.contains(";b64uri=")
+                        }.forEach {
                             allShortcutHashes.add(it.hashCode().toString())
                         }
                     }
@@ -150,8 +152,9 @@ object LightspeedShortcutManager {
                     dir.listFiles()?.forEach { file ->
                         if (file.isFile && file.name.endsWith(".png")) {
                             val key = file.nameWithoutExtension
+                            val isSpecialSlotIcon = key.startsWith("space_pod_") || key.startsWith("custom_list_")
                             // Delete if not an active shortcut or if bitmap is corrupted
-                            if (!allShortcutHashes.contains(key)) {
+                            if (!isSpecialSlotIcon && !allShortcutHashes.contains(key)) {
                                 file.delete()
                             } else {
                                 val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
@@ -479,6 +482,16 @@ object LightspeedShortcutManager {
             }
         }
 
+        // 4b. Direct Call Intent Icon Fallback
+        if (parsed.type == "intent" && (parsed.intentUri.contains(Intent.ACTION_CALL) || parsed.intentUri.startsWith("tel:"))) {
+            androidx.core.content.ContextCompat.getDrawable(context, com.sbf.lightspeed.R.drawable.ic_direct_call)?.let { d ->
+                val mutated = d.constantState?.newDrawable()?.mutate() ?: d.mutate()
+                mutated.alpha = 255
+                if (useCache) drawableCache.put(token, mutated)
+                return mutated.constantState?.newDrawable()?.mutate() ?: mutated
+            }
+        }
+
         // 5. Monogram Glyph Fallback (Clean Material 3 badge, NEVER an empty white circle)
         val label = resolveLabel(context, token)
         val fallbackBmp = createMonogramBitmap(context, label)
@@ -711,7 +724,24 @@ object LightspeedShortcutManager {
                             } catch (e: Exception) { logSwallowed(TAG, "launch:601", e) }
                         }
 
-                        // 1. Try starting as Activity with BAL immunity
+                        // 1. Try starting as Activity with BAL immunity (or dialer fallback for CALL without permission)
+                        if (launchIntent.action == Intent.ACTION_CALL) {
+                            val hasCallPerm = androidx.core.content.ContextCompat.checkSelfPermission(
+                                context,
+                                android.Manifest.permission.CALL_PHONE
+                            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                            if (!hasCallPerm && !ElevatedTaskCloser.isShizukuActive) {
+                                try {
+                                    val dialIntent = Intent(Intent.ACTION_DIAL, launchIntent.data).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(dialIntent, createLaunchBundle(context))
+                                    return true
+                                } catch (e: Exception) {
+                                    Log.d(TAG, "Dial fallback failed: ${e.message}")
+                                }
+                            }
+                        }
                         try {
                             context.startActivity(launchIntent, createLaunchBundle(context))
                             return true

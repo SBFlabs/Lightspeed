@@ -124,7 +124,13 @@ fun buildFlatItemsList(
     context: android.content.Context? = null
 ): List<PickerRowItem> {
     val list = mutableListOf<PickerRowItem>()
-    val scrubTokens = setOf("system:screen_timeout", "system:volume", "system:brightness")
+    val scrubTokens = setOf(
+        "system:screen_timeout",
+        "system:volume",
+        "system:brightness",
+        "system:media_scrubber",
+        "system:scroll_scrub"
+    )
     val validTokens = allTokens.filter { token ->
         token != "none" && (isHoldOrScrubGesture || !scrubTokens.contains(token))
     }
@@ -165,7 +171,7 @@ fun buildFlatItemsList(
                 Triple(
                     "sys_hw",
                     com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.HARDWARE_CONTROLS),
-                    listOf("system:flashlight", "system:screenshot", "system:lock_screen", "system:notifications", "system:quick_settings", "system:scroll_to_top", "system:scroll_to_bottom")
+                    listOf("system:flashlight", "system:direct_call", "system:screenshot", "system:lock_screen", "system:notifications", "system:quick_settings", "system:scroll_to_top", "system:scroll_to_bottom")
                 ),
                 Triple(
                     "sys_media",
@@ -176,9 +182,8 @@ fun buildFlatItemsList(
                         "system:media_prev",
                         "system:media_skip_forward",
                         "system:media_skip_backward",
-                        "system:media_scrubber",
                         "system:media_stop",
-                        "system:omniscient_audio"
+                        "system:sonic_deck"
                     )
                 ),
                 Triple(
@@ -215,7 +220,7 @@ fun buildFlatItemsList(
                 Triple(
                     "sys_scrub",
                     com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.GESTURE_SCRUBBERS),
-                    listOf("system:screen_timeout", "system:volume", "system:brightness", "system:media_scrubber")
+                    listOf("system:screen_timeout", "system:volume", "system:brightness", "system:media_scrubber", "system:scroll_scrub")
                 ),
                 Triple(
                     "sys_android_native",
@@ -600,18 +605,29 @@ private fun addHudStylePickerOptions(
     token: String,
     currentStyle: String
 ) {
-    val signatureOption = when {
-        token.contains("brightness") ->
-            Triple("signature_solar_lux", "Style: Solar Lux Photometer (Signature)", "Action-specific brightness HUD with estimated Nits & segmented photonic lux meter")
-        token.contains("timeout") ->
-            Triple("signature_chrono_dial", "Style: Chrono Countdown Dial (Signature)", "Action-specific sleep-horizon HUD with stepped timeout timeline & chrono badge")
-        token.contains("scroll") ->
-            Triple("signature_kinetic_thruster", "Style: Kinetic Thruster Gauge (Signature)", "Action-specific bi-directional scroll velocity vector gauge")
-        else ->
-            Triple("signature_sonic_eq", "Style: Sonic Equalizer Deck (Signature)", "Action-specific volume HUD with live 18-bar equalizer spectrum & dB readout")
+    val signatureOptions = when {
+        token.contains("media") -> listOf(
+            Triple("prism_timeline", "Style: Timeline Scrubber Card (Signature)", "Interactive media timeline card with live scrubbing seekbar"),
+            Triple("signature_media_shade", "Style: Timeline Shade (Signature)", "Frameless open-air media steps, letters & numbers with per-element condensing alpha halo")
+        )
+        token.contains("brightness") -> listOf(
+            Triple("signature_solar_lux", "Style: Solar Lux Photometer (Signature)", "Action-specific brightness HUD with estimated Nits & segmented photonic lux meter"),
+            Triple("signature_solar_shade", "Style: Solar Lux Shade (Signature)", "Frameless open-air photonic steps & numbers with per-element condensing alpha halo")
+        )
+        token.contains("timeout") -> listOf(
+            Triple("signature_chrono_dial", "Style: Chrono Countdown Dial (Signature)", "Action-specific sleep-horizon HUD with stepped timeout timeline & chrono badge"),
+            Triple("signature_chrono_shade", "Style: Chrono Shade (Signature)", "Frameless open-air timeout nodes & numbers with per-element condensing alpha halo")
+        )
+        token.contains("scroll") -> listOf(
+            Triple("signature_kinetic_thruster", "Style: Kinetic Thruster Gauge (Signature)", "Action-specific bi-directional scroll velocity vector gauge"),
+            Triple("signature_thruster_shade", "Style: Thruster Shade (Signature)", "Frameless open-air vector step bars with per-element condensing alpha halo")
+        )
+        else -> listOf(
+            Triple("signature_sonic_eq", "Style: Sonic Equalizer Deck (Signature)", "Action-specific volume HUD with live 18-bar equalizer spectrum & dB readout"),
+            Triple("signature_sonic_shade", "Style: Sonic Equalizer Shade (Signature)", "Frameless open-air EQ wave bars & numbers with per-element condensing alpha halo")
+        )
     }
-    listOf(
-        signatureOption,
+    (signatureOptions + listOf(
         Triple("modern_symbol_pill", "Style: Modern Symbol Pill", "Sleek frosted glass pill with sculpted symbol badge & fluid progress bar"),
         Triple("modern_floating_orb", "Style: Modern Symbol Orb", "Compact circular glass button with perimeter progress ring & sculpted symbol"),
         Triple("modern_slim_slider", "Style: Modern Glass Slider", "Full-capsule liquid fill slider bar with sculpted symbol & bold readout"),
@@ -620,7 +636,7 @@ private fun addHudStylePickerOptions(
         Triple("edge_blade", "Style: Dynamic Edge Blade", "Lateral energy ladder aligned to active swipe edge"),
         Triple("quantum_horizon", "Style: Quantum Synthetic Horizon", "Synthetic horizon collimator with swept flight wings & digital telemetry"),
         Triple("tachyon_dial", "Style: Tachyon Orbital Radar", "Concentric orbital radar dial with 360° azimuth degree hashes & target crosshair")
-    ).forEach { (styleKey, title, subtitle) ->
+    )).forEach { (styleKey, title, subtitle) ->
         list.add(
             PickerRowItem.SystemCustomizationOption(
                 parentToken = token,

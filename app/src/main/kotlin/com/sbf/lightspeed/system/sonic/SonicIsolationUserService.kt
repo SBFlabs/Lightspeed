@@ -92,13 +92,37 @@ class SonicIsolationUserService @Keep constructor() : ISonicIsolationUserService
         }
     }
 
+    private fun pruneStaleSessionEnhancers(configs: List<AudioPlaybackConfiguration>) {
+        if (sessionEnhancers.isEmpty()) return
+        val activeSessionIds = HashSet<Int>(configs.size)
+        for (config in configs) {
+            val sid = try {
+                config.javaClass.getMethod("getSessionId").invoke(config) as? Int ?: 0
+            } catch (_: Exception) { 0 }
+            if (sid > 0) activeSessionIds.add(sid)
+        }
+        val it = sessionEnhancers.entries.iterator()
+        while (it.hasNext()) {
+            val entry = it.next()
+            if (entry.key !in activeSessionIds) {
+                try {
+                    entry.value.enabled = false
+                    entry.value.release()
+                } catch (_: Exception) {}
+                it.remove()
+            }
+        }
+    }
+
     private fun reapplyAllPackageVolumes() {
-        if (packageVolumes.isEmpty()) return
+        if (packageVolumes.isEmpty() && sessionEnhancers.isEmpty()) return
         val ctx = shellContext ?: getSystemContext()
         val pm = ctx.packageManager
         val audioManager = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
         try {
             val configs = audioManager.activePlaybackConfigurations
+            pruneStaleSessionEnhancers(configs)
+            if (packageVolumes.isEmpty()) return
             for (config in configs) {
                 val uid = try {
                     config.javaClass.getMethod("getClientUid").invoke(config) as? Int ?: -1
@@ -177,6 +201,7 @@ class SonicIsolationUserService @Keep constructor() : ISonicIsolationUserService
         val audioManager = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return result.toMutableList()
         try {
             val configs: List<AudioPlaybackConfiguration> = audioManager.activePlaybackConfigurations
+            pruneStaleSessionEnhancers(configs)
             for (config in configs) {
                 val uid = try {
                     config.javaClass.getMethod("getClientUid").invoke(config) as? Int ?: -1

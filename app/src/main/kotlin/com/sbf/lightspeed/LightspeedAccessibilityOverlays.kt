@@ -102,7 +102,8 @@ internal fun LightspeedAccessibilityService.setupStatusBarOverlay(prefs: SharedP
         flags,
         PixelFormat.TRANSLUCENT
     ).apply {
-        gravity = Gravity.TOP or Gravity.START
+        @Suppress("RtlHardcoded")
+        gravity = Gravity.TOP or Gravity.LEFT
         x = 0
         y = 0
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -153,7 +154,8 @@ internal fun LightspeedAccessibilityService.setupSensorTouchOverlay(prefs: Share
         flags,
         PixelFormat.TRANSLUCENT
     ).apply {
-        gravity = Gravity.TOP or Gravity.START
+        @Suppress("RtlHardcoded")
+        gravity = Gravity.TOP or Gravity.LEFT
         x = sensorLeft.toInt()
         y = sensorTop.toInt()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -237,7 +239,8 @@ internal fun LightspeedAccessibilityService.setupBottomSensorTouchOverlay(prefs:
         flags,
         PixelFormat.TRANSLUCENT
     ).apply {
-        gravity = Gravity.BOTTOM or Gravity.START
+        @Suppress("RtlHardcoded")
+        gravity = Gravity.BOTTOM or Gravity.LEFT
         x = sensorLeft.toInt()
         y = sensorOffsetY.toInt()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -385,7 +388,8 @@ internal fun LightspeedAccessibilityService.updateWindowLayoutInternal(expand: B
     if (windowManager == null || overlayView == null) return
     com.sbf.lightspeed.system.display.LightspeedRefreshRateEngine.applyOverlayPeakBoost(this, windowParams, expand)
     if (expand) {
-        windowParams.gravity = Gravity.TOP or Gravity.START
+        @Suppress("RtlHardcoded")
+        windowParams.gravity = Gravity.TOP or Gravity.LEFT
         windowParams.x = 0; windowParams.y = 0
         windowParams.width = WindowManager.LayoutParams.MATCH_PARENT
         windowParams.height = WindowManager.LayoutParams.MATCH_PARENT
@@ -573,7 +577,8 @@ internal fun LightspeedAccessibilityService.updateNotchWindowBoundsInternal(isEx
     notchWindowParams.height = targetHeight.coerceAtLeast(1)
     notchWindowParams.x = targetX
     notchWindowParams.y = targetY
-    notchWindowParams.gravity = Gravity.TOP or Gravity.START
+    @Suppress("RtlHardcoded")
+    notchWindowParams.gravity = Gravity.TOP or Gravity.LEFT
     if (!isVisible) {
         notchWindowParams.flags = notchWindowParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         notchOverlayView?.visibility = View.GONE
@@ -598,7 +603,8 @@ internal fun LightspeedAccessibilityService.setupOrientationAnchor() {
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
         PixelFormat.TRANSLUCENT
     ).apply {
-        gravity = Gravity.TOP or Gravity.START
+        @Suppress("RtlHardcoded")
+        gravity = Gravity.TOP or Gravity.LEFT
         alpha = 0.01f
         screenOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
     }

@@ -29,6 +29,15 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
     val x = event.x; val y = event.y
     val rawX = event.rawX; val rawY = event.rawY
 
+    if (!isCruising && currentLayer == CruiseLayer.HIDDEN && !isLockscreenPillOnly) {
+        val centerScreenY = (resources.displayMetrics.heightPixels / 2f) + centerYOffsetPx
+        val cTop = centerScreenY - (centerHeightPx / 2f)
+        val cBot = centerScreenY + (centerHeightPx / 2f)
+        if (com.sbf.lightspeed.touch.LightspeedEdgeArbiter.routeEdgeTouch(context, false, cTop, cBot, event)) {
+            return true
+        }
+    }
+
     when (event.actionMasked) {
         MotionEvent.ACTION_DOWN -> {
             pendingHoldReleaseScrollAction = null
@@ -86,6 +95,10 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                 macroTrackingActive = true
                 val holdDuration = com.sbf.lightspeed.system.LightspeedPreferences.getGestureHoldDurationMs(context)
                 uiHandler.postDelayed(holdTimerRunnable, holdDuration)
+            } else {
+                isCurrentlyTouched = false
+                invalidate()
+                return false
             }
             return true
         }

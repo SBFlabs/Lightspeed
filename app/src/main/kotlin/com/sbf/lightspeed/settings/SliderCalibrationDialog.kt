@@ -84,12 +84,13 @@ fun DeckSignatureSliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val isArabic = com.sbf.lightspeed.system.LightspeedLocaleEngine.state.primary == com.sbf.lightspeed.system.LightspeedLocaleEngine.AppLanguage.AR
             Text(
                 text = title,
                 fontSize = 10.5.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 0.7.sp,
+                letterSpacing = if (isArabic) 0.sp else 0.7.sp,
                 color = LightspeedStyle.colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

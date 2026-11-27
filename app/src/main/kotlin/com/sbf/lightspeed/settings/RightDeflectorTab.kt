@@ -27,6 +27,9 @@ fun RightDeflectorTabContent(
     isTopGeoExpandedState: MutableState<Boolean>,
     isTopGesturesExpandedState: MutableState<Boolean>,
     isTopScrubExpandedState: MutableState<Boolean>,
+    isTrackpadExpandedState: MutableState<Boolean>,
+    isTrackpadGeoExpandedState: MutableState<Boolean>,
+    isTrackpadPhysicsExpandedState: MutableState<Boolean>,
     listState2: LazyListState,
     onRefreshNeeded: () -> Unit,
     pinnedSection2State: MutableState<String>,
@@ -36,7 +39,9 @@ fun RightDeflectorTabContent(
     showUnifyInfoDialogState: MutableState<Boolean>,
     showUnifyTemplateDialogForRightState: MutableState<Boolean>,
     toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit,
-    tokenLabelCache: Map<String, String>
+    toggleSubSection: (Int, String, String, Boolean, (Boolean) -> Unit) -> Unit,
+    tokenLabelCache: Map<String, String>,
+    onApplyCustomPinned: () -> Unit = {}
 ) {
     DeflectorTabBody(
         isLeft = false,
@@ -50,6 +55,7 @@ fun RightDeflectorTabContent(
         listState = listState2,
         onRefreshNeeded = onRefreshNeeded,
         toggleSection = toggleSection,
+        toggleSubSection = toggleSubSection,
         pinnedSectionState = pinnedSection2State,
         sectionOrderStrState = sectionOrder2StrState,
         sectionTitles = sectionTitles2,
@@ -69,6 +75,10 @@ fun RightDeflectorTabContent(
         isBottomExpandedState = isBottomExpandedState,
         isBottomGeoExpandedState = isBottomGeoExpandedState,
         isBottomGesturesExpandedState = isBottomGesturesExpandedState,
-        isBottomScrubExpandedState = isBottomScrubExpandedState
+        isBottomScrubExpandedState = isBottomScrubExpandedState,
+        isTrackpadExpandedState = isTrackpadExpandedState,
+        isTrackpadGeoExpandedState = isTrackpadGeoExpandedState,
+        isTrackpadPhysicsExpandedState = isTrackpadPhysicsExpandedState,
+        onApplyCustomPinned = onApplyCustomPinned
     )
 }

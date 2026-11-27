@@ -9,9 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LockClock
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,7 +24,6 @@ import kotlin.math.roundToInt
 import com.sbf.lightspeed.R
 import com.sbf.lightspeed.settings.DeckSlider
 import com.sbf.lightspeed.settings.DeckSwitch
-import com.sbf.lightspeed.settings.DeckSubChip
 import com.sbf.lightspeed.settings.CollapsibleSubSection
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
@@ -101,25 +98,29 @@ fun VistaBrightnessSection(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        "Display Brightness",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = lsColors.textPrimary
-                    )
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (isVideoOverrideActive) lsColors.accentWarn.copy(alpha = 0.2f) else lsColors.accent.copy(alpha = 0.15f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
                         Text(
-                            text = if (isVideoOverrideActive) "${(systemBrightness * 100).toInt()}% (Video Override)" else "${(systemBrightness * 100).toInt()}%",
-                            fontSize = 9.5.sp,
+                            lsString(R.string.vdeck_display_bright),
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isVideoOverrideActive) lsColors.accentWarn else lsColors.accent
+                            color = lsColors.textPrimary
                         )
-                    }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isVideoOverrideActive) lsColors.accentWarn.copy(alpha = 0.2f) else lsColors.accent.copy(alpha = 0.15f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = if (isVideoOverrideActive) {
+                                    lsString(R.string.vdeck_bright_override_fmt, (systemBrightness * 100).toInt())
+                                } else {
+                                    "${(systemBrightness * 100).toInt()}%"
+                                },
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isVideoOverrideActive) lsColors.accentWarn else lsColors.accent
+                            )
+                        }
                 }
 
                 DeckSlider(
@@ -142,10 +143,10 @@ fun VistaBrightnessSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Acceleration", fontSize = 9.5.sp, color = lsColors.textPrimary)
+                        Text(lsString(R.string.vdeck_accel_title), fontSize = 9.5.sp, color = lsColors.textPrimary)
                         Text(
-                            if (scrubAccelEnabled) "Velocity curve: ${String.format(java.util.Locale.US, "%.1fx", scrubAccelRate / 10f)} multiplier"
-                            else "Linear 1:1 scrubbing (no velocity ramp)",
+                            if (scrubAccelEnabled) lsString(R.string.vdeck_accel_vel_fmt, scrubAccelRate / 10f)
+                            else lsString(R.string.vdeck_accel_linear),
                             fontSize = 8.5.sp,
                             color = lsColors.textSecondary
                         )
@@ -179,7 +180,7 @@ fun VistaBrightnessSection(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Preserve Auto-Brightness on Scrub", fontSize = 9.5.sp, color = lsColors.textPrimary)
+                    Text(lsString(R.string.vdeck_preserve_auto), fontSize = 9.5.sp, color = lsColors.textPrimary)
                     DeckSwitch(
                         checked = preserveAutoMode,
                         onCheckedChange = {
@@ -203,15 +204,15 @@ fun VistaBrightnessSection(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier.clickable { showOffsetExplanation = !showOffsetExplanation }
                     ) {
-                        Text("Protective Screen / Sensor Offset", fontSize = 9.5.sp, color = lsColors.textPrimary)
+                        Text(lsString(R.string.vdeck_sensor_offset), fontSize = 9.5.sp, color = lsColors.textPrimary)
                         Icon(
                             Icons.Default.Info,
-                            contentDescription = "Why this value?",
+                            contentDescription = lsString(R.string.vdeck_offset_cd),
                             tint = if (showOffsetExplanation) lsColors.accent else lsColors.textSecondary,
                             modifier = Modifier.size(13.dp)
                         )
                     }
-                    Text(if (sensorOffsetPct > 0) "+$sensorOffsetPct%" else if (sensorOffsetPct < 0) "$sensorOffsetPct%" else "0% (Neutral)", fontSize = 8.5.sp, fontWeight = FontWeight.Bold, color = lsColors.accent)
+                    Text(if (sensorOffsetPct > 0) "+$sensorOffsetPct%" else if (sensorOffsetPct < 0) "$sensorOffsetPct%" else lsString(R.string.vdeck_offset_neutral), fontSize = 8.5.sp, fontWeight = FontWeight.Bold, color = lsColors.accent)
                 }
 
                 if (showOffsetExplanation) {
@@ -223,7 +224,7 @@ fun VistaBrightnessSection(
                             .padding(8.dp)
                     ) {
                         Text(
-                            "Thick glass screen protectors or heavy-duty cases often shade or reflect light away from the ambient lux sensor, causing Android auto-brightness to think the room is darker than it is and underexpose your screen. This offset shifts the baseline brightness up (+1%..+20%) or down to keep auto-curves perfectly legible without disabling adaptive mode.",
+                            lsString(R.string.vdeck_offset_desc),
                             fontSize = 8.sp,
                             color = lsColors.textSecondary,
                             lineHeight = 11.sp
@@ -273,21 +274,21 @@ fun VistaBrightnessSection(
                             modifier = Modifier.clickable { showOverrideExplanation = !showOverrideExplanation }
                         ) {
                             Text(
-                                "BRIGHTNESS OVERRIDE",
+                                lsString(R.string.vdeck_override_hdr),
                                 fontSize = 9.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (autoResetEnabled) lsColors.accent else lsColors.textSecondary
                             )
                             Icon(
                                 Icons.Default.Info,
-                                contentDescription = "What is Brightness Override?",
+                                contentDescription = lsString(R.string.vdeck_override_cd),
                                 tint = if (showOverrideExplanation) lsColors.accent else lsColors.textSecondary,
                                 modifier = Modifier.size(13.dp)
                             )
                         }
                         Text(
-                            if (autoResetEnabled) "Automated release via triggers below"
-                            else "Whole automation off (Manually released only)",
+                            if (autoResetEnabled) lsString(R.string.vdeck_override_sub_on)
+                            else lsString(R.string.vdeck_override_sub_off),
                             fontSize = 8.sp,
                             color = lsColors.textSecondary
                         )
@@ -311,7 +312,7 @@ fun VistaBrightnessSection(
                             .padding(8.dp)
                     ) {
                         Text(
-                            "Brightness Override locks screen luminance using a top-level overlay so media players (VLC, MX Player, YouTube) or system ambient sensors cannot hijack or dim your display. Trigger it anytime by scrubbing upward past 100%. When automation is turned on, the system automatically disengages the override and restores your adaptive curve on the triggers selected below.",
+                            lsString(R.string.vdeck_override_desc),
                             fontSize = 8.sp,
                             color = lsColors.textSecondary,
                             lineHeight = 11.sp
@@ -321,7 +322,7 @@ fun VistaBrightnessSection(
 
                 // Auto-Brightness Reset Multi-Trigger Chips
                 Text(
-                    "AUTO-RELEASE TRIGGERS (SELECT MULTIPLE)",
+                    lsString(R.string.vdeck_triggers_hdr),
                     fontSize = 8.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = if (autoResetEnabled) lsColors.textPrimary else lsColors.textSecondary.copy(alpha = 0.4f)
@@ -334,10 +335,10 @@ fun VistaBrightnessSection(
                     horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     val triggerChips = listOf(
-                        Triple(LightspeedPreferences.AUTO_RESET_OFF, "Manual", ""),
-                        Triple(LightspeedPreferences.AUTO_RESET_APP_SWITCH, "App Switch", ""),
-                        Triple(LightspeedPreferences.AUTO_RESET_SCREEN_OFF, "Screen Off", ""),
-                        Triple(LightspeedPreferences.AUTO_RESET_RECENTS_CLOSE, "Recents Close", "HOLD ↗")
+                        Triple(LightspeedPreferences.AUTO_RESET_OFF, lsString(R.string.vdeck_trig_manual), ""),
+                        Triple(LightspeedPreferences.AUTO_RESET_APP_SWITCH, lsString(R.string.vdeck_trig_app_switch), ""),
+                        Triple(LightspeedPreferences.AUTO_RESET_SCREEN_OFF, lsString(R.string.vdeck_trig_screen_off), ""),
+                        Triple(LightspeedPreferences.AUTO_RESET_RECENTS_CLOSE, lsString(R.string.vdeck_trig_recents), lsString(R.string.sdeck_hold_tag))
                     )
 
                     triggerChips.forEach { (triggerKey, title, subText) ->
@@ -443,21 +444,59 @@ fun VistaOpticsSection(
     }
 
     var extraDimEnabled by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, false)) }
-    var extraDimLevel by remember { mutableFloatStateOf(prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 40).toFloat()) }
+    var extraDimLevel by remember {
+        mutableFloatStateOf(
+            prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 40)
+                .let { if (it in 10..90) it else 40 }
+                .toFloat()
+        )
+    }
 
     var smartPixelsEnabled by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SMART_PIXELS_ENABLED, false)) }
     var smartPixelsPattern by remember { mutableIntStateOf(prefs.getInt(LightspeedPreferences.KEY_SMART_PIXELS_PATTERN, 25)) }
     var smartPixelsBlockSize by remember { mutableIntStateOf(prefs.getInt(LightspeedPreferences.KEY_SMART_PIXELS_BLOCK_SIZE, 1)) }
     var smartPixelsDisableOnCast by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SMART_PIXELS_DISABLE_ON_CAST, true)) }
+    var eyeCareEnabled by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_EYE_CARE_ENABLED, false)) }
+    var eyeCareTemp by remember {
+        mutableFloatStateOf(
+            prefs.getInt(LightspeedPreferences.KEY_EYE_CARE_TEMP, LightspeedEyeCareEngine.DEFAULT_KELVIN)
+                .coerceIn(LightspeedEyeCareEngine.MIN_KELVIN, LightspeedEyeCareEngine.MAX_KELVIN)
+                .toFloat()
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        val (syncedEnabled, syncedKelvin) = LightspeedEyeCareEngine.syncFromSystem(service)
+        eyeCareEnabled = syncedEnabled
+        eyeCareTemp = syncedKelvin.toFloat()
+    }
+
+    DisposableEffect(prefs) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            when (key) {
+                LightspeedPreferences.KEY_EXTRA_DIM_ENABLED -> extraDimEnabled = prefs.getBoolean(key, false)
+                LightspeedPreferences.KEY_EXTRA_DIM_LEVEL -> extraDimLevel = prefs.getInt(key, 40).let { if (it in 10..90) it else 40 }.toFloat()
+                LightspeedPreferences.KEY_SMART_PIXELS_ENABLED -> smartPixelsEnabled = prefs.getBoolean(key, false)
+                LightspeedPreferences.KEY_SMART_PIXELS_PATTERN -> smartPixelsPattern = prefs.getInt(key, 25)
+                LightspeedPreferences.KEY_SMART_PIXELS_BLOCK_SIZE -> smartPixelsBlockSize = prefs.getInt(key, 1)
+                LightspeedPreferences.KEY_EYE_CARE_ENABLED -> eyeCareEnabled = prefs.getBoolean(key, false)
+                LightspeedPreferences.KEY_EYE_CARE_TEMP -> eyeCareTemp = prefs.getInt(key, LightspeedEyeCareEngine.DEFAULT_KELVIN)
+                    .coerceIn(LightspeedEyeCareEngine.MIN_KELVIN, LightspeedEyeCareEngine.MAX_KELVIN)
+                    .toFloat()
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Below 0% Scrub Target
-        Text("BELOW 0% SCRUB TARGET", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.accent)
+        Text(lsString(R.string.vdeck_below_zero_hdr), fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.accent)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             val options = listOf(
-                Pair(LightspeedPreferences.SCRUB_EXTREME_EYE_CARE, "Eye Care"),
-                Pair(LightspeedPreferences.SCRUB_EXTREME_EXTRA_DIM, "Extra Dim"),
-                Pair(LightspeedPreferences.SCRUB_EXTREME_SMART_PIXELS, "Smart Pixels")
+                Pair(LightspeedPreferences.SCRUB_EXTREME_EYE_CARE, lsString(R.string.vdeck_pill_eye_care)),
+                Pair(LightspeedPreferences.SCRUB_EXTREME_EXTRA_DIM, lsString(R.string.vdeck_pill_extra_dim)),
+                Pair(LightspeedPreferences.SCRUB_EXTREME_SMART_PIXELS, lsString(R.string.vdeck_pill_smart_pixels))
             )
             options.forEach { (mode, label) ->
                 val isSelected = bottomExtreme == mode
@@ -495,7 +534,7 @@ fun VistaOpticsSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Extra Dim: ${extraDimLevel.toInt()}%", fontSize = 9.5.sp, color = lsColors.textPrimary)
+            Text(lsString(R.string.vdeck_extra_dim_fmt, extraDimLevel.toInt()), fontSize = 9.5.sp, color = lsColors.textPrimary)
             DeckSwitch(
                 checked = extraDimEnabled,
                 onCheckedChange = {
@@ -523,7 +562,7 @@ fun VistaOpticsSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Smart Pixels Density: $smartPixelsPattern%", fontSize = 9.5.sp, color = lsColors.textPrimary)
+            Text(lsString(R.string.vdeck_sp_density_fmt, smartPixelsPattern), fontSize = 9.5.sp, color = lsColors.textPrimary)
             DeckSwitch(
                 checked = smartPixelsEnabled,
                 onCheckedChange = {
@@ -551,7 +590,7 @@ fun VistaOpticsSection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Block Size: ${smartPixelsBlockSize}px", fontSize = 9.sp, color = lsColors.textSecondary)
+                Text(lsString(R.string.vdeck_sp_block_fmt, smartPixelsBlockSize), fontSize = 9.sp, color = lsColors.textSecondary)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf(1, 2, 4).forEach { size ->
                         val isSel = smartPixelsBlockSize == size
@@ -561,7 +600,7 @@ fun VistaOpticsSection(
                                 .background(if (isSel) lsColors.accent.copy(alpha = 0.35f) else lsColors.dialogSurface.copy(alpha = 0.3f))
                                 .clickable {
                                     smartPixelsBlockSize = size
-                                    prefs.edit().putInt(LightspeedPreferences.KEY_SMART_PIXELS_BLOCK_SIZE, size).apply()
+                                    LightspeedSmartPixelsOverlay.setBlockSize(service, size)
                                 }
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
@@ -576,7 +615,7 @@ fun VistaOpticsSection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Bypass on Screen Record / Cast", fontSize = 8.5.sp, color = lsColors.textSecondary)
+                Text(lsString(R.string.vdeck_sp_cast_bypass), fontSize = 8.5.sp, color = lsColors.textSecondary)
                 DeckSwitch(
                     checked = smartPixelsDisableOnCast,
                     onCheckedChange = {
@@ -590,22 +629,24 @@ fun VistaOpticsSection(
         }
 
         // Eye Care & Blue Light Filter
-        var eyeCareEnabled by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_EYE_CARE_ENABLED, false)) }
-        var eyeCareTemp by remember { mutableFloatStateOf(prefs.getInt(LightspeedPreferences.KEY_EYE_CARE_TEMP, 3400).coerceIn(2200, 5500).toFloat()) }
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Eye Care & Blue Light Filter", fontSize = 9.5.sp, color = lsColors.textPrimary)
+                Text(lsString(R.string.vdeck_eye_care_title), fontSize = 9.5.sp, color = lsColors.textPrimary)
                 Text(
-                    if (eyeCareEnabled) "${eyeCareTemp.toInt()}K — " + when {
-                        eyeCareTemp < 2600f -> "Deep Candlelight"
-                        eyeCareTemp < 3400f -> "Warm Amber"
-                        else -> "Soft Evening"
-                    } else "Filter disabled",
+                    if (eyeCareEnabled) {
+                        val tempK = eyeCareTemp.toInt()
+                        when {
+                            eyeCareTemp < 2600f -> lsString(R.string.vdeck_eye_care_candle, tempK)
+                            eyeCareTemp < 3400f -> lsString(R.string.vdeck_eye_care_amber, tempK)
+                            else -> lsString(R.string.vdeck_eye_care_evening, tempK)
+                        }
+                    } else {
+                        lsString(R.string.vdeck_eye_care_disabled)
+                    },
                     fontSize = 8.5.sp,
                     color = if (eyeCareEnabled) lsColors.accentWarn else lsColors.textSecondary
                 )
@@ -614,192 +655,25 @@ fun VistaOpticsSection(
                 checked = eyeCareEnabled,
                 onCheckedChange = {
                     eyeCareEnabled = it
-                    LightspeedEyeCareEngine.applyEyeCare(service, it, eyeCareTemp.toInt())
+                    LightspeedEyeCareEngine.applyEyeCare(service, it, eyeCareTemp.toInt(), updateTemperature = false)
                 },
                 modifier = Modifier.height(22.dp)
             )
         }
 
         if (eyeCareEnabled) {
+            val minK = LightspeedEyeCareEngine.MIN_KELVIN.toFloat()
+            val maxK = LightspeedEyeCareEngine.MAX_KELVIN.toFloat()
+            val warmthFraction = ((maxK - eyeCareTemp) / (maxK - minK)).coerceIn(0f, 1f)
             DeckSlider(
-                value = eyeCareTemp,
-                valueRange = 2200f..5500f,
-                onValueChange = {
-                    eyeCareTemp = it
-                    LightspeedEyeCareEngine.applyEyeCare(service, true, it.toInt())
-                },
-                modifier = Modifier.height(22.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun VistaEyeCareSection(
-    service: AccessibilityService
-) {
-    VistaOpticsSection(service = service)
-}
-
-@Composable
-fun VistaAirlockSection(
-    service: AccessibilityService,
-    onOpenAirlockPicker: () -> Unit = {}
-) {
-    val lsColors = LightspeedStyle.colors
-    val prefs = service.defaultPrefs()
-
-    var airlockEnabled by remember {
-        mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ENABLED, false))
-    }
-    var airlockAbortMode by remember {
-        mutableStateOf(
-            prefs.getString(
-                LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ABORT_MODE,
-                LightspeedPreferences.AIRLOCK_ABORT_MODE_CLOSE_APP
-            ) ?: LightspeedPreferences.AIRLOCK_ABORT_MODE_CLOSE_APP
-        )
-    }
-    var airlockApps by remember {
-        mutableStateOf(prefs.getStringSet(LightspeedPreferences.KEY_CONSCIOUS_DELAY_PACKAGES, emptySet()) ?: emptySet())
-    }
-    var airlockColorMode by remember {
-        mutableStateOf(
-            prefs.getString(
-                LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_COLOR_MODE,
-                LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12
-            ) ?: LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12
-        )
-    }
-
-    var eyeRestEnabled by remember {
-        mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_EYE_REST_REMINDER_ENABLED, false))
-    }
-    var eyeRestInterval by remember {
-        mutableFloatStateOf(prefs.getInt(LightspeedPreferences.KEY_EYE_REST_INTERVAL_MIN, 20).toFloat())
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Astrogation Airlock
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Astrogation Airlock Delay", fontSize = 9.5.sp, color = lsColors.textPrimary)
-                Text("${airlockApps.size} gated apps with 5s mindful pause", fontSize = 8.5.sp, color = lsColors.textSecondary)
-            }
-            DeckSwitch(
-                checked = airlockEnabled,
-                onCheckedChange = {
-                    airlockEnabled = it
-                    prefs.edit().putBoolean(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ENABLED, it).apply()
-                },
-                modifier = Modifier.height(22.dp)
-            )
-        }
-
-        if (airlockEnabled) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                DeckSubChip(
-                    text = if (airlockAbortMode == LightspeedPreferences.AIRLOCK_ABORT_MODE_GO_HOME) "Abort: Home" else "Abort: Close",
-                    isActive = airlockAbortMode != LightspeedPreferences.AIRLOCK_ABORT_MODE_GO_HOME,
-                    onClick = {
-                        val next = if (airlockAbortMode == LightspeedPreferences.AIRLOCK_ABORT_MODE_GO_HOME) {
-                            LightspeedPreferences.AIRLOCK_ABORT_MODE_CLOSE_APP
-                        } else {
-                            LightspeedPreferences.AIRLOCK_ABORT_MODE_GO_HOME
-                        }
-                        airlockAbortMode = next
-                        prefs.edit().putString(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_ABORT_MODE, next).apply()
-                    }
-                )
-                DeckSubChip(
-                    text = "Gated Apps (${airlockApps.size})",
-                    icon = Icons.Default.LockClock,
-                    isActive = airlockApps.isNotEmpty(),
-                    onClick = onOpenAirlockPicker
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                DeckSubChip(
-                    text = lsString(R.string.act_native_wellbeing),
-                    icon = Icons.AutoMirrored.Filled.OpenInNew,
-                    isActive = false,
-                    onClick = {
-                        com.sbf.lightspeed.system.VistaDeckManager.dismiss()
-                        com.sbf.lightspeed.system.NativeSettingsLauncher.openDigitalWellbeing(service)
-                    }
-                )
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = lsString(R.string.airlock_color_engine),
-                    fontSize = 8.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = lsColors.textSecondary
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    listOf(
-                        LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 to lsString(R.string.ce_theme_12),
-                        LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC to lsString(R.string.ce_material_3),
-                        LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION to lsString(R.string.ce_hybrid)
-                    ).forEach { (mode, label) ->
-                        DeckSubChip(
-                            text = label,
-                            isActive = airlockColorMode == mode,
-                            onClick = {
-                                airlockColorMode = mode
-                                prefs.edit().putString(LightspeedPreferences.KEY_CONSCIOUS_AIRLOCK_COLOR_MODE, mode).apply()
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-        }
-
-        // 20-20-20 Eye Rest
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("20-20-20 Eye Rest Timer", fontSize = 9.5.sp, color = lsColors.textPrimary)
-                Text(if (eyeRestEnabled) "Every ${eyeRestInterval.toInt()} min of continuous screen time" else "Periodic 20s eye rest break", fontSize = 8.5.sp, color = lsColors.textSecondary)
-            }
-            DeckSwitch(
-                checked = eyeRestEnabled,
-                onCheckedChange = {
-                    eyeRestEnabled = it
-                    prefs.edit().putBoolean(LightspeedPreferences.KEY_EYE_REST_REMINDER_ENABLED, it).apply()
-                    LightspeedEyeCareEngine.onScreenStateChanged(service, it)
-                },
-                modifier = Modifier.height(22.dp)
-            )
-        }
-
-        if (eyeRestEnabled) {
-            DeckSlider(
-                value = eyeRestInterval,
-                valueRange = 10f..60f,
-                onValueChange = {
-                    val intVal = it.roundToInt()
-                    eyeRestInterval = intVal.toFloat()
-                    prefs.edit().putInt(LightspeedPreferences.KEY_EYE_REST_INTERVAL_MIN, intVal).apply()
+                value = warmthFraction,
+                valueRange = 0f..1f,
+                onValueChange = { frac ->
+                    val newKelvin = (maxK - frac.coerceIn(0f, 1f) * (maxK - minK))
+                        .roundToInt()
+                        .coerceIn(LightspeedEyeCareEngine.MIN_KELVIN, LightspeedEyeCareEngine.MAX_KELVIN)
+                    eyeCareTemp = newKelvin.toFloat()
+                    LightspeedEyeCareEngine.applyEyeCare(service, true, newKelvin)
                 },
                 modifier = Modifier.height(22.dp)
             )

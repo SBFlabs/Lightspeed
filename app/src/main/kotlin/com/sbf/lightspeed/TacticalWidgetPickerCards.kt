@@ -187,20 +187,21 @@ internal fun TacticalWidgetAppHeaderRow(
                         fontWeight = if (item.isPinned) FontWeight.Bold else FontWeight.SemiBold,
                         color = if (item.isPinned) LightspeedTokens.StatusGoldBright else lsColors.textPrimary,
                         style = TextStyle(
-                            platformStyle = PlatformTextStyle(includeFontPadding = false),
-                            lineHeight = 16.sp
+                            platformStyle = PlatformTextStyle(includeFontPadding = true),
+                            lineHeight = 18.sp
                         ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
                 Text(
-                    text = "${item.widgetCount} widget${if (item.widgetCount == 1) "" else "s"}",
+                    text = if (item.widgetCount == 1) lsString(R.string.picker_wid_count_one, item.widgetCount)
+                    else lsString(R.string.picker_wid_count_many, item.widgetCount),
                     fontSize = 10.sp,
                     color = dynamicSecondary.copy(alpha = 0.85f),
                     style = TextStyle(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false),
-                        lineHeight = 12.sp
+                        platformStyle = PlatformTextStyle(includeFontPadding = true),
+                        lineHeight = 14.sp
                     ),
                     maxLines = 1
                 )

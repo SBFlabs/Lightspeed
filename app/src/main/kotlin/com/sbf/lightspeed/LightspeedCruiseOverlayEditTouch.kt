@@ -89,7 +89,7 @@ internal fun LightspeedCruiseOverlay.handleEditModeTap(x: Float, y: Float) {
                 relX < btnW -> {
                     // "A-Z"
                     triggerHardwareHaptic(25, 120)
-                    editModeCategories.sortBy { it.label.lowercase() }
+                    editModeCategories.sortBy { LightspeedDataBridge.localizedCategoryLabel(it.id, it.label).lowercase() }
                     invalidate()
                 }
                 relX < btnW * 2f -> {
@@ -100,7 +100,9 @@ internal fun LightspeedCruiseOverlay.handleEditModeTap(x: Float, y: Float) {
                     // "Default"
                     triggerHardwareHaptic(25, 120)
                     val defaultMap = LightspeedDataBridge.DRAWER_CATEGORIES.associateBy { it.id }
-                    val defaultList = LightspeedDataBridge.DRAWER_CATEGORIES.mapNotNull { defaultMap[it.id] }
+                    val defaultList = LightspeedDataBridge.DRAWER_CATEGORIES.mapNotNull {
+                        defaultMap[it.id]?.copy(label = LightspeedDataBridge.localizedCategoryLabel(it.id, it.label))
+                    }
                     editModeCategories.clear()
                     editModeCategories.addAll(defaultList)
                     invalidate()

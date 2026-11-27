@@ -17,6 +17,38 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 
+internal data class ResolvedStyleColors(
+    val panelColor: Color,
+    val tintColor: Color,
+    val borderColor: Color,
+    val glowColor: Color
+)
+
+internal fun ditheredBrushPaint(
+    brush: Brush,
+    size: Size,
+    style: PaintingStyle = PaintingStyle.Fill,
+    strokePx: Float = 0f
+): Paint = Paint().apply {
+    isAntiAlias = true
+    asFrameworkPaint().isDither = true
+    this.style = style
+    if (strokePx > 0f) strokeWidth = strokePx
+    brush.applyTo(size, this, 1f)
+}
+
+internal fun ditheredColorPaint(
+    color: Color = Color.Unspecified,
+    style: PaintingStyle = PaintingStyle.Fill,
+    strokePx: Float = 0f
+): Paint = Paint().apply {
+    isAntiAlias = true
+    asFrameworkPaint().isDither = true
+    this.style = style
+    if (strokePx > 0f) strokeWidth = strokePx
+    if (color != Color.Unspecified) this.color = color
+}
+
 internal class UnifiedDeckOpticalCache(
     val depthSheets: List<RotatedDepthSheet>,
     val shadowPaint: android.graphics.Paint?,
@@ -99,7 +131,7 @@ internal fun buildUnifiedDeckOpticalCache(
     } else if (!isBlurAvailable && !isFlyout && !isCard) {
         (baseAlpha * 0.96f).coerceIn(0.0f, 0.98f)
     } else if (snapshot.isProgressive && !useLightweightHudBlur) {
-        (baseAlpha * 0.62f).coerceIn(0.0f, 0.96f)
+        (baseAlpha * 0.42f).coerceIn(0.0f, 0.92f)
     } else if (useLightweightHudBlur) {
         baseAlpha
     } else {
@@ -108,7 +140,7 @@ internal fun buildUnifiedDeckOpticalCache(
     val botAlpha = if (isMaterial3 && !useLightweightHudBlur) {
         baseAlpha
     } else if (snapshot.isProgressive && !useLightweightHudBlur) {
-        (baseAlpha * 1.15f).coerceIn(0.0f, 0.98f)
+        (baseAlpha * 1.20f).coerceIn(0.0f, 0.98f)
     } else {
         baseAlpha
     }
@@ -150,6 +182,17 @@ internal fun buildUnifiedDeckOpticalCache(
                 ),
                 center = Offset(w * 0.30f, h * 0.16f),
                 radius = w * 0.85f
+            ),
+            safeSize
+        )
+        "gaussian" -> ditheredBrushPaint(
+            Brush.radialGradient(
+                colors = listOf(
+                    colors.tintColor.copy(alpha = 0.16f),
+                    Color.Transparent
+                ),
+                center = Offset(w * 0.50f, h * 0.42f),
+                radius = w * 0.72f
             ),
             safeSize
         )
@@ -379,7 +422,7 @@ internal fun buildUnifiedDeckOpticalCache(
         specularPath = specularPath,
         specularPaint = specularPaint,
         borderPaint = borderPaint,
-        noiseAlpha = if (suppressOrnaments || snapshot.styleId != "acrylic" || snapshot.noiseStrength <= 0.01f) {
+        noiseAlpha = if (suppressOrnaments || (snapshot.styleId != "acrylic" && snapshot.styleId != "frosted") || snapshot.noiseStrength <= 0.01f) {
             0f
         } else {
             (snapshot.noiseStrength * 0.85f).coerceIn(0f, 0.12f)

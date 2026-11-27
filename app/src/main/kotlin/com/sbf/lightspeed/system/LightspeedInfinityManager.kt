@@ -2,9 +2,9 @@ package com.sbf.lightspeed.system
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
+import com.sbf.lightspeed.BuildConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,8 +33,10 @@ object LightspeedInfinityManager {
     private const val KEY_ACTIVE_CODE = "pref_active_infinity_code"
     private const val KEY_FAILED_ATTEMPTS = "pref_infinity_failed_attempts"
     private const val KEY_LOCKOUT_TIMESTAMP = "pref_infinity_lockout_timestamp"
+    private const val KEY_LAST_VERSION_CODE = "pref_infinity_last_version_code"
 
     private const val LOCKOUT_DURATION_MS = 30_000L
+    private const val MAX_LOCKOUT_DURATION_MS = 45_000L
     private const val MAX_FAILED_ATTEMPTS = 3
 
     private const val ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
@@ -82,20 +84,56 @@ object LightspeedInfinityManager {
         return vault.getString(KEY_ACTIVE_CODE, null)
     }
 
-    fun isLockedOut(context: Context): Boolean {
-        val vault = getVault(context)
+    /**
+     * Synchronizes failed-attempt / lockout state against version upgrades and clock anomalies:
+     * - Resets failed attempts and lockout whenever [BuildConfig.VERSION_CODE] increases.
+     * - Caps every offline key lockout strictly at 30–45 seconds (never > 60s), clearing
+     *   stale or future-skewed timestamps (e.g. legacy `elapsedRealtime` values across reboots).
+     */
+    private fun syncVaultState(vault: SharedPreferences): Long {
+        val lastVer = vault.getInt(KEY_LAST_VERSION_CODE, -1)
+        val curVer = BuildConfig.VERSION_CODE
+        if (curVer > lastVer) {
+            vault.edit()
+                .putInt(KEY_FAILED_ATTEMPTS, 0)
+                .putLong(KEY_LOCKOUT_TIMESTAMP, 0L)
+                .putInt(KEY_LAST_VERSION_CODE, curVer)
+                .apply()
+            return 0L
+        }
+
         val attempts = vault.getInt(KEY_FAILED_ATTEMPTS, 0)
-        if (attempts >= MAX_FAILED_ATTEMPTS) {
-            val lockoutTime = vault.getLong(KEY_LOCKOUT_TIMESTAMP, 0L)
-            val remaining = (lockoutTime + LOCKOUT_DURATION_MS) - SystemClock.elapsedRealtime()
-            if (remaining > 0) return true
-            // Lockout expired, reset counter
+        if (attempts < MAX_FAILED_ATTEMPTS) return 0L
+
+        val now = System.currentTimeMillis()
+        var lockoutStart = vault.getLong(KEY_LOCKOUT_TIMESTAMP, 0L)
+        if (lockoutStart <= 0L) {
             vault.edit()
                 .putInt(KEY_FAILED_ATTEMPTS, 0)
                 .putLong(KEY_LOCKOUT_TIMESTAMP, 0L)
                 .apply()
+            return 0L
         }
-        return false
+        if (lockoutStart > now) {
+            lockoutStart = now
+            vault.edit().putLong(KEY_LOCKOUT_TIMESTAMP, now).apply()
+        }
+
+        val durationMs = if (attempts > MAX_FAILED_ATTEMPTS) MAX_LOCKOUT_DURATION_MS else LOCKOUT_DURATION_MS
+        val remaining = ((lockoutStart + durationMs) - now).coerceAtMost(MAX_LOCKOUT_DURATION_MS)
+        if (remaining <= 0L) {
+            vault.edit()
+                .putInt(KEY_FAILED_ATTEMPTS, 0)
+                .putLong(KEY_LOCKOUT_TIMESTAMP, 0L)
+                .apply()
+            return 0L
+        }
+        return remaining
+    }
+
+    fun isLockedOut(context: Context): Boolean {
+        val vault = getVault(context)
+        return syncVaultState(vault) > 0L
     }
 
     fun isLockedOut(): Boolean {
@@ -105,9 +143,9 @@ object LightspeedInfinityManager {
 
     fun getRemainingLockoutSeconds(context: Context): Int {
         val vault = getVault(context)
-        val lockoutTime = vault.getLong(KEY_LOCKOUT_TIMESTAMP, 0L)
-        val remaining = (lockoutTime + LOCKOUT_DURATION_MS) - SystemClock.elapsedRealtime()
-        return (remaining / 1000L).coerceAtLeast(0L).toInt()
+        val remaining = syncVaultState(vault)
+        if (remaining <= 0L) return 0
+        return ((remaining + 999L) / 1000L).coerceIn(1L, 45L).toInt()
     }
 
     fun getRemainingLockoutSeconds(): Int = 0
@@ -177,6 +215,14 @@ object LightspeedInfinityManager {
             .putInt(KEY_FAILED_ATTEMPTS, 0)
             .putLong(KEY_LOCKOUT_TIMESTAMP, 0L)
             .apply()
+        CockpitGimbalConfigCache.previewGearShape?.let { shape ->
+            CockpitGearRepository.setGearShape(context, shape)
+        }
+        CockpitGimbalConfigCache.previewReticleStyle?.let { reticle ->
+            context.defaultPrefs().edit().putString(LightspeedPreferences.KEY_GEAR_RETICLE_STYLE, reticle).apply()
+        }
+        CockpitGimbalConfigCache.clearPreview()
+        CockpitGimbalConfigCache.flush()
         _unlockEpoch.value = _unlockEpoch.value + 1
         LightspeedHapticEngine.triggerConfirmation(context)
         try {
@@ -189,10 +235,13 @@ object LightspeedInfinityManager {
 
     private fun registerFailure(context: Context) {
         val vault = getVault(context)
+        syncVaultState(vault)
         val current = vault.getInt(KEY_FAILED_ATTEMPTS, 0) + 1
-        val editor = vault.edit().putInt(KEY_FAILED_ATTEMPTS, current)
+        val editor = vault.edit()
+            .putInt(KEY_FAILED_ATTEMPTS, current)
+            .putInt(KEY_LAST_VERSION_CODE, BuildConfig.VERSION_CODE)
         if (current >= MAX_FAILED_ATTEMPTS) {
-            editor.putLong(KEY_LOCKOUT_TIMESTAMP, SystemClock.elapsedRealtime())
+            editor.putLong(KEY_LOCKOUT_TIMESTAMP, System.currentTimeMillis())
         }
         editor.apply()
     }

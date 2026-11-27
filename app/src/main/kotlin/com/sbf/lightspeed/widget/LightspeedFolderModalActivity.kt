@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.sbf.lightspeed.CockpitGearPickerActivity
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import com.sbf.lightspeed.settings.DeckCard
 import com.sbf.lightspeed.settings.DeckGlassCardSurface
@@ -66,6 +67,7 @@ class LightspeedFolderModalActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        LightspeedLocaleEngine.init(this)
 
         // Make window completely transparent & edge-to-edge with zero black status/nav bars
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -141,7 +143,7 @@ class LightspeedFolderModalActivity : ComponentActivity() {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "FOLDER (${apps.size})",
+                                        text = lsString(R.string.folder_hdr_fmt, apps.size),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = lsColors.textPrimary
@@ -153,7 +155,7 @@ class LightspeedFolderModalActivity : ComponentActivity() {
                                         ) {
                                             Icon(
                                                 imageVector = if (isEditMode) Icons.Default.Close else Icons.Default.Edit,
-                                                contentDescription = if (isEditMode) "Done" else "Edit",
+                                                contentDescription = if (isEditMode) lsString(R.string.common_done) else lsString(R.string.common_edit),
                                                 tint = if (isEditMode) lsColors.accentWarn else lsColors.accentInfo,
                                                 modifier = Modifier.size(16.dp)
                                             )
@@ -164,7 +166,7 @@ class LightspeedFolderModalActivity : ComponentActivity() {
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Close,
-                                                contentDescription = "Close",
+                                                contentDescription = lsString(R.string.icon_br_close),
                                                 tint = lsColors.textSecondary,
                                                 modifier = Modifier.size(16.dp)
                                             )
@@ -174,7 +176,7 @@ class LightspeedFolderModalActivity : ComponentActivity() {
 
                                 if (apps.isEmpty() && !isEditMode) {
                                     Text(
-                                        text = "No items in this folder yet. Tap edit icon above to add apps.",
+                                        text = lsString(R.string.folder_empty_hint),
                                         fontSize = 11.sp,
                                         color = lsColors.textSecondary,
                                         modifier = Modifier.padding(vertical = 16.dp)
@@ -196,7 +198,7 @@ class LightspeedFolderModalActivity : ComponentActivity() {
                                                     onClick = {
                                                         val intent = Intent(this@LightspeedFolderModalActivity, CockpitGearPickerActivity::class.java).apply {
                                                             putExtra("CUSTOM_LIST_PREF_KEY", folderPrefKey)
-                                                            putExtra("CUSTOM_LIST_TITLE", "Folder Items")
+                                                            putExtra("CUSTOM_LIST_TITLE", lsString(R.string.folder_picker_title))
                                                             putExtra("SLOT_INDEX", apps.size)
                                                         }
                                                         pickerLauncher.launch(intent)
@@ -238,7 +240,7 @@ class LightspeedFolderModalActivity : ComponentActivity() {
         onRemove: () -> Unit
     ) {
         val lsColors = LightspeedStyle.colors
-        val label = remember(token) { LightspeedShortcutManager.resolveLabel(context, token) }
+        val label = remember(token, LightspeedLocaleEngine.state) { LightspeedShortcutManager.resolveLabel(context, token) }
         val iconBitmap by produceState<Bitmap?>(initialValue = null, key1 = token) {
             value = withContext(Dispatchers.IO) {
                 LightspeedIconManager.getIconBitmap(context, token, useCache = true)
@@ -311,7 +313,7 @@ class LightspeedFolderModalActivity : ComponentActivity() {
                 ) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Remove",
+                        contentDescription = lsString(R.string.common_remove),
                         tint = Color.White,
                         modifier = Modifier.size(12.dp)
                     )
@@ -342,14 +344,14 @@ class LightspeedFolderModalActivity : ComponentActivity() {
             ) {
                 Icon(
                     Icons.Default.Add,
-                    contentDescription = "Add App",
+                    contentDescription = lsString(R.string.ed_add),
                     tint = lsColors.accentInfo,
                     modifier = Modifier.size(24.dp)
                 )
             }
 
             Text(
-                text = "Add",
+                text = lsString(R.string.ed_add),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 color = lsColors.accentInfo,

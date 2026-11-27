@@ -27,8 +27,8 @@ object LightspeedPreferencesDefaults {
         editor.putString("pref_sub_pinned_unified_2", "gestures")
 
         editor.putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_0, "left_center,left_unified,left_trackpad")
-        editor.putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,tactical_hardware,system_overrides,config_vault,experimental_labs")
-        editor.putString("pref_tab_order_1", "sensor_deck,telemetry_indicators,tactical_hardware,system_overrides,config_vault,experimental_labs")
+        editor.putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, com.sbf.lightspeed.settings.HudStripTabOrderHelper.DEFAULT_ORDER_CSV)
+        editor.putString("pref_tab_order_1", com.sbf.lightspeed.settings.HudStripTabOrderHelper.DEFAULT_ORDER_CSV)
         editor.putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_2, "center,unified,trackpad")
         editor.putString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "top_line")
         editor.putString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none")
@@ -39,7 +39,7 @@ object LightspeedPreferencesDefaults {
         editor.putBoolean("pref_section_unified_expanded", true)
         editor.putBoolean("pref_section_right_unified_expanded", true)
         editor.putBoolean("pref_section_left_unified_expanded", true)
-        editor.putBoolean("pref_section_center_expanded", true)
+        editor.putBoolean("pref_section_center_expanded", false)
         editor.putBoolean("pref_section_left_center_expanded", false)
         editor.putBoolean("pref_section_watchdogs_expanded", true)
 
@@ -312,6 +312,10 @@ object LightspeedPreferencesDefaults {
         editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_SLOT2_BATTERY_MODE_PREFIX + "other", "vitals")
         editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_BATTERY_MODE_PREFIX + "slot3_other", "system")
         editor.putString(LightspeedPreferences.KEY_CATEGORY_HUD_BATTERY_SPAN_PREFIX + "slot3_other", "7d")
+        editor.putString(LightspeedPreferences.KEY_TELEMETRY_HUD_STYLE, LightspeedPreferences.DEFAULT_TELEMETRY_HUD_STYLE)
+        editor.putBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_COMPACT, false)
+        editor.putString(LightspeedPreferences.KEY_TELEMETRY_HUD_FONT, LightspeedPreferences.DEFAULT_TELEMETRY_HUD_FONT)
+        editor.putInt(LightspeedPreferences.KEY_TELEMETRY_HUD_SCALE, LightspeedPreferences.DEFAULT_TELEMETRY_HUD_SCALE)
 
         editor.apply()
     }

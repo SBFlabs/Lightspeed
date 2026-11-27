@@ -127,6 +127,9 @@ fun TrackpadRotatingTipBanner(modifier: Modifier = Modifier) {
                 fontSize = 10.sp,
                 color = lsColors.textSecondary,
                 lineHeight = 13.5.sp,
+                minLines = 2,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
         }

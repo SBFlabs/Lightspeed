@@ -31,17 +31,22 @@ internal fun ensureHighContrastColor(colorArgb: Int): Int {
 }
 
 /** Category Cruise name-spacing presets (percent of the default row height). */
-internal val CATEGORY_SPACING_OPTIONS = listOf(70 to "TIGHT", 100 to "NORMAL", 130 to "WIDE", 160 to "WIDER")
+internal fun categorySpacingOptions(): List<Pair<Int, String>> = listOf(
+    70 to com.sbf.lightspeed.system.lsString(R.string.ed_sp_tight),
+    100 to com.sbf.lightspeed.system.lsString(R.string.ed_sp_normal),
+    130 to com.sbf.lightspeed.system.lsString(R.string.ed_sp_wide),
+    160 to com.sbf.lightspeed.system.lsString(R.string.ed_sp_wider)
+)
 
 /**
  * Category Cruise color engine modes. Independent from every HUD / Cybernetic / gear-set color engine.
  * Drives: focused-app spotlight + ring, focused-category nebula, the ✦ star beacon and the edit panel accent.
  * The central pill (Core Astrogation) is intentionally excluded.
  */
-internal val CATEGORY_COLOR_ENGINE_OPTIONS = listOf(
-    LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 to "12-THEME",
-    LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC to "MATERIAL 3",
-    LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION to "HYBRID"
+internal fun categoryColorEngineOptions(): List<Pair<String, String>> = listOf(
+    LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 to com.sbf.lightspeed.system.lsString(R.string.ed_col_theme12),
+    LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC to com.sbf.lightspeed.system.lsString(R.string.ed_col_m3),
+    LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION to com.sbf.lightspeed.system.lsString(R.string.ed_col_hybrid)
 )
 
 internal fun LightspeedCruiseOverlay.categoryColorMode(): String =
@@ -83,22 +88,26 @@ internal fun LightspeedCruiseOverlay.categorySpacingScale(): Float =
     ).coerceIn(40, 250) / 100f
 
 /** Category Cruise slider feel presets (stored values match the gear-ring physics tokens). */
-internal val CATEGORY_PHYSICS_OPTIONS = listOf("magnetic" to "SNAPPY", "fluid" to "FLUID", "heavy" to "HEAVY")
-
-/** Category Cruise HUD widget corner roundness presets (in dp). */
-internal val CATEGORY_HUD_RADIUS_OPTIONS = listOf(
-    0 to "SHARP",
-    8 to "SUBTLE",
-    16 to "ROUNDED",
-    26 to "PILL"
+internal fun categoryPhysicsOptions(): List<Pair<String, String>> = listOf(
+    "magnetic" to com.sbf.lightspeed.system.lsString(R.string.ed_feel_snappy),
+    "fluid" to com.sbf.lightspeed.system.lsString(R.string.ed_feel_fluid),
+    "heavy" to com.sbf.lightspeed.system.lsString(R.string.ed_feel_heavy)
 )
 
-internal val CATEGORY_LAUNCH_SPARK_OPTIONS = listOf(
-    "photon_burst" to "PHOTON",
-    "nova_bloom" to "HALO",
-    "quantum_cross" to "FLARE",
-    "ion_embers" to "EMBERS",
-    "clean_fade" to "MINIMAL"
+/** Category Cruise HUD widget corner roundness presets (in dp). */
+internal fun categoryHudRadiusOptions(): List<Pair<Int, String>> = listOf(
+    0 to com.sbf.lightspeed.system.lsString(R.string.ed_rad_sharp),
+    8 to com.sbf.lightspeed.system.lsString(R.string.ed_rad_subtle),
+    16 to com.sbf.lightspeed.system.lsString(R.string.ed_rad_rounded),
+    26 to com.sbf.lightspeed.system.lsString(R.string.ed_rad_pill)
+)
+
+internal fun categoryLaunchSparkOptions(): List<Pair<String, String>> = listOf(
+    "photon_burst" to com.sbf.lightspeed.system.lsString(R.string.ed_spark_photon),
+    "nova_bloom" to com.sbf.lightspeed.system.lsString(R.string.ed_spark_halo),
+    "quantum_cross" to com.sbf.lightspeed.system.lsString(R.string.ed_spark_flare),
+    "ion_embers" to com.sbf.lightspeed.system.lsString(R.string.ed_spark_embers),
+    "clean_fade" to com.sbf.lightspeed.system.lsString(R.string.ed_spark_minimal)
 )
 
 internal fun LightspeedCruiseOverlay.categoryLaunchSparkStyle(): String =
@@ -244,11 +253,11 @@ internal fun computeHudStyleTabLayout(
         return labelY to rects
     }
 
-    val (colorLabelY, colorPills) = buildRow(CATEGORY_COLOR_ENGINE_OPTIONS)
-    val (spacingLabelY, spacingPills) = buildRow(CATEGORY_SPACING_OPTIONS)
-    val (feelLabelY, feelPills) = buildRow(CATEGORY_PHYSICS_OPTIONS)
-    val (radiusLabelY, radiusPills) = buildRow(CATEGORY_HUD_RADIUS_OPTIONS)
-    val (sparkLabelY, sparkPills) = buildRow(CATEGORY_LAUNCH_SPARK_OPTIONS)
+    val (colorLabelY, colorPills) = buildRow(categoryColorEngineOptions())
+    val (spacingLabelY, spacingPills) = buildRow(categorySpacingOptions())
+    val (feelLabelY, feelPills) = buildRow(categoryPhysicsOptions())
+    val (radiusLabelY, radiusPills) = buildRow(categoryHudRadiusOptions())
+    val (sparkLabelY, sparkPills) = buildRow(categoryLaunchSparkOptions())
 
     return HudStyleTabLayout(
         openInPlaceRect = openInPlaceRect,
@@ -431,8 +440,14 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
         canvas.drawLine(bounds.left + (btnW * 2f), btnRowTop + 4f * dp, bounds.left + (btnW * 2f), bounds.bottom - 4f * dp, paint)
         canvas.drawLine(bounds.left + (btnW * 3f), btnRowTop + 4f * dp, bounds.left + (btnW * 3f), bounds.bottom - 4f * dp, paint)
 
+        val azLbl = com.sbf.lightspeed.system.lsString(R.string.ed_btn_az).ifBlank { "A-Z" }
+        val mostUsedLbl = com.sbf.lightspeed.system.lsString(R.string.ed_btn_most_used).ifBlank { "Most used" }
+        val defaultLbl = com.sbf.lightspeed.system.lsString(R.string.ed_btn_default).ifBlank { "Default" }
+        val saveLbl = com.sbf.lightspeed.system.lsString(R.string.ed_btn_save).ifBlank { "Save" }
+
         var labelSize = btnTextSize
-        while (paint.measureText("Most used") > btnW - 6f * dp && labelSize > 7.5f * dp) {
+        val longestLbl = listOf(azLbl, mostUsedLbl, defaultLbl, saveLbl).maxByOrNull { paint.measureText(it) } ?: mostUsedLbl
+        while (paint.measureText(longestLbl) > btnW - 6f * dp && labelSize > 7.5f * dp) {
             labelSize -= 0.5f * dp
             paint.textSize = labelSize
         }
@@ -442,19 +457,19 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
 
         // "A-Z"
         paint.color = Color.argb(225, 235, 240, 255)
-        canvas.drawText("A-Z", bounds.left + (btnW * 0.5f), btnRowCenterY - btnTextYOffset, paint)
+        canvas.drawText(azLbl, bounds.left + (btnW * 0.5f), btnRowCenterY - btnTextYOffset, paint)
 
         // "Most used"
         paint.color = Color.argb(225, 235, 240, 255)
-        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_btn_most_used).ifBlank { "Most used" }, bounds.left + (btnW * 1.5f), btnRowCenterY - btnTextYOffset, paint)
+        canvas.drawText(mostUsedLbl, bounds.left + (btnW * 1.5f), btnRowCenterY - btnTextYOffset, paint)
 
         // "Default"
         paint.color = Color.argb(225, 235, 240, 255)
-        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_btn_default).ifBlank { "Default" }, bounds.left + (btnW * 2.5f), btnRowCenterY - btnTextYOffset, paint)
+        canvas.drawText(defaultLbl, bounds.left + (btnW * 2.5f), btnRowCenterY - btnTextYOffset, paint)
 
         // "Save"
         paint.color = m3Accent
-        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_btn_save).ifBlank { "Save" }, bounds.left + (btnW * 3.5f), btnRowCenterY - btnTextYOffset, paint)
+        canvas.drawText(saveLbl, bounds.left + (btnW * 3.5f), btnRowCenterY - btnTextYOffset, paint)
     } else {
         // Vertical divider before Save
         paint.color = Color.argb(40, Color.red(borderColor), Color.green(borderColor), Color.blue(borderColor))
@@ -520,7 +535,7 @@ private fun LightspeedCruiseOverlay.drawHudStyleTabBody(
         title = com.sbf.lightspeed.system.lsString(R.string.ed_lbl_color_engine).ifBlank { "COLOR ENGINE" },
         titleX = bounds.left + 12f * dp,
         titleY = layout.colorLabelY,
-        options = CATEGORY_COLOR_ENGINE_OPTIONS,
+        options = categoryColorEngineOptions(),
         pills = layout.colorPills,
         selectedValue = currentColorMode,
         tintColor = tintColor,
@@ -538,7 +553,7 @@ private fun LightspeedCruiseOverlay.drawHudStyleTabBody(
         title = com.sbf.lightspeed.system.lsString(R.string.ed_lbl_cat_spacing).ifBlank { "CATEGORY NAME SPACING" },
         titleX = bounds.left + 12f * dp,
         titleY = layout.spacingLabelY,
-        options = CATEGORY_SPACING_OPTIONS,
+        options = categorySpacingOptions(),
         pills = layout.spacingPills,
         selectedValue = currentSpacing,
         tintColor = tintColor,
@@ -556,7 +571,7 @@ private fun LightspeedCruiseOverlay.drawHudStyleTabBody(
         title = com.sbf.lightspeed.system.lsString(R.string.ed_lbl_slider_feel).ifBlank { "CATEGORY SLIDER FEEL" },
         titleX = bounds.left + 12f * dp,
         titleY = layout.feelLabelY,
-        options = CATEGORY_PHYSICS_OPTIONS,
+        options = categoryPhysicsOptions(),
         pills = layout.feelPills,
         selectedValue = currentFeel,
         tintColor = tintColor,
@@ -574,7 +589,7 @@ private fun LightspeedCruiseOverlay.drawHudStyleTabBody(
         title = com.sbf.lightspeed.system.lsString(R.string.ed_lbl_corner_round).ifBlank { "WIDGET CORNER ROUNDNESS" },
         titleX = bounds.left + 12f * dp,
         titleY = layout.radiusLabelY,
-        options = CATEGORY_HUD_RADIUS_OPTIONS,
+        options = categoryHudRadiusOptions(),
         pills = layout.radiusPills,
         selectedValue = currentRadius,
         tintColor = tintColor,
@@ -589,7 +604,7 @@ private fun LightspeedCruiseOverlay.drawHudStyleTabBody(
         title = com.sbf.lightspeed.system.lsString(R.string.ed_lbl_spark_style).ifBlank { "LAUNCH SPARK STYLE" },
         titleX = bounds.left + 12f * dp,
         titleY = layout.sparkLabelY,
-        options = CATEGORY_LAUNCH_SPARK_OPTIONS,
+        options = categoryLaunchSparkOptions(),
         pills = layout.sparkPills,
         selectedValue = currentSparkStyle,
         tintColor = tintColor,

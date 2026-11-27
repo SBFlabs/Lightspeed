@@ -1,151 +1,67 @@
 package com.sbf.lightspeed.settings
 
-import android.graphics.Bitmap
-import android.graphics.BitmapShader
-import android.graphics.BlurMaskFilter
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.*
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.util.Random
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.LightspeedLanguageEngine
+import com.sbf.lightspeed.system.LightspeedVocabulary
+import com.sbf.lightspeed.system.lsString
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 
-private const val STYLE_LAB_NOISE_ENABLED = true
-
-/**
- * Cached small procedural noise tile (64x64) generated once and reused across all Style Lab tiles.
- */
-internal object StyleLabNoiseTile {
-    private var cachedBrush: ShaderBrush? = null
-
-    @Synchronized
-    fun getBrush(): ShaderBrush? {
-        if (!STYLE_LAB_NOISE_ENABLED) return null
-        cachedBrush?.let { return it }
-        val size = 64
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val pixels = IntArray(size * size)
-        val rng = Random(1337L)
-        for (i in pixels.indices) {
-            val lum = if (rng.nextBoolean()) 245 else 20
-            val alpha = 70 + rng.nextInt(150)
-            pixels[i] = android.graphics.Color.argb(alpha, lum, lum, lum)
-        }
-        bitmap.setPixels(pixels, 0, size, 0, 0, size, size)
-        val shader = BitmapShader(bitmap, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
-        return ShaderBrush(shader).also { cachedBrush = it }
-    }
-}
-
-private val ICON_SIZE_DP = 84.dp
-private val ICON_TOP_DP = 12.dp
-private val ROW_TOP_DP = 110.dp
-private val ROW_HEIGHT_DP = 52.dp
+private val HERO_SIZE_DP = 76.dp
+private val HERO_TOP_DP = 10.dp
+private val ROW_TOP_DP = 96.dp
+private val ROW_HEIGHT_DP = 68.dp
 private val ROW_HPAD_DP = 8.dp
 private val PREVIEW_HEIGHT_DP = 176.dp
-private val ROCKET_ICON_SIZE_DP = 54.dp
 
-@Composable
-private fun rememberResolvedStyleColors(preset: DeckThemeSnapshot): ResolvedStyleColors {
-    val scheme = MaterialTheme.colorScheme
-    val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    return remember(preset, scheme, isApi31Plus) {
-        val basePanel = Color(preset.panelColorArgb)
-        val baseTint = Color(preset.tintArgb)
-        val baseBorder = Color(preset.borderColorArgb)
-        val baseGlow = Color(preset.glowColorArgb)
-
-        val isMaterial3 = preset.styleId == DeckStylePresets.MATERIAL_3.styleId
-        if (preset.usesSystemDynamicColor && (isMaterial3 || (isApi31Plus && preset.styleId == "adaptive"))) {
-            ResolvedStyleColors(
-                panelColor = if (isMaterial3) scheme.surfaceContainerLow else scheme.surfaceContainerHigh,
-                tintColor = scheme.primary,
-                borderColor = if (isMaterial3) scheme.outlineVariant else scheme.primary.copy(alpha = 0.80f),
-                glowColor = if (isMaterial3) Color.Transparent else scheme.tertiary
-            )
-        } else {
-            ResolvedStyleColors(basePanel, baseTint, baseBorder, baseGlow)
-        }
-    }
-}
-
+/**
+ * Slimmed Style Lab tile preview driven directly by the live 12-Theme optical surface engine,
+ * reusable [DeckCard], and reusable [DeckButton] over real blurred sample backdrops.
+ */
 @Composable
 fun StyleLabCardPreview(
     preset: DeckThemeSnapshot,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    val resolvedColors = rememberResolvedStyleColors(preset)
-    val isApi28Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
     val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val isApi33Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
-    val iconCornerDp = remember(preset.cornerRadiusDp) { (preset.cornerRadiusDp * 0.78f).dp }
-    val rowCornerDp = remember(preset.cornerRadiusDp) { (preset.cornerRadiusDp * 0.58f).dp }
-
-    val cardsClipShape = remember(preset.styleId, iconCornerDp, rowCornerDp) {
-        StyleDualPreviewCardsShape(
-            styleId = preset.styleId,
-            iconSize = ICON_SIZE_DP,
-            iconTop = ICON_TOP_DP,
-            rowTop = ROW_TOP_DP,
-            rowHeight = ROW_HEIGHT_DP,
-            rowHPad = ROW_HPAD_DP,
-            iconCornerDp = iconCornerDp,
-            rowCornerDp = rowCornerDp
-        )
-    }
-
-    // Remembered native Paints for outer glow & shadow layers (API 28+, zero per-frame allocations)
-    val glowPaint = remember(preset, resolvedColors.glowColor, density, isApi28Plus) {
-        rememberOuterGlowPaint(preset, resolvedColors.glowColor, density, isApi28Plus)
-    }
-
-    val shadowPaint = remember(preset.styleId, preset.shadowLayers, density, isApi28Plus) {
-        if (isApi28Plus && preset.shadowLayers >= 1) {
-            android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.DITHER_FLAG).apply {
-                isDither = true
-                style = android.graphics.Paint.Style.FILL
-                color = android.graphics.Color.argb(135, 0, 0, 0)
-                maskFilter = BlurMaskFilter(with(density) { 5.dp.toPx() }, BlurMaskFilter.Blur.NORMAL)
-            }
-        } else null
-    }
-
-    // Remembered RenderEffects for API 31+ fixed blur and API 33+ progressive blur
-    val primaryBlurEffect = remember(preset.styleId, preset.windowBlurRadiusPx, preset.inAppBlurRadiusDp, preset.progressiveStartBlurPx, density, isApi31Plus, isApi33Plus) {
+    val primaryBlurEffect = remember(preset.styleId, preset.windowBlurRadiusPx, preset.progressiveStartBlurPx, isApi31Plus, isApi33Plus) {
         if (isApi31Plus && preset.windowBlurRadiusPx > 0) {
-            val radiusPx = if (preset.styleId == "jelly") {
-                (preset.windowBlurRadiusPx * 0.14f).coerceIn(2f, 20f)
-            } else if (isApi33Plus && preset.isProgressive) {
-                (preset.progressiveStartBlurPx * 0.55f).coerceAtLeast(3f)
-            } else {
-                (preset.windowBlurRadiusPx * 0.45f).coerceIn(3f, 36f)
+            val radiusPx = when {
+                preset.styleId == "jelly" -> (preset.windowBlurRadiusPx * 0.14f).coerceIn(2f, 20f)
+                isApi33Plus && preset.isProgressive -> (preset.progressiveStartBlurPx * 0.55f).coerceAtLeast(3f)
+                else -> (preset.windowBlurRadiusPx * 0.45f).coerceIn(3f, 36f)
             }
             RenderEffect.createBlurEffect(radiusPx, radiusPx, Shader.TileMode.CLAMP).asComposeRenderEffect()
         } else null
@@ -158,206 +74,193 @@ fun StyleLabCardPreview(
         } else null
     }
 
-    val noiseBrush = remember { if (STYLE_LAB_NOISE_ENABLED) StyleLabNoiseTile.getBrush() else null }
+    val heroCornerDp = (preset.cornerRadiusDp * 0.72f).coerceIn(10f, 24f).dp
+    val rowCornerDp = (preset.cornerRadiusDp * 0.58f).coerceIn(10f, 20f).dp
+    val heroShape = RoundedCornerShape(heroCornerDp)
+    val rowShape = RoundedCornerShape(rowCornerDp)
+    val blurAvailable = isApi31Plus && preset.windowBlurRadiusPx > 0
+    val cardFg = if (preset.styleId == DeckStylePresets.MATERIAL_3.styleId) MaterialTheme.colorScheme.onSurface else Color.White
+    val resolvedOptical = preset.resolveOpticalColors()
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(PREVIEW_HEIGHT_DP)
-            .clip(RoundedCornerShape(14.dp))
-    ) {
-        // 1. Unblurred sample backdrop per style (gradients, soft blobs, paths & stars) + backdrop opacity scrim
-        val backdropDimAlpha = (preset.dimAmount * 0.42f).coerceIn(0f, 0.72f)
+    CompositionLocalProvider(LocalDeckTheme provides preset) {
         Box(
-            modifier = Modifier
-                .matchParentSize()
-                .drawWithCache {
-                    val backdropSpec = buildSampleBackdropCache(preset.styleId, size, density)
-                    onDrawBehind {
-                        drawSampleBackdrop(backdropSpec)
-                        if (backdropDimAlpha > 0.01f) {
-                            drawRect(Color.Black.copy(alpha = backdropDimAlpha))
-                        }
-                    }
-                }
-        )
-
-        // 2. Stacked depth layers (shadowLayers) and outer glow (API 28+) behind cards
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .drawWithCache {
-                    val geom = computeCardGeometries(
-                        size, density, iconCornerDp, rowCornerDp,
-                        ICON_SIZE_DP, ICON_TOP_DP, ROW_TOP_DP, ROW_HEIGHT_DP, ROW_HPAD_DP, preset.styleId
-                    )
-                    val depthSpec = buildDepthSheetsCache(
-                        preset.styleId, geom.iconRect, geom.iconCr, geom.rowRect, geom.rowCr, resolvedColors, density
-                    )
-                    onDrawBehind {
-                        drawShadowsAndGlow(geom, preset, resolvedColors, shadowPaint, glowPaint, depthSpec)
-                    }
-                }
-        )
-
-        // 3. Real in-app blurred copy of the sample background clipped to the card shapes (API 31+)
-        if (isApi31Plus && primaryBlurEffect != null) {
+            modifier = modifier
+                .fillMaxWidth()
+                .height(PREVIEW_HEIGHT_DP)
+                .clip(RoundedCornerShape(14.dp))
+        ) {
+            // 1. Sample backdrop with preset dim amount
+            val backdropDimAlpha = (preset.dimAmount * 0.42f).coerceIn(0f, 0.72f)
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(cardsClipShape)
-                    .graphicsLayer { renderEffect = primaryBlurEffect }
                     .drawWithCache {
                         val backdropSpec = buildSampleBackdropCache(preset.styleId, size, density)
-                        onDrawBehind { drawSampleBackdrop(backdropSpec) }
+                        onDrawBehind {
+                            drawSampleBackdrop(backdropSpec)
+                            if (backdropDimAlpha > 0.01f) {
+                                drawRect(Color.Black.copy(alpha = backdropDimAlpha))
+                            }
+                        }
                     }
             )
 
-            // Progressive blur second pass with vertical gradient mask on API 33+
-            if (isApi33Plus && preset.isProgressive && progressiveEndBlurEffect != null) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clip(cardsClipShape)
-                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                        .drawWithCache {
-                            val h = size.height.coerceAtLeast(1f)
-                            val iconTopF = (ICON_TOP_DP.toPx() / h).coerceIn(0f, 1f)
-                            val iconBotF = ((ICON_TOP_DP + ICON_SIZE_DP).toPx() / h).coerceIn(0f, 1f)
-                            val rowTopF = (ROW_TOP_DP.toPx() / h).coerceIn(0f, 1f)
-                            val rowBotF = ((ROW_TOP_DP + ROW_HEIGHT_DP).toPx() / h).coerceIn(0f, 1f)
-                            val maskBrush = Brush.verticalGradient(
-                                0.0f to Color.Transparent,
-                                iconTopF to Color.Transparent,
-                                iconBotF to Color.Black,
-                                ((iconBotF + rowTopF) * 0.5f) to Color.Transparent,
-                                rowTopF to Color.Transparent,
-                                rowBotF to Color.Black,
-                                1.0f to Color.Black
-                            )
-                            val maskPaint = ditheredBrushPaint(maskBrush, size).apply { blendMode = BlendMode.DstIn }
-                            onDrawWithContent {
-                                drawContent()
-                                drawIntoCanvas { canvas ->
-                                    canvas.drawRect(0f, 0f, size.width, size.height, maskPaint)
-                                }
-                            }
-                        }
-                ) {
+            // 2. Hero optical showcase tile (live Modifier.deckGlassSurface)
+            Box(
+                modifier = Modifier
+                    .size(HERO_SIZE_DP)
+                    .align(Alignment.TopCenter)
+                    .offset(y = HERO_TOP_DP),
+                contentAlignment = Alignment.Center
+            ) {
+                if (primaryBlurEffect != null) {
                     Box(
                         modifier = Modifier
                             .matchParentSize()
-                            .graphicsLayer { renderEffect = progressiveEndBlurEffect }
+                            .clip(heroShape)
+                            .graphicsLayer { renderEffect = primaryBlurEffect }
                             .drawWithCache {
                                 val backdropSpec = buildSampleBackdropCache(preset.styleId, size, density)
                                 onDrawBehind { drawSampleBackdrop(backdropSpec) }
                             }
                     )
                 }
-            }
-        }
-
-        // 4. Card surface fills, tint, noise, glare, inner glow, specular streak & border (plus <31 scrim fallback)
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .drawWithCache {
-                    val geom = computeCardGeometries(
-                        size, density, iconCornerDp, rowCornerDp,
-                        ICON_SIZE_DP, ICON_TOP_DP, ROW_TOP_DP, ROW_HEIGHT_DP, ROW_HPAD_DP, preset.styleId
-                    )
-                    val surfaceSpec = buildCardSurfaceCache(
-                        geom, preset, resolvedColors, isApi31Plus, density, STYLE_LAB_NOISE_ENABLED
-                    )
-                    onDrawBehind { drawCardSurfaces(geom, surfaceSpec, preset, noiseBrush) }
-                }
-        )
-
-        // 5. Crisp foreground content inside the icon tile and wide row card
-        Box(
-            modifier = Modifier
-                .size(ICON_SIZE_DP)
-                .align(Alignment.TopCenter)
-                .offset(y = ICON_TOP_DP),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(ROCKET_ICON_SIZE_DP)
-                    .drawWithCache {
-                        val rocketCache = buildRocketIconCache(size)
-                        onDrawBehind { drawRocketIcon(rocketCache) }
-                    }
-            )
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = ROW_HPAD_DP)
-                .height(ROW_HEIGHT_DP)
-                .offset(y = ROW_TOP_DP)
-                .padding(horizontal = 9.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val cardFg = if (preset.styleId == DeckStylePresets.MATERIAL_3.styleId) MaterialTheme.colorScheme.onSurface else Color.White
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .drawWithCache {
-                        val circlePaint = ditheredColorPaint(resolvedColors.tintColor.copy(alpha = 0.28f))
-                        onDrawBehind {
-                            drawIntoCanvas { canvas -> canvas.drawCircle(center, size.minDimension * 0.5f, circlePaint) }
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Tune, contentDescription = null, tint = cardFg, modifier = Modifier.size(14.dp))
-            }
-            Spacer(modifier = Modifier.width(7.dp))
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                Text(
-                    text = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CENTRAL_COMMAND),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = cardFg,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = 11.sp
-                )
-                Text(
-                    text = "Quick access to your tools",
-                    fontSize = 8.sp,
-                    color = cardFg.copy(alpha = 0.78f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = 9.5.sp
-                )
-            }
-            if (preset.styleId == "jelly") {
                 Box(
                     modifier = Modifier
-                        .size(width = 30.dp, height = 18.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF4FC3FF)),
-                    contentAlignment = Alignment.CenterEnd
+                        .matchParentSize()
+                        .deckGlassSurface(
+                            snapshot = preset,
+                            isBlurAvailable = blurAvailable,
+                            isCard = false,
+                            shapeOverride = heroShape
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .padding(2.dp)
-                            .size(14.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
+                    Icon(
+                        imageVector = Icons.Default.RocketLaunch,
+                        contentDescription = null,
+                        tint = resolvedOptical.readableTintColor,
+                        modifier = Modifier.size(34.dp)
                     )
                 }
-            } else {
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = cardFg.copy(alpha = 0.80f),
-                    modifier = Modifier.size(15.dp)
-                )
+            }
+
+            // 3. Lower live DeckCard + DeckButton preview row
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = ROW_HPAD_DP)
+                    .height(ROW_HEIGHT_DP)
+                    .offset(y = ROW_TOP_DP)
+            ) {
+                if (primaryBlurEffect != null) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(rowShape)
+                            .graphicsLayer { renderEffect = primaryBlurEffect }
+                            .drawWithCache {
+                                val backdropSpec = buildSampleBackdropCache(preset.styleId, size, density)
+                                onDrawBehind { drawSampleBackdrop(backdropSpec) }
+                            }
+                    )
+                    if (progressiveEndBlurEffect != null) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clip(rowShape)
+                                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                                .drawWithCache {
+                                    val maskPaint = ditheredBrushPaint(
+                                        Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black),
+                                        size
+                                    ).apply { blendMode = BlendMode.DstIn }
+                                    onDrawWithContent {
+                                        drawContent()
+                                        drawIntoCanvas { canvas ->
+                                            canvas.drawRect(0f, 0f, size.width, size.height, maskPaint)
+                                        }
+                                    }
+                                }
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .graphicsLayer { renderEffect = progressiveEndBlurEffect }
+                                    .drawWithCache {
+                                        val backdropSpec = buildSampleBackdropCache(preset.styleId, size, density)
+                                        onDrawBehind { drawSampleBackdrop(backdropSpec) }
+                                    }
+                            )
+                        }
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .deckGlassSurface(
+                            snapshot = preset,
+                            isBlurAvailable = blurAvailable,
+                            isCard = false,
+                            shapeOverride = rowShape
+                        )
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    DeckCard(
+                        modifier = Modifier.fillMaxSize(),
+                        shape = RoundedCornerShape((preset.cornerRadiusDp * 0.42f).coerceIn(8f, 16f).dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = null,
+                                tint = resolvedOptical.readableTintColor,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CENTRAL_COMMAND),
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = cardFg,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    lineHeight = 10.5.sp
+                                )
+                                Text(
+                                    text = preset.localizedName(),
+                                    fontSize = 7.5.sp,
+                                    color = cardFg.copy(alpha = 0.72f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    lineHeight = 9.sp
+                                )
+                            }
+                            DeckButton(
+                                onClick = {},
+                                isActive = true,
+                                snapshot = preset,
+                                contentPadding = PaddingValues(horizontal = 7.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = lsString(R.string.slab_active),
+                                    fontSize = 7.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -37,7 +37,7 @@ internal fun LightspeedCruiseOverlay.getAvailableCategoryIconPackOptions(): List
     list.add(
         CategoryIconPackOption(
             pkg = "default",
-            label = "System Default",
+            label = com.sbf.lightspeed.system.lsString(R.string.ed_pack_sys_def),
             icon = null,
             isDefault = true
         )
@@ -154,7 +154,9 @@ internal fun LightspeedCruiseOverlay.drawCategoryIconPackPicker(canvas: Canvas, 
 
     // 4. Header Titles
     val targetCat = categoryIconPickerTarget
-    val title = "${targetCat?.label ?: "Category"} Icon Pack"
+    val catDisplay = targetCat?.let { LightspeedDataBridge.localizedCategoryLabel(it.id, it.label) }
+        ?: com.sbf.lightspeed.system.lsString(R.string.ed_pack_cat_fallback)
+    val title = com.sbf.lightspeed.system.lsString(R.string.ed_pack_cat_title, catDisplay)
     paint.textAlign = Paint.Align.LEFT
     paint.color = Color.WHITE
     paint.textSize = 13.5f * dp
@@ -164,7 +166,7 @@ internal fun LightspeedCruiseOverlay.drawCategoryIconPackPicker(canvas: Canvas, 
     paint.textSize = 9.5f * dp
     paint.typeface = overlayTypeface(isBold = false)
     paint.color = Color.argb(180, 200, 220, 255)
-    canvas.drawText("Choose icon pack for this category", bounds.left + 16f * dp, bounds.top + 43f * dp, paint)
+    canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_pack_choose_sub), bounds.left + 16f * dp, bounds.top + 43f * dp, paint)
 
     // Divider
     val headerH = 56f * dp
@@ -259,7 +261,7 @@ internal fun LightspeedCruiseOverlay.drawCategoryIconPackPicker(canvas: Canvas, 
             paint.color = m3Accent
             val bfm = paint.fontMetrics
             val bTextY = badgeRect.centerY() - ((bfm.descent + bfm.ascent) / 2f)
-            canvas.drawText("ACTIVE", badgeRect.centerX(), bTextY, paint)
+            canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_pack_active), badgeRect.centerX(), bTextY, paint)
         }
     }
 
@@ -271,7 +273,7 @@ internal fun LightspeedCruiseOverlay.drawCategoryIconPackPicker(canvas: Canvas, 
         paint.textSize = 9.5f * dp
         paint.typeface = overlayTypeface(isBold = false)
         paint.color = Color.argb(150, 180, 205, 235)
-        canvas.drawText("No third-party icon packs installed.", bounds.left + 16f * dp, noteY, paint)
-        canvas.drawText("Install icon packs to customize per category.", bounds.left + 16f * dp, noteY + 16f * dp, paint)
+        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_pack_empty_1), bounds.left + 16f * dp, noteY, paint)
+        canvas.drawText(com.sbf.lightspeed.system.lsString(R.string.ed_pack_empty_2), bounds.left + 16f * dp, noteY + 16f * dp, paint)
     }
 }

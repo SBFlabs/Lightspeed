@@ -192,8 +192,8 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
     }
 
     // Right Column: Scrollable apps breakdown with proportional bars
-    val rightColRight = bounds.right - 14f * density
-    val barW = rightColRight - rightColLeft
+    // Lock right edge of WELLBEING, scrollbar, and header '!' badge on one aligned vertical line.
+    val rightMarginRight = bounds.right - 11f * density
 
     val candidateApps = if (scope == "sec") cachedApps else dataBridge.getAllApps()
     val allScopedApps = candidateApps
@@ -210,11 +210,19 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
     screenTimeAppsMaxScroll = kotlin.math.max(0f, totalAppsH - listH)
     screenTimeAppsScrollOffset = screenTimeAppsScrollOffset.coerceIn(0f, screenTimeAppsMaxScroll)
 
+    val sbW = 2.5f * density
+    val rightColRight = if (screenTimeAppsMaxScroll > 0f) {
+        rightMarginRight - sbW - 4.5f * density
+    } else {
+        rightMarginRight
+    }
+    val barW = rightColRight - rightColLeft
+
     val wbPillW = 60f * density
     val wbPillH = 12.5f * density
     val wbPillTop = bounds.top + 30.5f * density
-    val wbPillLeft = rightColRight - wbPillW
-    wellbeingBtnRect.set(wbPillLeft, wbPillTop, rightColRight, wbPillTop + wbPillH)
+    val wbPillLeft = rightMarginRight - wbPillW
+    wellbeingBtnRect.set(wbPillLeft, wbPillTop, rightMarginRight, wbPillTop + wbPillH)
     highlightPaint.style = Paint.Style.FILL
     highlightPaint.color = Color.argb((34 * alpha).toInt(), Color.red(accent), Color.green(accent), Color.blue(accent))
     canvas.drawRoundRect(wellbeingBtnRect, 4f * density, 4f * density, highlightPaint)
@@ -300,10 +308,9 @@ internal fun LightspeedCruiseOverlay.drawScreenTimeHudWidget(
         )
         canvas.restoreToCount(listLayerCount)
 
-        // Sleek scrollbar indicator when apps exceed visible space
+        // Sleek scrollbar indicator aligned flush with WELLBEING and '!' above it
         if (screenTimeAppsMaxScroll > 0f) {
-            val sbW = 2.5f * density
-            val sbX = rightColRight + 6f * density
+            val sbX = rightMarginRight - sbW
             val sbRatio = (listH / totalAppsH).coerceIn(0.15f, 0.8f)
             val thumbH = listH * sbRatio
             val thumbY = listTop + ((screenTimeAppsScrollOffset / screenTimeAppsMaxScroll) * (listH - thumbH))

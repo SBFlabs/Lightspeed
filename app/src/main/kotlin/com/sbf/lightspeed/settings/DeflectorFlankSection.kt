@@ -36,7 +36,11 @@ fun DeflectorFlankSection(
     isGesturesExpanded: Boolean,
     onGesturesToggle: () -> Unit,
     customVectors: List<Pair<String, Pair<String, ArrowDirection>>>,
-    onRefreshNeeded: () -> Unit
+    onRefreshNeeded: () -> Unit,
+    externalSubOrder: List<String>? = null,
+    externalPinnedSection: String? = null,
+    onSubOrderChange: ((List<String>) -> Unit)? = null,
+    onPinSubSection: ((String) -> Unit)? = null
 ) {
     val zone = if (isUpper) "top" else "bottom"
     val zoneUpper = if (isUpper) "TOP" else "BOTTOM"
@@ -63,12 +67,19 @@ fun DeflectorFlankSection(
         onToggle = onToggle,
         onLongToggle = onSubBlueprintToggle
     ) {
-        var subOrderStr by remember { mutableStateOf(prefs.getString(subOrderKey, "geo,scrub,gestures")!!) }
-        var pinnedSection by remember { mutableStateOf(prefs.getString(subPinnedKey, "geo")) }
-        val defaultSubOrder = listOf("geo", "scrub", "gestures")
-        val currentSubOrder = subOrderStr.split(",").map { it.trim() }.filter { it in defaultSubOrder }.distinct().let { list ->
-            list + (defaultSubOrder - list.toSet())
+        var subOrderStr by remember(subOrderKey) { mutableStateOf(prefs.getString(subOrderKey, "geo,scrub,gestures")!!) }
+        var localPinnedSection by remember(subPinnedKey) { mutableStateOf(prefs.getString(subPinnedKey, "gestures")) }
+        val defaultSubOrder = remember { listOf("geo", "scrub", "gestures") }
+        val localSubOrder = remember(subOrderStr) {
+            subOrderStr.split(",").map { it.trim() }.filter { it in defaultSubOrder }.distinct().let { list ->
+                list + (defaultSubOrder - list.toSet())
+            }
         }
+        val currentSubOrder = externalSubOrder ?: localSubOrder
+        val pinnedSection = externalPinnedSection
+            ?.takeIf { it.startsWith("${secKey}_") }
+            ?.removePrefix("${secKey}_")
+            ?: localPinnedSection
 
         if (subBlueprintTarget == secKey) {
             BlueprintWireframeView(
@@ -87,6 +98,7 @@ fun DeflectorFlankSection(
                         mutable.add(idx - 1, item)
                         val newStr = mutable.joinToString(",")
                         subOrderStr = newStr
+                        onSubOrderChange?.invoke(mutable)
                         prefs.edit().putString(subOrderKey, newStr).apply()
                     }
                 },
@@ -97,12 +109,14 @@ fun DeflectorFlankSection(
                         mutable.add(idx + 1, item)
                         val newStr = mutable.joinToString(",")
                         subOrderStr = newStr
+                        onSubOrderChange?.invoke(mutable)
                         prefs.edit().putString(subOrderKey, newStr).apply()
                     }
                 },
                 onPinSection = { id ->
-                    pinnedSection = id
+                    localPinnedSection = id
                     prefs.edit().putString(subPinnedKey, id).apply()
+                    onPinSubSection?.invoke("${secKey}_$id")
                 },
                 onExitBlueprint = onSubBlueprintToggle
             )

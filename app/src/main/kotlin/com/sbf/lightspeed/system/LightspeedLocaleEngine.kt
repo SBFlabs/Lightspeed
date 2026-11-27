@@ -11,8 +11,8 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * LightspeedLocaleEngine — real-world language state for the app (English, Portuguese, Spanish)
- * plus the optional Real-World Bilingual pair (Primary + Secondary).
+ * LightspeedLocaleEngine — real-world language state for the app (English, Portuguese, Spanish, Arabic)
+ * plus the optional Real-World Bilingual pair (Primary + Secondary) and decoupled RTL layout toggle.
  *
  * This is independent from [LightspeedLanguageEngine], which only decides the *vocabulary*
  * style (Space Lore / Clear Comms / Bilingual vocabulary).
@@ -25,20 +25,23 @@ import java.util.concurrent.ConcurrentHashMap
  *    `createConfigurationContext(...)` and cached in [resourcesCache].
  *  • [registry] lets headers find the secondary-language twin of a string that was resolved
  *    for the primary language (text -> string resource id).
+ *  • Layout direction ([activeLayoutDirection]) is strictly decoupled from language and controlled
+ *    only by the independent RTL / Left-Handed Layout toggle ([KEY_UI_RTL_LAYOUT_ENABLED]).
  */
 object LightspeedLocaleEngine {
 
     const val KEY_UI_LANGUAGE = "pref_ui_language"
     const val KEY_UI_BILINGUAL_ENABLED = "pref_ui_bilingual_enabled"
     const val KEY_UI_SECONDARY_LANGUAGE = "pref_ui_secondary_language"
+    const val KEY_UI_RTL_LAYOUT_ENABLED = "pref_ui_rtl_layout_enabled"
 
     /** Tone of the compact language badge. New scripts (e.g. Arabic) can pick their own tone. */
     enum class BadgeTone { NEUTRAL, GREEN }
 
     /**
-     * Supported real-world languages. To add a language (e.g. Arabic):
-     *  1. add `values-ar/strings.xml`,
-     *  2. add an entry here (`badge = "ع"`, `tone = BadgeTone.GREEN`),
+     * Supported real-world languages. To add a language:
+     *  1. add `values-<lang>/strings.xml`,
+     *  2. add an entry here,
      *  3. nothing else — the picker, slider and badges are driven by [entries].
      */
     enum class AppLanguage(
@@ -53,13 +56,18 @@ object LightspeedLocaleEngine {
     ) {
         EN("en", "EN", BadgeTone.NEUTRAL, "English", null, Locale.ENGLISH, listOf("A", "E", "W", "Z")),
         PT("pt", "PT", BadgeTone.NEUTRAL, "Portuguese", "Português · BR", Locale("pt", "BR"), listOf("Ç", "Ã", "Õ", "Ê")),
-        ES("es", "ES", BadgeTone.NEUTRAL, "Spanish", "Español", Locale("es"), listOf("Ñ", "Á", "É", "¿"));
+        ES("es", "ES", BadgeTone.NEUTRAL, "Spanish", "Español", Locale("es"), listOf("Ñ", "Á", "É", "¿")),
+        AR("ar", "ع", BadgeTone.GREEN, "Arabic", "العربية", Locale("ar"), listOf("ع", "ض", "ق", "ن"), isRtl = false);
 
         /** `Portuguese (Português · BR)` — native script in brackets when it differs. */
         val label: String get() = if (nativeName == null) englishName else "$englishName ($nativeName)"
 
         companion object {
-            fun fromCode(code: String?): AppLanguage? = entries.firstOrNull { it.code == code }
+            fun fromCode(code: String?): AppLanguage? {
+                val norm = code?.trim()?.lowercase(Locale.ROOT)?.substringBefore('-')?.substringBefore('_')
+                if (norm.isNullOrEmpty()) return null
+                return entries.firstOrNull { it.code == norm }
+            }
 
             /** Maps the device locale to a supported language; anything unknown opens in English. */
             fun fromSystemLocale(locale: Locale = Locale.getDefault()): AppLanguage =
@@ -70,26 +78,30 @@ object LightspeedLocaleEngine {
     data class LocaleState(
         val primary: AppLanguage,
         val bilingual: Boolean,
-        val secondary: AppLanguage
+        val secondary: AppLanguage,
+        val rtlLayout: Boolean = false
     ) {
         /** True only when bilingual is on AND the pair is two different languages. */
         val secondaryActive: Boolean get() = bilingual && secondary != primary
     }
 
     private var appContext: Context? = null
-    private var _state by mutableStateOf(LocaleState(AppLanguage.EN, false, AppLanguage.PT))
+    private var _state by mutableStateOf(LocaleState(AppLanguage.EN, false, AppLanguage.PT, false))
     private val resourcesCache = ConcurrentHashMap<String, Resources>()
     private val registry = ConcurrentHashMap<String, Int>()
 
     val state: LocaleState get() = _state
 
-    /** Compose layout direction dictated by Lightspeed's active language (independent of Android OS RTL/LTR). */
+    /**
+     * Compose layout direction dictated strictly by the independent RTL / Left-Handed Layout toggle
+     * (never auto-flipped by language selection or Android OS locale).
+     */
     val activeLayoutDirection: androidx.compose.ui.unit.LayoutDirection
-        get() = if (_state.primary.isRtl) androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr
+        get() = if (_state.rtlLayout) androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr
 
     /** Android View layout direction constant matching [activeLayoutDirection]. */
     val activeAndroidLayoutDirection: Int
-        get() = if (_state.primary.isRtl) android.view.View.LAYOUT_DIRECTION_RTL else android.view.View.LAYOUT_DIRECTION_LTR
+        get() = if (_state.rtlLayout) android.view.View.LAYOUT_DIRECTION_RTL else android.view.View.LAYOUT_DIRECTION_LTR
 
     /** GitHub README matching the primary language (`EN` falls back to the root `README.md`). */
     fun readmeUrl(): String {
@@ -104,23 +116,37 @@ object LightspeedLocaleEngine {
     // ─── Lifecycle ──────────────────────────────────────────────────────────
 
     /**
-     * Loads the saved language. On the very first launch (nothing saved yet) the device locale is
-     * detected so `pt-BR` and `es` phones open in their native language automatically.
+     * Loads the saved language and independent RTL toggle. On the very first launch (nothing saved yet)
+     * the device locale is detected so `pt-BR`, `es`, and `ar` phones open in their native language automatically.
      */
     fun init(context: Context) {
         val ctx = context.applicationContext
         appContext = ctx
         val prefs = ctx.defaultPrefs()
-        val saved = AppLanguage.fromCode(prefs.getString(KEY_UI_LANGUAGE, null))
-        val primary = saved ?: AppLanguage.fromSystemLocale().also {
-            prefs.edit().putString(KEY_UI_LANGUAGE, it.code).apply()
+        val rawSaved = prefs.getString(KEY_UI_LANGUAGE, null)
+        val saved = AppLanguage.fromCode(rawSaved)
+        val primary = if (saved != null) {
+            if (rawSaved != saved.code) {
+                prefs.edit().putString(KEY_UI_LANGUAGE, saved.code).commit()
+            }
+            saved
+        } else {
+            AppLanguage.fromSystemLocale().also {
+                if (!prefs.contains(KEY_UI_LANGUAGE) || rawSaved.isNullOrBlank()) {
+                    prefs.edit().putString(KEY_UI_LANGUAGE, it.code).commit()
+                }
+            }
         }
         val secondary = AppLanguage.fromCode(prefs.getString(KEY_UI_SECONDARY_LANGUAGE, null))
             ?: defaultSecondaryFor(primary)
-        val next = LocaleState(primary, prefs.getBoolean(KEY_UI_BILINGUAL_ENABLED, false), secondary)
+        val rtlLayout = prefs.getBoolean(KEY_UI_RTL_LAYOUT_ENABLED, false)
+        val next = LocaleState(primary, prefs.getBoolean(KEY_UI_BILINGUAL_ENABLED, false), secondary, rtlLayout)
         if (next != _state) {
-            registry.clear()
+            if (next.primary != _state.primary) registry.clear()
             _state = next
+            CockpitGearRepository.clearCache()
+            com.sbf.lightspeed.settings.LightspeedActionRegistry.refreshLocalizedLabels(ctx)
+            com.sbf.lightspeed.LightspeedCruiseOverlay.instance?.postInvalidate()
         }
     }
 
@@ -130,14 +156,14 @@ object LightspeedLocaleEngine {
     fun selectSingle(context: Context, language: AppLanguage) {
         val prev = _state
         val secondary = if (prev.secondary == language) defaultSecondaryFor(language) else prev.secondary
-        commit(context, LocaleState(language, false, secondary))
+        commit(context, prev.copy(primary = language, bilingual = false, secondary = secondary))
     }
 
     /** Turns Real-World Bilingual on, keeping the saved pair (or choosing a sensible one). */
     fun selectBilingual(context: Context) {
         val prev = _state
         val secondary = if (prev.secondary == prev.primary) defaultSecondaryFor(prev.primary) else prev.secondary
-        commit(context, LocaleState(prev.primary, true, secondary))
+        commit(context, prev.copy(bilingual = true, secondary = secondary))
     }
 
     /** Turns Real-World Bilingual off while keeping the current Primary language. */
@@ -164,18 +190,43 @@ object LightspeedLocaleEngine {
         }
     }
 
+    /** Sets the independent RTL / Left-Handed layout toggle without changing language. */
+    fun setRtlLayout(context: Context, enabled: Boolean) {
+        val prev = _state
+        if (prev.rtlLayout == enabled) return
+        commit(context, prev.copy(rtlLayout = enabled))
+    }
+
+    /** Toggles the independent RTL / Left-Handed layout flag without changing language. */
+    fun toggleRtlLayout(context: Context) {
+        setRtlLayout(context, !_state.rtlLayout)
+    }
+
     private fun commit(context: Context, next: LocaleState) {
+        val appCtx = context.applicationContext
+        appContext = appCtx
         if (next == _state) return
-        context.defaultPrefs().edit()
+        appCtx.defaultPrefs().edit()
             .putString(KEY_UI_LANGUAGE, next.primary.code)
             .putBoolean(KEY_UI_BILINGUAL_ENABLED, next.bilingual)
             .putString(KEY_UI_SECONDARY_LANGUAGE, next.secondary.code)
-            .apply()
-        if (next.primary != _state.primary) registry.clear()
+            .putBoolean(KEY_UI_RTL_LAYOUT_ENABLED, next.rtlLayout)
+            .commit()
+        val langChanged = next.primary != _state.primary
+        if (langChanged) registry.clear()
         _state = next
         CockpitGearRepository.clearCache()
-        com.sbf.lightspeed.settings.LightspeedActionRegistry.refreshLocalizedLabels(context)
+        com.sbf.lightspeed.settings.LightspeedActionRegistry.refreshLocalizedLabels(appCtx)
         com.sbf.lightspeed.LightspeedCruiseOverlay.instance?.postInvalidate()
+        if (langChanged) {
+            com.sbf.lightspeed.widget.SpacePodWidgetProvider.notifyUpdate(appCtx)
+            if (NightlyFeatures.isFolderWidgetEnabled) {
+                com.sbf.lightspeed.widget.LightspeedFolderWidgetProvider.notifyUpdate(appCtx)
+            }
+            if (NightlyFeatures.isWidgetStackEnabled) {
+                com.sbf.lightspeed.widget.LightspeedStackWidgetProvider.notifyUpdate(appCtx)
+            }
+        }
     }
 
     private fun defaultSecondaryFor(primary: AppLanguage): AppLanguage {

@@ -78,6 +78,14 @@ object ActionDispatcher {
             token == "system:flashlight" -> {
                 ActionDispatcherSystemHelpers.toggleFlashlight(context)
             }
+            token == "system:direct_call" -> {
+                try {
+                    val dialIntent = Intent(Intent.ACTION_DIAL).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(dialIntent, LightspeedShortcutManager.createLaunchBundle(context))
+                } catch (e: Exception) { logSwallowed(TAG, "execute:direct_call", e) }
+            }
             token == "system:screenshot" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT)

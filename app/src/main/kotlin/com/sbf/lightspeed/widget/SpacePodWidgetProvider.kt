@@ -61,6 +61,7 @@ class SpacePodWidgetProvider : AppWidgetProvider() {
         appWidgetIds: IntArray
     ) {
         if (!com.sbf.lightspeed.system.NightlyFeatures.isSpacePodWidgetEnabled) return
+        com.sbf.lightspeed.system.LightspeedLocaleEngine.init(context)
         val snapshot = DeckThemeManager.getSnapshot(context)
         val bgBitmap = createPodSurfaceBitmap(context, snapshot)
         val prefs = context.defaultPrefs()
@@ -75,7 +76,7 @@ class SpacePodWidgetProvider : AppWidgetProvider() {
             } else if (isConfigured && !clickToken.isNullOrBlank()) {
                 LightspeedShortcutManager.resolveLabel(context, clickToken)
             } else {
-                "POD $podIndex"
+                com.sbf.lightspeed.system.lsString(R.string.pod_num_fmt, podIndex)
             }
 
             val customBmp = LightspeedIconManager.getCustomShortcutBitmap(context, "space_pod_$podIndex")

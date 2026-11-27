@@ -27,13 +27,16 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
     val unitScale = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getUnitScale(context)
     val customDiameterScale = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getCustomDiameterScale(context)
     val baseOuterRadiusPx = 135f * unitScale * customDiameterScale
+    val isPreviewBarActive = !com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context) &&
+        com.sbf.lightspeed.system.CockpitGimbalConfigCache.previewFeatureLabel != null
     val layout = computeHangarLayoutMetrics(
         screenW = screenW,
         screenH = screenH,
         d = d,
         openAccordion = openAccordion,
         bottomInsetPx = getHangarBottomInsetPx(),
-        baseOuterRadiusPx = baseOuterRadiusPx
+        baseOuterRadiusPx = baseOuterRadiusPx,
+        isPreviewBarActive = isPreviewBarActive
     )
 
     val ctrlCx = layout.ctrlCx
@@ -305,7 +308,27 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                     return true
                 }
 
-                // 8. Bottom Exit Capsule
+                // 8. Gold Preview Bar Actions / Bottom Exit Capsule
+                if (isPreviewBarActive) {
+                    val previewLabel = com.sbf.lightspeed.system.CockpitGimbalConfigCache.previewFeatureLabel
+                    if (deepSpaceRenderer.previewExitRect.contains(x, y)) {
+                        com.sbf.lightspeed.system.CockpitGimbalConfigCache.clearPreview()
+                        triggerHardwareHaptic(20, 120)
+                        invalidate()
+                        return true
+                    }
+                    if (deepSpaceRenderer.previewGetKeyRect.contains(x, y)) {
+                        triggerHardwareHaptic(25, 160)
+                        com.sbf.lightspeed.settings.openExternalUrl(context, com.sbf.lightspeed.settings.INFINITY_SHOP_URL)
+                        showInfinityPrompt(featureContext = previewLabel, expandKeyInput = true)
+                        return true
+                    }
+                    if (deepSpaceRenderer.previewEnterKeyRect.contains(x, y)) {
+                        triggerHardwareHaptic(25, 140)
+                        showInfinityPrompt(featureContext = previewLabel, expandKeyInput = true)
+                        return true
+                    }
+                }
                 if (layout.exitRect.contains(x, y) || y < (20f * d) || y > layout.exitRect.bottom) {
                     dismissOverlay()
                     return true
@@ -436,7 +459,7 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                         if (bayRect.contains(x, y)) {
                             if (gIndex >= 2 && !com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
                                 triggerHardwareHaptic(50, 255)
-                                showInfinityPrompt()
+                                showInfinityPrompt(featureContext = "Unlimited Cockpit Gear Sets")
                                 invalidate()
                                 return true
                             }
@@ -452,7 +475,7 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                     if (plusRect.contains(x, y)) {
                         if (setsList.size >= 2 && !com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
                             triggerHardwareHaptic(50, 255)
-                            showInfinityPrompt()
+                            showInfinityPrompt(featureContext = "Unlimited Cockpit Gear Sets")
                             invalidate()
                             return true
                         }

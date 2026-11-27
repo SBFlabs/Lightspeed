@@ -16,6 +16,12 @@ fun LazyListScope.renderHudStripAdvancedSection(
     onRefreshNeeded: () -> Unit,
     isSyntheticGravityExpanded: Boolean,
     onToggleSyntheticGravity: (Boolean) -> Unit,
+    isAstrogationAirlockExpanded: Boolean,
+    onToggleAstrogationAirlock: (Boolean) -> Unit,
+    isSonicDeckExpanded: Boolean,
+    onToggleSonicDeck: (Boolean) -> Unit,
+    isVistaDeckExpanded: Boolean,
+    onToggleVistaDeck: (Boolean) -> Unit,
     isRefuelingExpanded: Boolean,
     onToggleRefueling: (Boolean) -> Unit,
     onShowAmoledWarning: () -> Unit,
@@ -56,6 +62,53 @@ fun LazyListScope.renderHudStripAdvancedSection(
                     onToggle = {
                         toggleSection(1, "synthetic_gravity", isSyntheticGravityExpanded) { onToggleSyntheticGravity(it) }
                         prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED, !isSyntheticGravityExpanded).apply()
+                        safeReloadPreferences()
+                    },
+                    onRefreshNeeded = onRefreshNeeded,
+                    languageMode = languageMode
+                )
+            }
+        }
+        "astrogation_airlock" -> {
+            item(key = "astrogation_airlock", contentType = "accordion") {
+                HudAstrogationAirlockSection(
+                    context = context,
+                    prefs = prefs,
+                    isExpanded = isAstrogationAirlockExpanded,
+                    onToggle = {
+                        toggleSection(1, "astrogation_airlock", isAstrogationAirlockExpanded) { onToggleAstrogationAirlock(it) }
+                        prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_ASTROGATION_AIRLOCK_EXPANDED, !isAstrogationAirlockExpanded).apply()
+                        safeReloadPreferences()
+                    },
+                    languageMode = languageMode
+                )
+            }
+        }
+        "sonic_deck" -> {
+            item(key = "sonic_deck", contentType = "accordion") {
+                HudSonicDeckSection(
+                    context = context,
+                    prefs = prefs,
+                    isExpanded = isSonicDeckExpanded,
+                    onToggle = {
+                        toggleSection(1, "sonic_deck", isSonicDeckExpanded) { onToggleSonicDeck(it) }
+                        prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_SONIC_DECK_EXPANDED, !isSonicDeckExpanded).apply()
+                        safeReloadPreferences()
+                    },
+                    onRefreshNeeded = onRefreshNeeded,
+                    languageMode = languageMode
+                )
+            }
+        }
+        "vista_deck" -> {
+            item(key = "vista_deck", contentType = "accordion") {
+                HudVistaDeckSection(
+                    context = context,
+                    prefs = prefs,
+                    isExpanded = isVistaDeckExpanded,
+                    onToggle = {
+                        toggleSection(1, "vista_deck", isVistaDeckExpanded) { onToggleVistaDeck(it) }
+                        prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_VISTA_DECK_EXPANDED, !isVistaDeckExpanded).apply()
                         safeReloadPreferences()
                     },
                     onRefreshNeeded = onRefreshNeeded,

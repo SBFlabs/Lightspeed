@@ -423,17 +423,30 @@ class LightspeedSensorDeckTouchOverlay(
                     val isAudioDockEnabled = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SONIC_DECK_ENABLED, false)
                     val isVistaDockEnabled = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VISTA_DECK_ENABLED, true)
                     val verticalPull = kotlin.math.abs(event.rawY - startY)
-                    
-                    if (verticalPull > 80f * density && ((isVolume && isAudioDockEnabled) || (isBrightness && isVistaDockEnabled))) {
+                    val pullThreshold = 80f * density
+                    val targetDeck = when {
+                        isVolume && isAudioDockEnabled -> "SONIC"
+                        isBrightness && isVistaDockEnabled -> "VISTA"
+                        else -> null
+                    }
+                    if (targetDeck != null) {
+                        com.sbf.lightspeed.LightspeedStatusBarOverlay.updateScrubContinuum(
+                            progress = (verticalPull / pullThreshold).coerceIn(0f, 1f),
+                            targetDeck = targetDeck
+                        )
+                    }
+
+                    if (verticalPull > pullThreshold && targetDeck != null) {
                         isScrubbing = false
                         activeScrubType = "none"
                         activeScrubActionKey = null
                         com.sbf.lightspeed.LightspeedStatusBarOverlay.dismissActionHud(0L)
-                        if (isVolume) {
-                            com.sbf.lightspeed.system.SonicDeckManager.show(service)
-                        } else {
-                            com.sbf.lightspeed.system.VistaDeckManager.show(service)
-                        }
+                        com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorDeepPull(context)
+                        com.sbf.lightspeed.system.UnifiedSystemDeckHost.show(
+                            service = service,
+                            mode = if (isVolume) com.sbf.lightspeed.system.SystemDeckMode.SONIC else com.sbf.lightspeed.system.SystemDeckMode.VISTA,
+                            fromContinuum = true
+                        )
                         return true
                     }
 

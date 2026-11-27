@@ -9,7 +9,9 @@ import androidx.compose.ui.text.font.FontFamily
 import com.sbf.lightspeed.R
 import kotlin.math.roundToInt
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
@@ -28,6 +30,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -53,6 +56,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedInfinityManager
+import com.sbf.lightspeed.system.lsString
 import kotlin.math.roundToInt
 import androidx.compose.foundation.Canvas
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
@@ -267,6 +272,7 @@ fun FloatingOverlayContainer(
 @Composable
 fun CentralCommandFooter(
     context: Context,
+    tipWindow: CentralCommandTipWindow = CentralCommandTipWindow.HUD_STRIP_TAB,
     onVersionClick: (() -> Unit)? = null
 ) {
     val lsColors = LightspeedStyle.colors
@@ -279,13 +285,19 @@ fun CentralCommandFooter(
         }
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 2.dp, vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        CentralCommandContextualTipBar(
+            context = context,
+            windowContext = tipWindow,
+            modifier = Modifier.padding(bottom = 5.dp)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
         // Lightspeed Version Badge (Tap -> What's New, Long Press -> Copy version info)
         Row(
             modifier = Modifier
@@ -355,11 +367,15 @@ fun CentralCommandFooter(
                     text = "GitHub",
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Medium,
-                    color = lsColors.textPrimary.copy(alpha = 0.9f)
+                    color = lsColors.textPrimary.copy(alpha = 0.9f),
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
 
-            // Buy Me a Coffee Button — routes through LightspeedInfinityDialog first
+            // Lightspeed Infinity (Rocket Fuel Can) Button — routes through LightspeedInfinityDialog
+            val unlockEpoch by LightspeedInfinityManager.unlockEpoch.collectAsState()
+            val isInfinityUnlocked = remember(unlockEpoch) { LightspeedInfinityManager.isUnlocked(context) }
             var showInfinityDialog by remember { mutableStateOf(false) }
             if (showInfinityDialog) {
                 LightspeedInfinityDialog(
@@ -370,32 +386,73 @@ fun CentralCommandFooter(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
-                    .background(LightspeedTokens.StatusGoldAlt.copy(alpha = 0.16f))
-                    .border(0.8.dp, LightspeedTokens.StatusGoldAlt.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
+                    .background(LightspeedTokens.StatusGoldAlt.copy(alpha = if (isInfinityUnlocked) 0.14f else 0.18f))
+                    .border(0.9.dp, LightspeedTokens.StatusGoldAlt.copy(alpha = 0.50f), RoundedCornerShape(10.dp))
                     .clickable {
+                        LightspeedHapticEngine.tick(context)
                         showInfinityDialog = true
                     }
                     .padding(horizontal = 9.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_buymeacoffee),
-                    contentDescription = "Buy Me a Coffee",
-                    tint = LightspeedTokens.StatusGoldAlt,
-                    modifier = Modifier.size(14.dp)
-                )
+                if (!isInfinityUnlocked) {
+                    RocketFuelCanIcon(
+                        modifier = Modifier.size(14.dp),
+                        tint = LightspeedTokens.StatusGoldAlt
+                    )
+                }
                 Text(
-                    text = "Coffee",
+                    text = if (isInfinityUnlocked) lsString(R.string.fc_inf_footer_unlocked) else lsString(R.string.fc_inf_footer_locked),
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = LightspeedTokens.StatusGoldAlt
+                    color = LightspeedTokens.StatusGoldAlt,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
+        }
         }
     }
 }
 
+
+@Composable
+private fun AccordionAnimatedBody(
+    isExpanded: Boolean,
+    contentPadding: PaddingValues,
+    verticalSpacing: Dp = 0.dp,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val visibleState = remember { MutableTransitionState(isExpanded) }
+    visibleState.targetState = isExpanded
+    if (visibleState.currentState || visibleState.targetState || !visibleState.isIdle) {
+        val activeSnapshot = LocalDeckTheme.current
+        val isJelly = activeSnapshot.styleId == "jelly"
+        AnimatedVisibility(
+            visibleState = visibleState,
+            enter = if (isJelly) {
+                expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
+            } else {
+                expandVertically(animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)) +
+                    fadeIn(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing))
+            },
+            exit = if (isJelly) {
+                shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
+            } else {
+                shrinkVertically(animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing)) +
+                    fadeOut(animationSpec = tween(durationMillis = 130, easing = FastOutSlowInEasing))
+            }
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(contentPadding),
+                verticalArrangement = if (verticalSpacing > 0.dp) Arrangement.spacedBy(verticalSpacing) else Arrangement.Top
+            ) {
+                content()
+            }
+        }
+    }
+}
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -461,34 +518,11 @@ fun CompactAccordionSection(
                     modifier = Modifier.size(24.dp)
                 )
             }
-            val initialExpanded = remember { isExpanded }
-            var hasBeenExpanded by remember { mutableStateOf(isExpanded) }
-            if (isExpanded && !hasBeenExpanded) {
-                hasBeenExpanded = true
-            }
-            if (hasBeenExpanded) {
-                val activeSnapshot = LocalDeckTheme.current
-                val isJelly = activeSnapshot.styleId == "jelly"
-                val visibleState = remember { MutableTransitionState(initialExpanded) }
-                visibleState.targetState = isExpanded
-                AnimatedVisibility(
-                    visibleState = visibleState,
-                    enter = if (isJelly) {
-                        expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
-                    } else {
-                        expandVertically() + fadeIn()
-                    },
-                    exit = if (isJelly) {
-                        shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
-                    } else {
-                        shrinkVertically() + fadeOut()
-                    }
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 10.dp)) {
-                        content()
-                    }
-                }
-            }
+            AccordionAnimatedBody(
+                isExpanded = isExpanded,
+                contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = 10.dp),
+                content = { content() }
+            )
         }
     }
 }
@@ -563,39 +597,12 @@ fun CollapsibleSubSection(
                     )
                 }
             }
-            val initialExpanded = remember { isExpanded }
-            var hasBeenExpanded by remember { mutableStateOf(isExpanded) }
-            if (isExpanded && !hasBeenExpanded) {
-                hasBeenExpanded = true
-            }
-            if (hasBeenExpanded) {
-                val activeSnapshot = LocalDeckTheme.current
-                val isJelly = activeSnapshot.styleId == "jelly"
-                val visibleState = remember { MutableTransitionState(initialExpanded) }
-                visibleState.targetState = isExpanded
-                AnimatedVisibility(
-                    visibleState = visibleState,
-                    enter = if (isJelly) {
-                        expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
-                    } else {
-                        expandVertically() + fadeIn()
-                    },
-                    exit = if (isJelly) {
-                        shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
-                    } else {
-                        shrinkVertically() + fadeOut()
-                    }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 8.dp, end = 8.dp, bottom = 8.dp, top = 2.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        content()
-                    }
-                }
-            }
+            AccordionAnimatedBody(
+                isExpanded = isExpanded,
+                contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = 8.dp, top = 2.dp),
+                verticalSpacing = 8.dp,
+                content = content
+            )
         }
     }
 }
@@ -714,34 +721,11 @@ fun HazardAccordionSection(
                     modifier = Modifier.size(24.dp)
                 )
             }
-            val initialExpanded = remember { isExpanded }
-            var hasBeenExpanded by remember { mutableStateOf(isExpanded) }
-            if (isExpanded && !hasBeenExpanded) {
-                hasBeenExpanded = true
-            }
-            if (hasBeenExpanded) {
-                val activeSnapshot = LocalDeckTheme.current
-                val isJelly = activeSnapshot.styleId == "jelly"
-                val visibleState = remember { MutableTransitionState(initialExpanded) }
-                visibleState.targetState = isExpanded
-                AnimatedVisibility(
-                    visibleState = visibleState,
-                    enter = if (isJelly) {
-                        expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
-                    } else {
-                        expandVertically() + fadeIn()
-                    },
-                    exit = if (isJelly) {
-                        shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
-                    } else {
-                        shrinkVertically() + fadeOut()
-                    }
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
-                        content()
-                    }
-                }
-            }
+            AccordionAnimatedBody(
+                isExpanded = isExpanded,
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                content = { content() }
+            )
         }
     }
 }

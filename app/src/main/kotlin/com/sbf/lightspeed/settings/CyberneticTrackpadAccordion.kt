@@ -30,26 +30,53 @@ fun CyberneticTrackpadAccordion(
     isLeft: Boolean,
     context: Context,
     prefs: SharedPreferences,
-    onRefreshNeeded: () -> Unit
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
+    subBlueprintTarget: String? = null,
+    onSubBlueprintToggle: (() -> Unit)? = null,
+    isGeoExpanded: Boolean? = null,
+    onGeoToggle: (() -> Unit)? = null,
+    isPhysicsExpanded: Boolean? = null,
+    onPhysicsToggle: (() -> Unit)? = null,
+    onRefreshNeeded: () -> Unit,
+    externalSubOrder: List<String>? = null,
+    externalPinnedSection: String? = null,
+    onSubOrderChange: ((List<String>) -> Unit)? = null,
+    onPinSubSection: ((String) -> Unit)? = null
 ) {
     val lsColors = LightspeedStyle.colors
     val flankKey = if (isLeft) "left" else "right"
+    val secId = if (isLeft) "left_trackpad" else "trackpad"
+    val subOrderKey = "pref_sub_order_$secId"
+    val subPinnedKey = "pref_sub_pinned_$secId"
     val enabledKey = if (isLeft) LightspeedBotContract.KEY_BOT_TRACKPAD_LEFT_ENABLED else LightspeedBotContract.KEY_BOT_TRACKPAD_RIGHT_ENABLED
 
-    var isExpanded by remember(prefs.getBoolean("pref_accordion_trackpad_$flankKey", false), flankKey) {
-        mutableStateOf(prefs.getBoolean("pref_accordion_trackpad_$flankKey", false))
-    }
     var isEnabled by remember(prefs.getBoolean(enabledKey, false), enabledKey) {
         mutableStateOf(prefs.getBoolean(enabledKey, false))
     }
+    var subOrderStr by remember(secId) {
+        mutableStateOf(prefs.getString(subOrderKey, "geo,physics") ?: "geo,physics")
+    }
+    var localPinnedSection by remember(secId) {
+        mutableStateOf(prefs.getString(subPinnedKey, "geo"))
+    }
+    val defaultSubOrder = remember { listOf("geo", "physics") }
+    val localSubOrder = remember(subOrderStr) {
+        subOrderStr.split(",").map { it.trim() }.filter { it in defaultSubOrder }.distinct().let { list ->
+            list + (defaultSubOrder - list.toSet())
+        }
+    }
+    val currentSubOrder = externalSubOrder ?: localSubOrder
+    val pinnedSection = externalPinnedSection
+        ?.takeIf { it.startsWith("${secId}_") }
+        ?.removePrefix("${secId}_")
+        ?: localPinnedSection
 
     CompactAccordionSection(
         title = lsString(R.string.sec_cybernetic_trackpad),
         isExpanded = isExpanded,
-        onToggle = {
-            isExpanded = !isExpanded
-            prefs.edit().putBoolean("pref_accordion_trackpad_$flankKey", isExpanded).apply()
-        },
+        onToggle = onToggle,
+        onLongToggle = onSubBlueprintToggle,
         icon = {
             Icon(
                 imageVector = Icons.Default.ControlCamera,
@@ -60,38 +87,90 @@ fun CyberneticTrackpadAccordion(
         }
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Master Flank Toggle
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(lsString(R.string.lab_trackpad_title), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
-                    Text(lsString(R.string.tp_desc), fontSize = 10.sp, color = lsColors.textSecondary)
-                }
-                Switch(
-                    checked = isEnabled,
-                    onCheckedChange = {
-                        isEnabled = it
-                        prefs.edit().putBoolean(enabledKey, it).apply()
-                        LightspeedBotTrackpadOverlay.reload(context)
-                        onRefreshNeeded()
+            if (subBlueprintTarget == secId && onSubBlueprintToggle != null) {
+                BlueprintWireframeView(
+                    tabTitle = lsString(R.string.sec_cybernetic_trackpad),
+                    sectionIds = currentSubOrder,
+                    pinnedSectionId = pinnedSection,
+                    sectionTitles = mapOf(
+                        "geo" to lsString(R.string.sec_geometry_calibration),
+                        "physics" to lsString(R.string.sec_cursor_physics_timing)
+                    ),
+                    onMoveUp = { idx ->
+                        if (idx > 0) {
+                            val mutable = currentSubOrder.toMutableList()
+                            val item = mutable.removeAt(idx)
+                            mutable.add(idx - 1, item)
+                            val newStr = mutable.joinToString(",")
+                            subOrderStr = newStr
+                            onSubOrderChange?.invoke(mutable)
+                            prefs.edit().putString(subOrderKey, newStr).apply()
+                        }
                     },
-                    colors = deckSwitchColors()
+                    onMoveDown = { idx ->
+                        if (idx < currentSubOrder.size - 1) {
+                            val mutable = currentSubOrder.toMutableList()
+                            val item = mutable.removeAt(idx)
+                            mutable.add(idx + 1, item)
+                            val newStr = mutable.joinToString(",")
+                            subOrderStr = newStr
+                            onSubOrderChange?.invoke(mutable)
+                            prefs.edit().putString(subOrderKey, newStr).apply()
+                        }
+                    },
+                    onPinSection = { id ->
+                        localPinnedSection = id
+                        prefs.edit().putString(subPinnedKey, id).apply()
+                        onPinSubSection?.invoke("${secId}_$id")
+                    },
+                    onExitBlueprint = onSubBlueprintToggle
                 )
-            }
+            } else {
+                // Master Flank Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(lsString(R.string.lab_trackpad_title), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                        Text(lsString(R.string.tp_desc), fontSize = 10.sp, color = lsColors.textSecondary)
+                    }
+                    DeckSwitch(
+                        checked = isEnabled,
+                        onCheckedChange = {
+                            isEnabled = it
+                            prefs.edit().putBoolean(enabledKey, it).apply()
+                            LightspeedBotTrackpadOverlay.reload(context)
+                            onRefreshNeeded()
+                        }
+                    )
+                }
 
-            if (isEnabled) {
-                HorizontalDivider(color = lsColors.borderSubtle.copy(alpha = 0.4f), thickness = 0.8.dp)
+                if (isEnabled) {
+                    HorizontalDivider(color = lsColors.borderSubtle.copy(alpha = 0.4f), thickness = 0.8.dp)
 
-                TrackpadRotatingTipBanner()
+                    TrackpadRotatingTipBanner()
 
-                // Sub-Accordion 1: Geometry & Calibration (auto-enables Live Trigger Zone Preview when expanded)
-                TrackpadGeometrySubSection(isLeft = isLeft, context = context, prefs = prefs, isParentExpanded = isExpanded)
-
-                // Sub-Accordion 2: Cursor Physics & Timing
-                TrackpadPhysicsSubSection(isLeft = isLeft, prefs = prefs)
+                    currentSubOrder.forEach { subKey ->
+                        when (subKey) {
+                            "geo" -> TrackpadGeometrySubSection(
+                                isLeft = isLeft,
+                                context = context,
+                                prefs = prefs,
+                                isParentExpanded = isExpanded,
+                                isSubExpanded = isGeoExpanded,
+                                onToggle = onGeoToggle
+                            )
+                            "physics" -> TrackpadPhysicsSubSection(
+                                isLeft = isLeft,
+                                prefs = prefs,
+                                isSubExpanded = isPhysicsExpanded,
+                                onToggle = onPhysicsToggle
+                            )
+                        }
+                    }
+                }
             }
         }
     }

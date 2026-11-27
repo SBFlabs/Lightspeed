@@ -1,25 +1,19 @@
 package com.sbf.lightspeed.system.display
 
-import android.app.ActivityManager
+import android.annotation.SuppressLint
 import android.app.KeyguardManager
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.graphics.Canvas
-import android.graphics.Paint
 import android.graphics.PixelFormat
-import android.graphics.RectF
-import android.graphics.Typeface
-import android.os.BatteryManager
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Choreographer
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import com.sbf.lightspeed.LightspeedAccessibilityService
-import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
@@ -32,39 +26,44 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 /**
- * Per-App Tactical Telemetry Micro-Visor Overlay (FPS, CPU, TEMP, RAM, BAT, WATT).
+ * Per-App Tactical Telemetry Micro-HUD (FPS, CPU, TEMP, RAM, BAT, WATT).
  *
- * Strictly mounts only when a user-selected target app/game is in the foreground.
- * Detaches completely from WindowManager and stops all sampling when outside target apps.
- * Includes a left tactile 6-dot drag grip for effortless repositioning on screen.
+ * Uses a 3-window architecture so the entire telemetry readout body (`visorView`) carries
+ * `FLAG_NOT_TOUCHABLE` for 100% native OS pass-through (taps, swipes, holds, gaming controls),
+ * while compact left & right transparent handle windows (`leftHandleView`, `rightHandleView`)
+ * are dedicated purely to gripping & maneuvering — morphing into sculpted rocket nozzles
+ * and firing Newtonian exhaust plumes opposite to drag direction across all 4 HUD styles.
  */
 object LightspeedTelemetryHudOverlay {
 
     private const val TAG = "TelemetryHudOverlay"
+
     private val mainHandler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-    private var visorView: TelemetryMicroVisorView? = null
-    private var windowParams: WindowManager.LayoutParams? = null
+    private var visorView: TelemetryVisorView? = null
+    private var visorParams: WindowManager.LayoutParams? = null
+    private var leftHandleView: TelemetryHandleTouchView? = null
+    private var leftHandleParams: WindowManager.LayoutParams? = null
+    private var rightHandleView: TelemetryHandleTouchView? = null
+    private var rightHandleParams: WindowManager.LayoutParams? = null
+
+    private var coreX: Int = 0
+    private var coreY: Int = 0
+
     private var pollJob: Job? = null
     @Volatile private var currentForegroundPkg: String? = null
+    @Volatile private var previewUntilUptimeMs: Long = 0L
 
-    private data class TelemetrySegment(
-        val text: String,
-        val colorArgb: Int
-    )
-
-    private const val COLOR_TEXT_PRIMARY = 0xFFF2F6FA.toInt()
-    private const val COLOR_STATUS_OK = 0xFF00E676.toInt()
-    private const val COLOR_STATUS_WARN = 0xFFFFB300.toInt()
-    private const val COLOR_STATUS_DANGER = 0xFFFF5252.toInt()
-    private const val COLOR_SURFACE_BG = 0xCC0A0E14.toInt()
+    private val previewTimeoutRunnable = Runnable {
+        previewUntilUptimeMs = 0L
+        LightspeedAccessibilityService.instance?.let { evaluateVisibility(it) }
+    }
 
     fun init(context: Context) {
         val fg = LightspeedAccessibilityService.lastAppPackage
@@ -83,35 +82,77 @@ object LightspeedTelemetryHudOverlay {
     fun refreshState(context: Context) {
         mainHandler.post {
             evaluateVisibility(context)
-            visorView?.invalidate()
+            visorView?.let { view ->
+                val metrics = collectMetrics(context)
+                view.updateMetrics(metrics)
+                syncHandleWindowsToVisor(context)
+            }
         }
     }
 
+    fun triggerLivePreview(context: Context, durationMs: Long = 4500L) {
+        previewUntilUptimeMs = SystemClock.uptimeMillis() + durationMs.coerceIn(1500L, 10_000L)
+        mainHandler.removeCallbacks(previewTimeoutRunnable)
+        mainHandler.postDelayed(previewTimeoutRunnable, durationMs.coerceIn(1500L, 10_000L) + 50L)
+        refreshState(context)
+    }
+
+    fun onConfigurationChanged(context: Context) {
+        mainHandler.post {
+            evaluateVisibility(context)
+            syncHandleWindowsToVisor(context)
+        }
+    }
+
+    /** Computes a default top Y (px) comfortably below the Android status bar, camera cutout, and Lightspeed top sensor strip. */
+    private fun computeDefaultSafeTopYPx(context: Context): Int {
+        val dm = context.resources.displayMetrics
+        val isLandscape = dm.widthPixels > dm.heightPixels
+        val statusBarResId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        val statusBarResPx = if (statusBarResId > 0) context.resources.getDimensionPixelSize(statusBarResId) else 0
+        val windowInsetTopPx = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            try {
+                val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+                val insets = wm?.currentWindowMetrics?.windowInsets
+                insets?.getInsetsIgnoringVisibility(
+                    android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.displayCutout()
+                )?.top ?: 0
+            } catch (_: Exception) {
+                0
+            }
+        } else {
+            0
+        }
+        val minClearancePx = ((if (isLandscape) 14f else 34f) * dm.density).roundToInt()
+        val topSystemClearance = maxOf(statusBarResPx, windowInsetTopPx, minClearancePx)
+        val extraGapPx = ((if (isLandscape) 10f else 18f) * dm.density).roundToInt()
+        return (topSystemClearance + extraGapPx).coerceIn(0, (dm.heightPixels * 0.35f).roundToInt().coerceAtLeast(1))
+    }
+
     fun resetPosition(context: Context) {
+        val safeY = computeDefaultSafeTopYPx(context)
         context.defaultPrefs().edit()
             .putInt(LightspeedPreferences.KEY_TELEMETRY_HUD_POS_X, -1)
-            .putInt(LightspeedPreferences.KEY_TELEMETRY_HUD_POS_Y, 12)
+            .putInt(LightspeedPreferences.KEY_TELEMETRY_HUD_POS_Y, safeY)
             .apply()
         mainHandler.post {
-            val view = visorView ?: return@post
-            val params = windowParams ?: return@post
-            val service = LightspeedAccessibilityService.instance ?: return@post
-            val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return@post
-            val dm = service.resources.displayMetrics
-            params.x = ((dm.widthPixels - view.measuredWidth.coerceAtLeast((180 * dm.density).toInt())) / 2).coerceAtLeast(8)
-            params.y = (12 * dm.density).roundToInt()
-            try {
-                wm.updateViewLayout(view, params)
-            } catch (e: Exception) {
-                logSwallowed(TAG, "resetPosition", e)
+            val view = visorView
+            val service = LightspeedAccessibilityService.instance
+            if (view != null && service != null) {
+                val dm = service.resources.displayMetrics
+                val spec = view.currentSpec()
+                coreX = ((dm.widthPixels - spec.coreWidthPx) / 2).coerceAtLeast(8)
+                coreY = safeY.coerceIn(0, (dm.heightPixels - spec.coreHeightPx).coerceAtLeast(0))
+                syncHandleWindowsToVisor(service)
             }
         }
+        triggerLivePreview(context)
     }
 
     fun refreshDisplayModeVote(context: Context) {
         mainHandler.post {
             val view = visorView ?: return@post
-            val params = windowParams ?: return@post
+            val params = visorParams ?: return@post
             val service = LightspeedAccessibilityService.instance ?: return@post
             val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return@post
             applyPreferredModeToParams(context, params)
@@ -143,33 +184,63 @@ object LightspeedTelemetryHudOverlay {
     }
 
     private fun evaluateVisibility(context: Context) {
-        val service = LightspeedAccessibilityService.instance
-        if (service == null || !LightspeedPreferences.isMasterFlightArmed(service)) {
+        val service = LightspeedAccessibilityService.instance ?: run {
             detachOverlay()
             return
         }
-
         val kg = service.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         if (kg?.isKeyguardLocked == true) {
             detachOverlay()
             return
         }
 
-        val prefs = service.defaultPrefs()
-        val enabled = prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_ENABLED, false)
-        if (!enabled) {
-            detachOverlay()
-            return
-        }
-
-        val allowedPkgs = prefs.getStringSet(LightspeedPreferences.KEY_TELEMETRY_HUD_PACKAGES, emptySet()) ?: emptySet()
-        val activePkg = currentForegroundPkg ?: LightspeedAccessibilityService.lastAppPackage
-        if (allowedPkgs.isEmpty() || activePkg.isNullOrBlank() || activePkg !in allowedPkgs) {
-            detachOverlay()
-            return
+        val isPreview = SystemClock.uptimeMillis() < previewUntilUptimeMs
+        if (!isPreview) {
+            if (!LightspeedPreferences.isMasterFlightArmed(service)) {
+                detachOverlay()
+                return
+            }
+            val prefs = service.defaultPrefs()
+            val enabled = prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_ENABLED, false)
+            if (!enabled) {
+                detachOverlay()
+                return
+            }
+            val allowedPkgs = prefs.getStringSet(LightspeedPreferences.KEY_TELEMETRY_HUD_PACKAGES, emptySet()) ?: emptySet()
+            val activePkg = currentForegroundPkg ?: LightspeedAccessibilityService.lastAppPackage
+            if (allowedPkgs.isEmpty() || activePkg.isNullOrBlank() || activePkg !in allowedPkgs) {
+                detachOverlay()
+                return
+            }
         }
 
         attachOverlayIfNeeded(service)
+    }
+
+    private fun applyDisplayCutoutMode(params: WindowManager.LayoutParams) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+    }
+
+    private fun createHandleParams(xPos: Int, yPos: Int, wPx: Int, hPx: Int): WindowManager.LayoutParams {
+        return WindowManager.LayoutParams(
+            wPx.coerceAtLeast(1),
+            hPx.coerceAtLeast(1),
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            @Suppress("RtlHardcoded")
+            gravity = Gravity.TOP or Gravity.LEFT
+            x = xPos
+            y = yPos
+            applyDisplayCutoutMode(this)
+        }
     }
 
     private fun attachOverlayIfNeeded(service: LightspeedAccessibilityService) {
@@ -178,49 +249,146 @@ object LightspeedTelemetryHudOverlay {
         val prefs = service.defaultPrefs()
         val dm = service.resources.displayMetrics
 
-        val view = TelemetryMicroVisorView(service)
-        val savedX = prefs.getInt(LightspeedPreferences.KEY_TELEMETRY_HUD_POS_X, -1)
-        val savedY = prefs.getInt(LightspeedPreferences.KEY_TELEMETRY_HUD_POS_Y, (12 * dm.density).roundToInt())
-        val initialX = if (savedX >= 0) savedX else ((dm.widthPixels - (210 * dm.density).roundToInt()) / 2).coerceAtLeast(8)
+        val view = TelemetryVisorView(service)
+        val initialMetrics = collectMetrics(service)
+        view.updateMetrics(initialMetrics)
+        val spec = view.currentSpec()
 
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+        val defaultSafeY = computeDefaultSafeTopYPx(service)
+        val savedX = prefs.getInt(LightspeedPreferences.KEY_TELEMETRY_HUD_POS_X, -1)
+        val rawSavedY = prefs.getInt(LightspeedPreferences.KEY_TELEMETRY_HUD_POS_Y, -1)
+        val resolvedY = if (rawSavedY < 0 || (savedX == -1 && rawSavedY <= (18 * dm.density).roundToInt())) {
+            prefs.edit().putInt(LightspeedPreferences.KEY_TELEMETRY_HUD_POS_Y, defaultSafeY).apply()
+            defaultSafeY
+        } else {
+            rawSavedY
+        }
+        coreX = if (savedX >= 0) savedX.coerceIn(0, (dm.widthPixels - spec.coreWidthPx).coerceAtLeast(0))
+        else ((dm.widthPixels - spec.coreWidthPx) / 2).coerceAtLeast(8)
+        coreY = resolvedY.coerceIn(0, (dm.heightPixels - spec.coreHeightPx).coerceAtLeast(0))
+
+        val vParams = WindowManager.LayoutParams(
+            spec.totalWidthPx,
+            spec.totalHeightPx,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = initialX
-            y = savedY.coerceAtLeast(0)
+            @Suppress("RtlHardcoded")
+            gravity = Gravity.TOP or Gravity.LEFT
+            x = coreX - spec.plumeMarginXPx
+            y = coreY - spec.plumeMarginYPx
+            applyDisplayCutoutMode(this)
         }
-        applyPreferredModeToParams(service, params)
+        applyPreferredModeToParams(service, vParams)
+
+        val handleW = spec.handleWidthPx
+        val padOutPx = (8f * dm.density).roundToInt()
+        val padVertPx = (6f * dm.density).roundToInt()
+        val touchW = handleW + padOutPx
+        val touchH = spec.coreHeightPx + padVertPx * 2
+        val leftView = TelemetryHandleTouchView(service, isLeft = true)
+        val rightView = TelemetryHandleTouchView(service, isLeft = false)
+        val lParams = createHandleParams(coreX - padOutPx, coreY - padVertPx, touchW, touchH)
+        val rParams = createHandleParams(coreX + spec.coreWidthPx - handleW, coreY - padVertPx, touchW, touchH)
 
         try {
-            wm.addView(view, params)
+            wm.addView(view, vParams)
             visorView = view
-            windowParams = params
-            view.startFpsCounter()
+            visorParams = vParams
+            wm.addView(leftView, lParams)
+            leftHandleView = leftView
+            leftHandleParams = lParams
+            wm.addView(rightView, rParams)
+            rightHandleView = rightView
+            rightHandleParams = rParams
+            view.syncFrameLoop()
             startPolling(service)
         } catch (e: Exception) {
             logSwallowed(TAG, "attachOverlayIfNeeded", e)
+            detachOverlay()
         }
     }
 
     fun detachOverlay() {
+        mainHandler.removeCallbacks(previewTimeoutRunnable)
         pollJob?.cancel()
         pollJob = null
-        val view = visorView ?: return
-        view.stopFpsCounter()
+        val vView = visorView
+        val lView = leftHandleView
+        val rView = rightHandleView
+        vView?.stopFrameLoop()
         visorView = null
-        windowParams = null
+        visorParams = null
+        leftHandleView = null
+        leftHandleParams = null
+        rightHandleView = null
+        rightHandleParams = null
+
+        val fallbackWm = LightspeedAccessibilityService.instance?.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+        listOfNotNull(vView, lView, rView).forEach { v ->
+            try {
+                val wm = (v.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager) ?: fallbackWm
+                if (v.isAttachedToWindow) wm?.removeView(v)
+            } catch (e: Exception) {
+                logSwallowed(TAG, "detachOverlay", e)
+            }
+        }
+    }
+
+    private fun syncHandleWindowsToVisor(context: Context) {
+        val vView = visorView ?: return
+        val vParams = visorParams ?: return
         val service = LightspeedAccessibilityService.instance ?: return
         val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
-        try {
-            wm.removeView(view)
-        } catch (e: Exception) {
-            logSwallowed(TAG, "detachOverlay", e)
+        val dm = service.resources.displayMetrics
+        val spec = vView.currentSpec()
+
+        val maxX = (dm.widthPixels - spec.coreWidthPx).coerceAtLeast(0)
+        val maxY = (dm.heightPixels - spec.coreHeightPx).coerceAtLeast(0)
+        coreX = coreX.coerceIn(0, maxX)
+        coreY = coreY.coerceIn(0, maxY)
+
+        val targetVX = coreX - spec.plumeMarginXPx
+        val targetVY = coreY - spec.plumeMarginYPx
+        if (vParams.x != targetVX || vParams.y != targetVY || vParams.width != spec.totalWidthPx || vParams.height != spec.totalHeightPx) {
+            vParams.x = targetVX
+            vParams.y = targetVY
+            vParams.width = spec.totalWidthPx
+            vParams.height = spec.totalHeightPx
+            try { wm.updateViewLayout(vView, vParams) } catch (_: Exception) {}
+        }
+
+        val effHandleW = spec.handleWidthPx
+        val padOutPx = (8f * dm.density).roundToInt()
+        val padVertPx = (6f * dm.density).roundToInt()
+        val touchW = effHandleW + padOutPx
+        val touchH = spec.coreHeightPx + padVertPx * 2
+        val touchY = coreY - padVertPx
+        leftHandleView?.let { lv ->
+            val lp = leftHandleParams ?: return@let
+            val targetLX = coreX - padOutPx
+            if (lp.x != targetLX || lp.y != touchY || lp.width != touchW || lp.height != touchH) {
+                lp.x = targetLX
+                lp.y = touchY
+                lp.width = touchW
+                lp.height = touchH
+                try { wm.updateViewLayout(lv, lp) } catch (_: Exception) {}
+            }
+        }
+        rightHandleView?.let { rv ->
+            val rp = rightHandleParams ?: return@let
+            val targetRX = coreX + spec.coreWidthPx - effHandleW
+            if (rp.x != targetRX || rp.y != touchY || rp.width != touchW || rp.height != touchH) {
+                rp.x = targetRX
+                rp.y = touchY
+                rp.width = touchW
+                rp.height = touchH
+                try { wm.updateViewLayout(rv, rp) } catch (_: Exception) {}
+            }
         }
     }
 
@@ -228,224 +396,124 @@ object LightspeedTelemetryHudOverlay {
         pollJob?.cancel()
         pollJob = scope.launch {
             while (isActive && visorView != null) {
-                val segments = collectSegments(context)
+                val metrics = collectMetrics(context)
                 withContext(Dispatchers.Main) {
-                    visorView?.updateSegments(segments)
+                    visorView?.updateMetrics(metrics)
+                    syncHandleWindowsToVisor(context)
                 }
                 delay(1000L)
             }
         }
     }
 
-    private fun resolveOpaqueAccentArgb(context: Context): Int {
-        val raw = DeckThemeManager.getSnapshot(context).effectiveTintArgb.toInt()
-        val rgb = raw and 0x00FFFFFF
-        return if (rgb == 0) 0xFF00E5FF.toInt() else (rgb or 0xFF000000.toInt())
-    }
-
-    private fun collectSegments(context: Context): List<TelemetrySegment> {
-        val prefs = context.defaultPrefs()
-        val accentArgb = resolveOpaqueAccentArgb(context)
-        val segments = ArrayList<TelemetrySegment>(6)
-
-        val showFps = prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_FPS, true)
-        val showCpu = prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_CPU, true)
-        val showTemp = prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_TEMP, true)
-        val showRam = prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_RAM, false)
-        val showBat = prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_BAT, true)
-        val showWatt = prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_WATT, true)
-
-        if (visorView?.isCompactFpsOnly == true) {
-            val fps = visorView?.getCurrentFps(context) ?: LightspeedRefreshRateEngine.getLiveDisplayHz(context)
-            segments.add(TelemetrySegment("$fps FPS", accentArgb))
-            return segments
-        }
-
-        if (showFps) {
-            val fps = visorView?.getCurrentFps(context) ?: LightspeedRefreshRateEngine.getLiveDisplayHz(context)
-            segments.add(TelemetrySegment("$fps FPS", accentArgb))
-        }
-
-        if (showCpu) {
-            val cpuPct = readCpuClockLoadPercent()
-            val cpuColor = when {
-                cpuPct >= 88 -> COLOR_STATUS_DANGER
-                cpuPct >= 72 -> COLOR_STATUS_WARN
-                else -> COLOR_TEXT_PRIMARY
-            }
-            segments.add(TelemetrySegment("CPU $cpuPct%", cpuColor))
-        }
-
-        val batteryIntent = try {
-            context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        } catch (_: Exception) { null }
-
-        if (showTemp && batteryIntent != null) {
-            val rawTemp = batteryIntent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0)
-            if (rawTemp > 0) {
-                val tempC = (rawTemp / 10f).roundToInt()
-                val tempColor = when {
-                    tempC >= 44 -> COLOR_STATUS_DANGER
-                    tempC >= 40 -> COLOR_STATUS_WARN
-                    else -> COLOR_TEXT_PRIMARY
-                }
-                segments.add(TelemetrySegment("${tempC}°C", tempColor))
-            }
-        }
-
-        if (showRam) {
-            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-            if (am != null) {
-                val memInfo = ActivityManager.MemoryInfo()
-                am.getMemoryInfo(memInfo)
-                if (memInfo.totalMem > 0) {
-                    val usedPct = (((memInfo.totalMem - memInfo.availMem) * 100L) / memInfo.totalMem).toInt().coerceIn(1, 99)
-                    val ramColor = if (usedPct >= 85) COLOR_STATUS_WARN else COLOR_TEXT_PRIMARY
-                    segments.add(TelemetrySegment("RAM $usedPct%", ramColor))
-                }
-            }
-        }
-
-        if ((showBat || showWatt) && batteryIntent != null) {
-            val level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
-            val pct = ((level * 100f) / scale).roundToInt().coerceIn(0, 100)
-            val status = batteryIntent.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)
-            val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
-            val voltageMv = batteryIntent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 3850).let {
-                if (it in 1..20) it * 1000 else if (it <= 0) 3850 else it
-            }
-
-            if (showBat && level >= 0) {
-                val batColor = when {
-                    isCharging -> COLOR_STATUS_OK
-                    pct <= 10 -> COLOR_STATUS_DANGER
-                    pct <= 20 -> COLOR_STATUS_WARN
-                    else -> COLOR_TEXT_PRIMARY
-                }
-                val label = if (isCharging) "CHG $pct%" else "$pct%"
-                segments.add(TelemetrySegment(label, batColor))
-            }
-
-            if (showWatt || isCharging) {
-                val watts = readBatteryWatts(context, voltageMv)
-                if (watts > 0.05f) {
-                    val prefix = if (isCharging) "+" else ""
-                    val wattColor = if (isCharging) COLOR_STATUS_OK else COLOR_TEXT_PRIMARY
-                    val formatted = String.format(Locale.US, "%s%.1fW", prefix, watts)
-                    segments.add(TelemetrySegment(formatted, wattColor))
-                }
-            }
-        }
-
-        if (segments.isEmpty()) {
-            val hz = LightspeedRefreshRateEngine.getLiveDisplayHz(context)
-            segments.add(TelemetrySegment("$hz HZ", accentArgb))
-        }
-        return segments
-    }
-
-    private fun readBatteryWatts(context: Context, voltageMv: Int): Float {
-        return try {
-            val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager ?: return 0f
-            val rawCurrent = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-            if (rawCurrent == 0 || rawCurrent == Int.MIN_VALUE) return 0f
-            val absCurrent = abs(rawCurrent).toFloat()
-            // Android OEMs report CURRENT_NOW either in microamperes (µA) or milliamperes (mA)
-            val amps = if (absCurrent > 15_000f) absCurrent / 1_000_000f else absCurrent / 1_000f
-            val volts = voltageMv / 1000f
-            (amps * volts).coerceIn(0f, 240f)
-        } catch (_: Exception) {
-            0f
+    private fun collectMetrics(context: Context): List<TelemetryMetricItem> {
+        return LightspeedTelemetrySampler.collectMetrics(context) { ctx ->
+            visorView?.getCurrentFps(ctx) ?: LightspeedRefreshRateEngine.getLiveDisplayHz(ctx).coerceAtLeast(60)
         }
     }
 
-    private fun readCpuClockLoadPercent(): Int {
-        return try {
-            var weightedLoadSum = 0.0
-            var totalCapacityKhz = 0.0
-            for (i in 0 until 12) {
-                val curFile = File("/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq")
-                val maxFile = File("/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_max_freq")
-                val minFile = File("/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_min_freq")
-                if (!curFile.exists() || !maxFile.exists()) continue
-                val curKhz = curFile.readText().trim().toLongOrNull() ?: continue
-                val maxKhz = maxFile.readText().trim().toLongOrNull()?.coerceAtLeast(1L) ?: continue
-                val minKhz = if (minFile.exists()) {
-                    minFile.readText().trim().toLongOrNull()?.coerceIn(0L, maxKhz - 1L) ?: 0L
-                } else 0L
-                val spanKhz = (maxKhz - minKhz).coerceAtLeast(1L)
-                val normRatio = ((curKhz - minKhz).toDouble() / spanKhz.toDouble()).coerceIn(0.0, 1.0)
-                weightedLoadSum += normRatio * maxKhz.toDouble()
-                totalCapacityKhz += maxKhz.toDouble()
-            }
-            if (totalCapacityKhz > 0.0) {
-                ((weightedLoadSum / totalCapacityKhz) * 100.0).roundToInt().coerceIn(0, 100)
-            } else {
-                0
-            }
-        } catch (_: Exception) {
-            0
-        }
-    }
-
-    private class TelemetryMicroVisorView(context: Context) : View(context), Choreographer.FrameCallback {
+    private class TelemetryVisorView(context: Context) : View(context), Choreographer.FrameCallback {
 
         private val density = resources.displayMetrics.density
+        private var metrics: List<TelemetryMetricItem> = emptyList()
+        private var cachedSpec = LightspeedTelemetryHudRenderer.measureHud(context, activeStyleKey(), metrics, density)
+        private var lastMeasureSig = ""
+        private var pressState = HandlePressState.NONE
 
-        private var segments: List<TelemetrySegment> = emptyList()
-        private var lastMeasuredTextWidth = 0f
-        @Volatile var isCompactFpsOnly = false
+        // FPS sampling state
         private var frameCount = 0
         private var lastSampleTimeNs = 0L
         @Volatile private var measuredFps = 0
-        private var fpsCounterRunning = false
+        private var frameLoopRunning = false
 
-        private var downRawX = 0f
-        private var downRawY = 0f
-        private var downLocalX = 0f
-        private var initialWinX = 0
-        private var initialWinY = 0
-        private var isDragging = false
+        // 120Hz Newtonian thruster physics state
+        private var isHandleHeld = false
+        private var lastFrameNs = 0L
+        private var lastMoveUptimeMs = 0L
+        private var morphProgress = 0f
+        private var leftThrust = 0f
+        private var rightThrust = 0f
+        private var verticalGimbal = 0f
+        private var targetLeftThrust = 0f
+        private var targetRightThrust = 0f
+        private var targetGimbalY = 0f
+        private var flamePhase = 0f
 
-        private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.FILL
-            color = COLOR_SURFACE_BG
-        }
-        private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE
-            strokeWidth = 1f * density
-        }
-        private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.FILL
-        }
-        private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-            textSize = 10f * density
-        }
-        private val sepPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
-            textSize = 9.5f * density
-            color = 0x66FFFFFF
-        }
-        private val bgRect = RectF()
-        private val separatorStr = " | "
+        fun currentSpec(): HudMeasureSpec = cachedSpec
 
-        fun startFpsCounter() {
-            if (fpsCounterRunning) return
-            fpsCounterRunning = true
+        private fun needsContinuousFrameLoop(): Boolean {
+            if (isHandleHeld || morphProgress > 0f || leftThrust > 0f || rightThrust > 0f) return true
+            val prefs = context.defaultPrefs()
+            return prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_COMPACT, false) ||
+                prefs.getBoolean(LightspeedPreferences.KEY_TELEMETRY_HUD_SHOW_FPS, true)
+        }
+
+        fun syncFrameLoop() {
+            if (needsContinuousFrameLoop()) startFrameLoop() else stopFrameLoop()
+        }
+
+        fun onHandleEngage(isLeft: Boolean) {
+            pressState = if (isLeft) HandlePressState.LEFT else HandlePressState.RIGHT
+            isHandleHeld = true
+            lastMoveUptimeMs = SystemClock.uptimeMillis()
+            targetLeftThrust = 0.14f
+            targetRightThrust = 0.14f
+            targetGimbalY = 0f
+            startFrameLoop()
+            invalidate()
+        }
+
+        fun onHandleMotion(vxDpS: Float, vyDpS: Float) {
+            lastMoveUptimeMs = SystemClock.uptimeMillis()
+            // Moving right (+vx) fires LEFT thruster; moving left (-vx) fires RIGHT thruster
+            when {
+                vxDpS > 12f -> {
+                    targetLeftThrust = (vxDpS / 280f).coerceIn(0.24f, 1f)
+                    targetRightThrust = 0.06f
+                }
+                vxDpS < -12f -> {
+                    targetRightThrust = (-vxDpS / 280f).coerceIn(0.24f, 1f)
+                    targetLeftThrust = 0.06f
+                }
+                abs(vyDpS) > 22f -> {
+                    val vThrust = (abs(vyDpS) / 360f).coerceIn(0.22f, 0.72f)
+                    targetLeftThrust = vThrust
+                    targetRightThrust = vThrust
+                }
+            }
+            // Moving UP (-vy) tilts flames DOWN (+gimbal); moving DOWN (+vy) tilts flames UP (-gimbal)
+            targetGimbalY = (-vyDpS / 380f).coerceIn(-0.45f, 0.45f)
+            startFrameLoop()
+            invalidate()
+        }
+
+        fun onHandleRelease() {
+            pressState = HandlePressState.NONE
+            isHandleHeld = false
+            targetLeftThrust = 0f
+            targetRightThrust = 0f
+            targetGimbalY = 0f
+            invalidate()
+        }
+
+        fun startFrameLoop() {
+            if (frameLoopRunning) return
+            frameLoopRunning = true
             frameCount = 0
             lastSampleTimeNs = 0L
+            lastFrameNs = 0L
             Choreographer.getInstance().postFrameCallback(this)
         }
 
-        fun stopFpsCounter() {
-            fpsCounterRunning = false
+        fun stopFrameLoop() {
+            frameLoopRunning = false
+            lastSampleTimeNs = 0L
+            lastFrameNs = 0L
             Choreographer.getInstance().removeFrameCallback(this)
         }
 
         override fun doFrame(frameTimeNanos: Long) {
-            if (!fpsCounterRunning) return
+            if (!frameLoopRunning) return
             if (lastSampleTimeNs == 0L) {
                 lastSampleTimeNs = frameTimeNanos
                 frameCount = 0
@@ -460,7 +528,38 @@ object LightspeedTelemetryHudOverlay {
                     lastSampleTimeNs = frameTimeNanos
                 }
             }
-            Choreographer.getInstance().postFrameCallback(this)
+
+            val dtSec = if (lastFrameNs == 0L) 0.016f else ((frameTimeNanos - lastFrameNs) / 1_000_000_000f).coerceIn(0.002f, 0.05f)
+            lastFrameNs = frameTimeNanos
+
+            if (isHandleHeld && (SystemClock.uptimeMillis() - lastMoveUptimeMs) > 55L) {
+                targetLeftThrust = 0.10f
+                targetRightThrust = 0.10f
+                targetGimbalY = 0f
+            }
+
+            val targetMorph = if (isHandleHeld) 1f else 0f
+            val morphStep = (dtSec * 7.5f).coerceIn(0f, 1f)
+            val thrustStep = (dtSec * 12f).coerceIn(0f, 1f)
+            morphProgress += (targetMorph - morphProgress) * morphStep
+            leftThrust += (targetLeftThrust - leftThrust) * thrustStep
+            rightThrust += (targetRightThrust - rightThrust) * thrustStep
+            verticalGimbal += (targetGimbalY - verticalGimbal) * thrustStep
+
+            if (morphProgress < 0.006f && !isHandleHeld) morphProgress = 0f
+            if (leftThrust < 0.005f && targetLeftThrust == 0f) leftThrust = 0f
+            if (rightThrust < 0.005f && targetRightThrust == 0f) rightThrust = 0f
+
+            if (isHandleHeld || morphProgress > 0f || leftThrust > 0f || rightThrust > 0f) {
+                flamePhase = (flamePhase + dtSec * 3.2f) % 62.8318f
+                invalidate()
+            }
+
+            if (needsContinuousFrameLoop()) {
+                Choreographer.getInstance().postFrameCallback(this)
+            } else {
+                stopFrameLoop()
+            }
         }
 
         fun getCurrentFps(ctx: Context): Int {
@@ -469,127 +568,133 @@ object LightspeedTelemetryHudOverlay {
             return if (m <= 0) hz else m.coerceAtMost(hz)
         }
 
-        fun updateSegments(newSegments: List<TelemetrySegment>) {
-            val oldCount = segments.size
-            segments = newSegments
-            var newTextW = 0f
-            val sepW = sepPaint.measureText(separatorStr)
-            newSegments.forEachIndexed { idx, seg ->
-                newTextW += textPaint.measureText(seg.text)
-                if (idx < newSegments.lastIndex) newTextW += sepW
-            }
-            if (newSegments.size != oldCount || abs(newTextW - lastMeasuredTextWidth) > 2f * density) {
-                lastMeasuredTextWidth = newTextW
+        private fun activeStyleKey(): String {
+            val raw = context.defaultPrefs().getString(
+                LightspeedPreferences.KEY_TELEMETRY_HUD_STYLE,
+                LightspeedPreferences.DEFAULT_TELEMETRY_HUD_STYLE
+            )
+            return LightspeedTelemetryHudRenderer.normalizeStyleKey(raw)
+        }
+
+        fun updateMetrics(newMetrics: List<TelemetryMetricItem>) {
+            metrics = newMetrics
+            val prefs = context.defaultPrefs()
+            val style = activeStyleKey()
+            val scalePct = prefs.getInt(LightspeedPreferences.KEY_TELEMETRY_HUD_SCALE, LightspeedPreferences.DEFAULT_TELEMETRY_HUD_SCALE)
+            val fontKey = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_HUD_FONT, LightspeedPreferences.DEFAULT_TELEMETRY_HUD_FONT) ?: ""
+            cachedSpec = LightspeedTelemetryHudRenderer.measureHud(context, style, newMetrics, density)
+            val sig = "$style|$scalePct|$fontKey|${cachedSpec.totalWidthPx}x${cachedSpec.totalHeightPx}"
+            if (sig != lastMeasureSig) {
+                lastMeasureSig = sig
                 requestLayout()
             }
+            syncFrameLoop()
             invalidate()
         }
 
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-            val handleWidth = 18f * density
-            val padRight = 9f * density
-            val sepW = sepPaint.measureText(separatorStr)
-            var textTotalW = 0f
-            segments.forEachIndexed { idx, seg ->
-                textTotalW += textPaint.measureText(seg.text)
-                if (idx < segments.lastIndex) textTotalW += sepW
-            }
-            lastMeasuredTextWidth = textTotalW
-            val totalW = (handleWidth + textTotalW + padRight).roundToInt().coerceAtLeast((68 * density).roundToInt())
-            val totalH = (22f * density).roundToInt()
-            setMeasuredDimension(totalW, totalH)
+            cachedSpec = LightspeedTelemetryHudRenderer.measureHud(context, activeStyleKey(), metrics, density)
+            setMeasuredDimension(cachedSpec.totalWidthPx, cachedSpec.totalHeightPx)
+        }
+
+        override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+            super.onSizeChanged(w, h, oldw, oldh)
+            post { syncHandleWindowsToVisor(context) }
         }
 
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
-            val w = width.toFloat()
-            val h = height.toFloat()
-            val radius = h / 2f
-            val inset = 0.6f * density
-            bgRect.set(inset, inset, w - inset, h - inset)
-
-            val tintArgb = resolveOpaqueAccentArgb(context)
-            borderPaint.color = (tintArgb and 0x00FFFFFF) or 0x77000000
-
-            canvas.drawRoundRect(bgRect, radius, radius, bgPaint)
-            canvas.drawRoundRect(bgRect, radius, radius, borderPaint)
-
-            // Draw 6-dot tactile grip/compact-toggle handle on the left (2 columns x 3 rows)
-            dotPaint.color = (tintArgb and 0x00FFFFFF) or 0xCC000000.toInt()
-            val dotR = 1.15f * density
-            val col1X = 7.5f * density
-            val col2X = 11.5f * density
-            val centerY = h / 2f
-            val rowStep = 3.6f * density
-            for (r in -1..1) {
-                val dy = centerY + r * rowStep
-                canvas.drawCircle(col1X, dy, dotR, dotPaint)
-                canvas.drawCircle(col2X, dy, dotR, dotPaint)
-            }
-
-            // Draw telemetry segments
-            val fm = textPaint.fontMetrics
-            val baselineY = h / 2f - (fm.ascent + fm.descent) / 2f
-            var curX = 17.5f * density
-            val sepW = sepPaint.measureText(separatorStr)
-
-            segments.forEachIndexed { idx, seg ->
-                textPaint.color = seg.colorArgb or 0xFF000000.toInt()
-                canvas.drawText(seg.text, curX, baselineY, textPaint)
-                curX += textPaint.measureText(seg.text)
-                if (idx < segments.lastIndex) {
-                    canvas.drawText(separatorStr, curX, baselineY, sepPaint)
-                    curX += sepW
-                }
-            }
+            LightspeedTelemetryHudRenderer.drawHud(
+                canvas = canvas,
+                context = context,
+                styleKey = activeStyleKey(),
+                items = metrics,
+                spec = cachedSpec,
+                pressState = pressState,
+                thruster = ThrusterRenderState(
+                    morph = morphProgress,
+                    leftThrust = leftThrust,
+                    rightThrust = rightThrust,
+                    verticalGimbal = verticalGimbal,
+                    flamePhase = flamePhase
+                ),
+                d = density
+            )
         }
+    }
 
+    @SuppressLint("ViewConstructor")
+    private class TelemetryHandleTouchView(
+        context: Context,
+        private val isLeft: Boolean
+    ) : View(context) {
+
+        private val density = resources.displayMetrics.density
+        private var downRawX = 0f
+        private var downRawY = 0f
+        private var prevRawX = 0f
+        private var prevRawY = 0f
+        private var prevUptimeMs = 0L
+        private var initialCoreX = 0
+        private var initialCoreY = 0
+        private var isDragging = false
+
+        @SuppressLint("ClickableViewAccessibility")
         override fun onTouchEvent(event: MotionEvent): Boolean {
-            val params = windowParams ?: return false
+            val vView = visorView ?: return false
             val service = LightspeedAccessibilityService.instance ?: return false
-            val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return false
             val dm = resources.displayMetrics
 
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downRawX = event.rawX
                     downRawY = event.rawY
-                    downLocalX = event.x
-                    initialWinX = params.x
-                    initialWinY = params.y
+                    prevRawX = event.rawX
+                    prevRawY = event.rawY
+                    prevUptimeMs = SystemClock.uptimeMillis()
+                    initialCoreX = coreX
+                    initialCoreY = coreY
                     isDragging = false
+                    LightspeedHapticEngine.tick(context)
+                    vView.onHandleEngage(isLeft)
                     return true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - downRawX
-                    val dy = event.rawY - downRawY
-                    if (!isDragging && (abs(dx) > 4f * density || abs(dy) > 4f * density)) {
+                    val nowMs = SystemClock.uptimeMillis()
+                    val dtSec = ((nowMs - prevUptimeMs).coerceIn(4L, 80L)) / 1000f
+                    val stepDx = event.rawX - prevRawX
+                    val stepDy = event.rawY - prevRawY
+                    prevRawX = event.rawX
+                    prevRawY = event.rawY
+                    prevUptimeMs = nowMs
+
+                    val totalDx = event.rawX - downRawX
+                    val totalDy = event.rawY - downRawY
+                    if (!isDragging && hypot(totalDx.toDouble(), totalDy.toDouble()) > (3f * density)) {
                         isDragging = true
-                        LightspeedHapticEngine.tick(context)
                     }
                     if (isDragging) {
-                        val maxX = (dm.widthPixels - width).coerceAtLeast(0)
-                        val maxY = (dm.heightPixels - height).coerceAtLeast(0)
-                        params.x = (initialWinX + dx.roundToInt()).coerceIn(0, maxX)
-                        params.y = (initialWinY + dy.roundToInt()).coerceIn(0, maxY)
-                        try {
-                            wm.updateViewLayout(this, params)
-                        } catch (_: Exception) {}
+                        val spec = vView.currentSpec()
+                        val maxX = (dm.widthPixels - spec.coreWidthPx).coerceAtLeast(0)
+                        val maxY = (dm.heightPixels - spec.coreHeightPx).coerceAtLeast(0)
+                        coreX = (initialCoreX + totalDx.roundToInt()).coerceIn(0, maxX)
+                        coreY = (initialCoreY + totalDy.roundToInt()).coerceIn(0, maxY)
+                        syncHandleWindowsToVisor(service)
                     }
+                    vView.onHandleMotion(
+                        vxDpS = (stepDx / density) / dtSec,
+                        vyDpS = (stepDy / density) / dtSec
+                    )
                     return true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    vView.onHandleRelease()
                     if (isDragging) {
                         context.defaultPrefs().edit()
-                            .putInt(LightspeedPreferences.KEY_TELEMETRY_HUD_POS_X, params.x)
-                            .putInt(LightspeedPreferences.KEY_TELEMETRY_HUD_POS_Y, params.y)
+                            .putInt(LightspeedPreferences.KEY_TELEMETRY_HUD_POS_X, coreX)
+                            .putInt(LightspeedPreferences.KEY_TELEMETRY_HUD_POS_Y, coreY)
                             .apply()
                         isDragging = false
-                    } else if (event.actionMasked == MotionEvent.ACTION_UP && downLocalX <= 22f * density) {
-                        // Tapping the 6-dot handle toggles Compact FPS-Only Mini-Badge Mode vs Expanded Strip
-                        isCompactFpsOnly = !isCompactFpsOnly
-                        LightspeedHapticEngine.tick(context)
-                        updateSegments(collectSegments(context))
                     }
                     return true
                 }

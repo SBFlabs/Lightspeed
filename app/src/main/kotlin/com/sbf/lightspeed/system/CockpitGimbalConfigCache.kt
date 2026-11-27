@@ -24,6 +24,30 @@ object CockpitGimbalConfigCache {
     @Volatile var lastResolvedPalette: CanvasThemePalette? = null
         private set
 
+    // In-memory "Try-Before-You-Buy" Hangar previews (never written to SharedPreferences until unlocked)
+    @Volatile var previewGearShape: String? = null
+        private set
+    @Volatile var previewReticleStyle: String? = null
+        private set
+    @Volatile var previewFeatureLabel: String? = null
+        private set
+
+    fun setShapePreview(shape: String, featureLabel: String) {
+        previewGearShape = shape
+        previewFeatureLabel = featureLabel
+    }
+
+    fun setReticlePreview(reticle: String, featureLabel: String) {
+        previewReticleStyle = reticle
+        previewFeatureLabel = featureLabel
+    }
+
+    fun clearPreview() {
+        previewGearShape = null
+        previewReticleStyle = null
+        previewFeatureLabel = null
+    }
+
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == null ||
             key == LightspeedPreferences.KEY_GEAR_RETICLE_STYLE ||

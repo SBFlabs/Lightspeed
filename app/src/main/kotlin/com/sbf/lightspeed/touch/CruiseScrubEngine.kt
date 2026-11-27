@@ -129,7 +129,7 @@ object CruiseScrubEngine {
 
         // Seamless Sub-Zero Dimming: route based on user choice
         val isExtraDimEnabled = prefs.getBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, false)
-        val rawDimLevel = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 0)
+        val rawDimLevel = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 40).let { if (it in 10..90) it else 40 }
         val currentDimLevel = if (isExtraDimEnabled) rawDimLevel else 0
         if (curBright <= 3 && steps < 0) {
             when (bottomExtreme) {
@@ -147,15 +147,24 @@ object CruiseScrubEngine {
                     )
                 }
                 LightspeedPreferences.SCRUB_EXTREME_EYE_CARE -> {
-                    val curKelvin = prefs.getInt(LightspeedPreferences.KEY_EYE_CARE_TEMP, 3400)
-                    val newKelvin = (curKelvin - (-steps * 200)).coerceIn(2200, 5000)
+                    val curKelvin = prefs.getInt(
+                        LightspeedPreferences.KEY_EYE_CARE_TEMP,
+                        com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.DEFAULT_KELVIN
+                    ).coerceIn(
+                        com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.MIN_KELVIN,
+                        com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.MAX_KELVIN
+                    )
+                    val newKelvin = (curKelvin - (-steps * 200)).coerceIn(
+                        com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.MIN_KELVIN,
+                        com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.MAX_KELVIN
+                    )
                     com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.applyEyeCare(context, true, newKelvin)
                     onHaptic?.invoke()
                     return ScrubResult(
                         title = "EYE CARE",
                         value = "${newKelvin}K",
                         currentValue = 1,
-                        stepIndex = ((5000 - newKelvin) / 280),
+                        stepIndex = ((com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.MAX_KELVIN - newKelvin) / 280),
                         totalSteps = 10
                     )
                 }
@@ -192,7 +201,7 @@ object CruiseScrubEngine {
             val newDimLevel = (currentDimLevel - (steps * 10)).coerceIn(0, 90)
             val preservedBright = curBright.coerceIn(1, 255)
             if (newDimLevel == 0) {
-                com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.applyExtraDim(context, false, 0)
+                com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.disableExtraDimIfActive(context)
                 com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.clearVideoOverride(context)
             } else {
                 com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.applyExtraDim(context, true, newDimLevel)

@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
@@ -133,7 +134,8 @@ internal object LiquidRefractionProbe {
 internal fun LiquidRefractionLayer(
     bitmap: ImageBitmap,
     snapshot: DeckThemeSnapshot,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    downscaleRatio: Float = 1f
 ) {
     val density = LocalDensity.current
     val config = LocalConfiguration.current
@@ -167,7 +169,7 @@ internal fun LiquidRefractionLayer(
                 shader.setFloatUniform("scale", scalePx)
                 shader.setFloatUniform("gleam", gleamStrength)
                 val shaderEffect = RenderEffect.createRuntimeShaderEffect(shader, "content")
-                val blurPx = (blurRadiusPx * 0.35f).coerceIn(0f, 60f)
+                val blurPx = (blurRadiusPx * 0.28f).coerceIn(0f, 36f)
                 if (blurPx >= 1f) {
                     val blurEffect = RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP)
                     RenderEffect.createChainEffect(shaderEffect, blurEffect).asComposeRenderEffect()
@@ -214,18 +216,19 @@ internal fun LiquidRefractionLayer(
                         val screenX = basePosX
                         val screenY = basePosY + currentDrag
 
-                        // 1:1 Native Resolution Mapping
-                        val srcX = screenX.coerceIn(0, (bitmap.width - 1).coerceAtLeast(0))
-                        val srcY = screenY.coerceIn(0, (bitmap.height - 1).coerceAtLeast(0))
-                        val srcW = boxSize.width.coerceIn(1, (bitmap.width - srcX).coerceAtLeast(1))
-                        val srcH = boxSize.height.coerceIn(1, (bitmap.height - srcY).coerceAtLeast(1))
+                        // Pre-downscaled 2x-4x coordinate mapping for lower GPU bandwidth
+                        val srcX = (screenX * downscaleRatio).roundToInt().coerceIn(0, (bitmap.width - 1).coerceAtLeast(0))
+                        val srcY = (screenY * downscaleRatio).roundToInt().coerceIn(0, (bitmap.height - 1).coerceAtLeast(0))
+                        val srcW = (boxSize.width * downscaleRatio).roundToInt().coerceIn(1, (bitmap.width - srcX).coerceAtLeast(1))
+                        val srcH = (boxSize.height * downscaleRatio).roundToInt().coerceIn(1, (bitmap.height - srcY).coerceAtLeast(1))
 
                         drawImage(
                             image = bitmap,
                             srcOffset = IntOffset(srcX, srcY),
                             srcSize = IntSize(srcW, srcH),
                             dstOffset = IntOffset.Zero,
-                            dstSize = IntSize(boxSize.width, boxSize.height)
+                            dstSize = IntSize(boxSize.width, boxSize.height),
+                            filterQuality = FilterQuality.Medium
                         )
                     }
             )

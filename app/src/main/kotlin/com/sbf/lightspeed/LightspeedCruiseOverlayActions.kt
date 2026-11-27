@@ -68,6 +68,7 @@ internal fun LightspeedCruiseOverlay.dismissOverlay() {
     allTipsOverlaySurface = null
     allTipsState.reset()
     isTouchingHangarTip = false
+    com.sbf.lightspeed.system.CockpitGimbalConfigCache.clearPreview()
     categoryCruiseTipHitRect.setEmpty()
     deepSpaceRenderer.hangarTipRect.setEmpty()
     categoryScrubbingEngaged = false

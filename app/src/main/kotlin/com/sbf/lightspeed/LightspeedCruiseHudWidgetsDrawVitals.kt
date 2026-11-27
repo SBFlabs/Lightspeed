@@ -286,12 +286,12 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
         "apps" -> {
             // Real unplugged per-app battery drain via Shizuku only (no synthetic screen-time fallback)
             val mLeft = bounds.left + 13f * density
-            val mRight = bounds.right - 13f * density
+            val rightMarginRight = bounds.right - 11f * density
 
             val batSubPillW = 54f * density
             val batSubPillH = 12.5f * density
             val batSubPillTop = bounds.top + 30.5f * density
-            val batSubPillLeft = mRight - batSubPillW
+            val batSubPillLeft = rightMarginRight - batSubPillW
             drawCockpitVectorIcon(canvas, "APPS", mLeft + 5f * density, bounds.top + 36.5f * density, 8.5f * density, accent, density)
             textPaint.textAlign = Paint.Align.LEFT
             textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
@@ -299,7 +299,7 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
             textPaint.color = accent
             val consumersTitle = com.sbf.lightspeed.system.lsString(R.string.hud_bat_consumers).ifBlank { "TOP POWER CONSUMERS (% DRAIN)" }
             val shizukuReady = com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive
-            val maxConsumersW = if (shizukuReady) (batSubPillLeft - (mLeft + 14f * density) - 6f * density).coerceAtLeast(48f * density) else (mRight - mLeft - 14f * density)
+            val maxConsumersW = if (shizukuReady) (batSubPillLeft - (mLeft + 14f * density) - 6f * density).coerceAtLeast(48f * density) else (rightMarginRight - mLeft - 14f * density)
             canvas.drawText(clipTextToWidth(consumersTitle, maxConsumersW), mLeft + 14f * density, bounds.top + 40f * density, textPaint)
 
             val listTop = bounds.top + 47f * density
@@ -325,11 +325,11 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                 textPaint.typeface = overlayTypeface(isBold = false, fallback = Typeface.DEFAULT)
                 textPaint.textSize = 9.0f * density
                 textPaint.color = Color.argb(210, 220, 230, 245)
-                canvas.drawText(clipTextToWidth(reqBody, (mRight - mLeft).coerceAtLeast(40f * density)), noticeCenterX, listTop + 26f * density, textPaint)
+                canvas.drawText(clipTextToWidth(reqBody, (rightMarginRight - mLeft).coerceAtLeast(40f * density)), noticeCenterX, listTop + 26f * density, textPaint)
 
                 val btnH = 22f * density
                 val btnTop = (listBottom - btnH).coerceAtLeast(listTop + 34f * density)
-                val btnW = minOf(mRight - mLeft, 190f * density)
+                val btnW = minOf(rightMarginRight - mLeft, 190f * density)
                 vitalsBatteryBtnRect.set(noticeCenterX - btnW / 2f, btnTop, noticeCenterX + btnW / 2f, btnTop + btnH)
 
                 highlightPaint.style = Paint.Style.FILL
@@ -346,7 +346,7 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                 textPaint.color = accent
                 canvas.drawText(btnText, vitalsBatteryBtnRect.centerX(), vitalsBatteryBtnRect.centerY() + 3.2f * density, textPaint)
             } else {
-                vitalsBatteryBtnRect.set(batSubPillLeft, batSubPillTop, mRight, batSubPillTop + batSubPillH)
+                vitalsBatteryBtnRect.set(batSubPillLeft, batSubPillTop, rightMarginRight, batSubPillTop + batSubPillH)
                 highlightPaint.style = Paint.Style.FILL
                 highlightPaint.color = Color.argb((34 * alpha).toInt(), Color.red(accent), Color.green(accent), Color.blue(accent))
                 canvas.drawRoundRect(vitalsBatteryBtnRect, 4f * density, 4f * density, highlightPaint)
@@ -367,6 +367,13 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                 setBatteryAppsMaxScroll(slotIndex, batteryAppsMaxScroll)
                 setBatteryAppsScrollOffset(slotIndex, batteryAppsScrollOffset)
 
+                val sbW = 2.5f * density
+                val rowRight = if (batteryAppsMaxScroll > 0f) {
+                    rightMarginRight - sbW - 4.5f * density
+                } else {
+                    rightMarginRight
+                }
+
                 if (drainApps.isEmpty()) {
                     textPaint.textAlign = Paint.Align.LEFT
                     textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
@@ -379,7 +386,7 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                     } else {
                         lsString(R.string.hud_bat_no_drain_yet).ifBlank { "NO UNPLUGGED DRAIN LOGGED YET" }
                     }
-                    canvas.drawText(clipTextToWidth(emptyMsg, (mRight - mLeft).coerceAtLeast(40f * density)), mLeft, listTop + 16f * density, textPaint)
+                    canvas.drawText(clipTextToWidth(emptyMsg, (rowRight - mLeft).coerceAtLeast(40f * density)), mLeft, listTop + 16f * density, textPaint)
                 } else {
                     val topAlpha = LightspeedHudVectorIcons.computeEdgeFeatherStrength(batteryAppsScrollOffset, density)
                     val bottomAlpha = LightspeedHudVectorIcons.computeEdgeFeatherStrength(batteryAppsMaxScroll - batteryAppsScrollOffset, density)
@@ -387,11 +394,11 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                     val featherBottomPx = 16f * density
                     val needsFeatherLayer = batteryAppsMaxScroll > 0.5f && (topAlpha > 0.004f || bottomAlpha > 0.004f)
                     val batLayerCount = if (needsFeatherLayer) {
-                        canvas.saveLayer(mLeft - 2f * density, bounds.top + 45f * density, mRight + 2f * density, listBottom, null)
+                        canvas.saveLayer(mLeft - 2f * density, bounds.top + 45f * density, rowRight + 2f * density, listBottom, null)
                     } else {
                         canvas.save()
                     }
-                    canvas.clipRect(mLeft - 2f * density, bounds.top + 45f * density, mRight + 2f * density, listBottom)
+                    canvas.clipRect(mLeft - 2f * density, bounds.top + 45f * density, rowRight + 2f * density, listBottom)
                     canvas.save()
                     canvas.translate(0f, -batteryAppsScrollOffset)
 
@@ -409,14 +416,14 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                         textPaint.textSize = 11.4f * density
                         textPaint.color = accent
                         val pctW = textPaint.measureText(pctStr)
-                        canvas.drawText(pctStr, mRight, rY, textPaint)
+                        canvas.drawText(pctStr, rowRight, rY, textPaint)
 
                         val rightLabel = " ($mahStr)"
                         textPaint.textAlign = Paint.Align.LEFT
                         textPaint.typeface = overlayTypeface(isBold = true, fallback = cockpitMonoBold)
                         textPaint.textSize = 11.2f * density
                         textPaint.color = Color.WHITE
-                        val availTitleW = (mRight - pctW - mLeft - 8f * density).coerceAtLeast(36f * density)
+                        val availTitleW = (rowRight - pctW - mLeft - 8f * density).coerceAtLeast(36f * density)
                         val rightLabelW = textPaint.measureText(rightLabel)
                         val clippedName = clipTextToWidth(entry.label, (availTitleW - rightLabelW).coerceAtLeast(24f * density))
                         canvas.drawText("$clippedName$rightLabel", mLeft, rY, textPaint)
@@ -426,7 +433,7 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                             canvas = canvas,
                             left = mLeft,
                             top = bTop,
-                            right = mRight,
+                            right = rowRight,
                             bottom = bTop + 4.5f * density,
                             ratio = (entry.drainPct / 100f).coerceIn(0.01f, 1f),
                             segments = 14,
@@ -442,7 +449,7 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                             canvas = canvas,
                             left = mLeft - 2f * density,
                             top = bounds.top + 45f * density,
-                            right = mRight + 2f * density,
+                            right = rowRight + 2f * density,
                             bottom = listBottom,
                             featherTopPx = featherTopPx,
                             featherBottomPx = featherBottomPx,
@@ -455,8 +462,7 @@ internal fun LightspeedCruiseOverlay.drawBatterySystemHudWidget(
                     canvas.restoreToCount(batLayerCount)
 
                     if (batteryAppsMaxScroll > 0f) {
-                        val sbW = 2.5f * density
-                        val sbX = mRight + 5f * density
+                        val sbX = rightMarginRight - sbW
                         val sbRatio = (listH / totalListH).coerceIn(0.15f, 0.8f)
                         val thumbH = listH * sbRatio
                         val thumbY = listTop + ((batteryAppsScrollOffset / batteryAppsMaxScroll) * (listH - thumbH))

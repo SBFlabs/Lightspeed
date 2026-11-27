@@ -4,6 +4,7 @@ import android.graphics.Color
 import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.settings.DeckThemeSnapshot
 import com.sbf.lightspeed.system.NightlyFeatures
+import com.sbf.lightspeed.system.lsString
 
 /**
  * Shared 12-theme palette & contrast bundle for Category Cruise HUD modal cards.
@@ -101,7 +102,7 @@ internal fun buildTuneSliderSpecs(item: CategoryHudItem): List<TuneSliderSpec> {
     val specs = mutableListOf(
         TuneSliderSpec(
             id = "item_w",
-            label = "WIDTH",
+            label = lsString(R.string.ref_tune_width),
             minVal = 1,
             maxVal = CategoryHudManager.MAX_CELLS,
             unit = "/10",
@@ -119,7 +120,7 @@ internal fun buildTuneSliderSpecs(item: CategoryHudItem): List<TuneSliderSpec> {
         ),
         TuneSliderSpec(
             id = "item_h",
-            label = "HEIGHT",
+            label = lsString(R.string.ref_tune_height),
             minVal = minHCells,
             maxVal = CategoryHudManager.MAX_CELLS,
             unit = "/10",
@@ -137,7 +138,7 @@ internal fun buildTuneSliderSpecs(item: CategoryHudItem): List<TuneSliderSpec> {
         ),
         TuneSliderSpec(
             id = "item_opacity",
-            label = "OPACITY",
+            label = lsString(R.string.ref_tune_opacity),
             minVal = CategoryHudManager.OPACITY_MIN,
             maxVal = CategoryHudManager.OPACITY_MAX,
             unit = "%",
@@ -155,18 +156,18 @@ internal fun buildTuneSliderSpecs(item: CategoryHudItem): List<TuneSliderSpec> {
         ),
         TuneSliderSpec(
             id = "item_radius",
-            label = "CORNER RADIUS",
+            label = lsString(R.string.ref_tune_corner_radius),
             minVal = 0,
             maxVal = CategoryHudManager.RADIUS_MAX_DP,
             unit = "dp",
             supportsAuto = true,
             explicitPresetMin = 0,
             dotsEveryStep = false,
-            defaultDisplay = { _, _ -> "AUTO" },
+            defaultDisplay = { _, _ -> lsString(R.string.ref_tune_auto) },
             isAtDefault = { it, _ -> it.cornerRadiusDp < 0 },
             isAutoActive = { it.cornerRadiusDp < 0 },
             getSliderPos = { if (it.cornerRadiusDp < 0) 12 else it.cornerRadiusDp.coerceIn(0, CategoryHudManager.RADIUS_MAX_DP) },
-            getDisplayValue = { if (it.cornerRadiusDp < 0) "AUTO" else "${it.cornerRadiusDp}dp" },
+            getDisplayValue = { if (it.cornerRadiusDp < 0) lsString(R.string.ref_tune_auto) else "${it.cornerRadiusDp}dp" },
             applySliderPos = { it, pos -> it.cornerRadiusDp = pos.coerceIn(0, CategoryHudManager.RADIUS_MAX_DP) },
             applySteppedDelta = { it, d ->
                 val base = if (it.cornerRadiusDp < 0) 12 else it.cornerRadiusDp
@@ -174,27 +175,27 @@ internal fun buildTuneSliderSpecs(item: CategoryHudItem): List<TuneSliderSpec> {
             },
             applyAutoOrReset = { it, _ -> it.cornerRadiusDp = -1 }
         ),
-        buildPadSliderSpec("item_pad_l", "PAD LEFT", { it.padLeftDp }, { it, v -> it.padLeftDp = v }),
-        buildPadSliderSpec("item_pad_t", "PAD TOP", { it.padTopDp }, { it, v -> it.padTopDp = v }),
-        buildPadSliderSpec("item_pad_r", "PAD RIGHT", { it.padRightDp }, { it, v -> it.padRightDp = v }),
-        buildPadSliderSpec("item_pad_b", "PAD BOTTOM", { it.padBottomDp }, { it, v -> it.padBottomDp = v })
+        buildPadSliderSpec("item_pad_l", lsString(R.string.ref_tune_pad_left), { it.padLeftDp }, { it, v -> it.padLeftDp = v }),
+        buildPadSliderSpec("item_pad_t", lsString(R.string.ref_tune_pad_top), { it.padTopDp }, { it, v -> it.padTopDp = v }),
+        buildPadSliderSpec("item_pad_r", lsString(R.string.ref_tune_pad_right), { it.padRightDp }, { it, v -> it.padRightDp = v }),
+        buildPadSliderSpec("item_pad_b", lsString(R.string.ref_tune_pad_bottom), { it.padBottomDp }, { it, v -> it.padBottomDp = v })
     )
 
     if (isInspector) {
         specs += TuneSliderSpec(
             id = "item_title_fs",
-            label = "TITLE SIZE",
+            label = lsString(R.string.ed_tune_title_size),
             minVal = 9,
             maxVal = 24,
             unit = "sp",
             supportsAuto = true,
             explicitPresetMin = 10,
             dotsEveryStep = false,
-            defaultDisplay = { _, _ -> "AUTO" },
+            defaultDisplay = { _, _ -> lsString(R.string.ref_tune_auto) },
             isAtDefault = { it, _ -> it.titleFontSizeSp <= 0 },
             isAutoActive = { it.titleFontSizeSp <= 0 },
             getSliderPos = { if (it.titleFontSizeSp <= 0) 9 else it.titleFontSizeSp.coerceIn(10, 24) },
-            getDisplayValue = { if (it.titleFontSizeSp <= 0) "AUTO" else "${it.titleFontSizeSp}sp" },
+            getDisplayValue = { if (it.titleFontSizeSp <= 0) lsString(R.string.ref_tune_auto) else "${it.titleFontSizeSp}sp" },
             applySliderPos = { it, pos -> it.titleFontSizeSp = if (pos <= 9) 0 else pos.coerceIn(10, 24) },
             applySteppedDelta = { it, d ->
                 val base = if (it.titleFontSizeSp <= 0) 9 else it.titleFontSizeSp
@@ -205,18 +206,18 @@ internal fun buildTuneSliderSpecs(item: CategoryHudItem): List<TuneSliderSpec> {
         )
         specs += TuneSliderSpec(
             id = "item_sub_fs",
-            label = "SUB SIZE",
+            label = lsString(R.string.ed_tune_sub_size),
             minVal = 6,
             maxVal = 16,
             unit = "sp",
             supportsAuto = true,
             explicitPresetMin = 7,
             dotsEveryStep = true,
-            defaultDisplay = { _, _ -> "AUTO" },
+            defaultDisplay = { _, _ -> lsString(R.string.ref_tune_auto) },
             isAtDefault = { it, _ -> it.subtitleFontSizeSp <= 0 },
             isAutoActive = { it.subtitleFontSizeSp <= 0 },
             getSliderPos = { if (it.subtitleFontSizeSp <= 0) 6 else it.subtitleFontSizeSp.coerceIn(7, 16) },
-            getDisplayValue = { if (it.subtitleFontSizeSp <= 0) "AUTO" else "${it.subtitleFontSizeSp}sp" },
+            getDisplayValue = { if (it.subtitleFontSizeSp <= 0) lsString(R.string.ref_tune_auto) else "${it.subtitleFontSizeSp}sp" },
             applySliderPos = { it, pos -> it.subtitleFontSizeSp = if (pos <= 6) 0 else pos.coerceIn(7, 16) },
             applySteppedDelta = { it, d ->
                 val base = if (it.subtitleFontSizeSp <= 0) 6 else it.subtitleFontSizeSp

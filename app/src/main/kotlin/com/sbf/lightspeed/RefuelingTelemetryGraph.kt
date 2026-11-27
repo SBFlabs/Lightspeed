@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -523,11 +524,11 @@ internal object RefuelingTelemetryHistoryBuffer {
     }
 }
 
-internal val REFUELING_GRAPH_MODE_OPTIONS: List<Pair<String, String>> = listOf(
-    "strip" to "STRIP",
-    "backdrop" to "BACKDROP",
-    "gauge" to "IN GAUGE",
-    "off" to "OFF"
+internal fun refuelingGraphModeOptions(): List<Pair<String, String>> = listOf(
+    "strip" to lsString(R.string.ref_graph_mode_strip),
+    "backdrop" to lsString(R.string.ref_graph_mode_backdrop),
+    "gauge" to lsString(R.string.ref_graph_mode_gauge),
+    "off" to lsString(R.string.ref_graph_mode_off)
 )
 
 internal val REFUELING_GRAPH_SPAN_OPTIONS: List<Pair<String, String>> = listOf(
@@ -539,10 +540,30 @@ internal val REFUELING_GRAPH_SPAN_OPTIONS: List<Pair<String, String>> = listOf(
     "charge" to "CHARGE"
 )
 
-internal val REFUELING_GRAPH_UNPLUGGED_OPTIONS: List<Pair<String, String>> = listOf(
-    "live_15m" to "15M LIVE",
-    "last_charge" to "LAST CHARGE"
+internal fun refuelingGraphSpanOptions(): List<Pair<String, String>> = listOf(
+    "1m" to lsString(R.string.ref_graph_span_1m),
+    "5m" to lsString(R.string.ref_graph_span_5m),
+    "15m" to lsString(R.string.ref_graph_span_15m),
+    "1h" to lsString(R.string.ref_graph_span_1h),
+    "3h" to lsString(R.string.ref_graph_span_3h),
+    "charge" to lsString(R.string.ref_graph_span_charge)
 )
+
+internal fun refuelingGraphUnpluggedOptions(): List<Pair<String, String>> = listOf(
+    "live_15m" to lsString(R.string.ref_graph_unplug_live),
+    "last_charge" to lsString(R.string.ref_graph_unplug_last)
+)
+
+internal fun resolveRefuelingSpanBadge(badge: String): String = when (badge) {
+    "1M" -> lsString(R.string.ref_graph_span_1m)
+    "5M" -> lsString(R.string.ref_graph_span_5m)
+    "15M" -> lsString(R.string.ref_graph_span_15m)
+    "1H" -> lsString(R.string.ref_graph_span_1h)
+    "3H" -> lsString(R.string.ref_graph_span_3h)
+    "LAST CHG" -> lsString(R.string.ref_graph_span_last_chg)
+    "CHARGE" -> lsString(R.string.ref_graph_span_charge)
+    else -> badge
+}
 
 internal fun nextRefuelingGraphSpan(current: String): String {
     val keys = REFUELING_GRAPH_SPAN_OPTIONS.map { it.first }
@@ -676,24 +697,27 @@ private fun RefuelingGraphBottomLegend(
         return String.format(Locale.US, "%.1f°%s", v, unit)
     }
 
+    val pwrTag = lsString(R.string.ref_graph_pwr)
+    val pkTag = lsString(R.string.ref_graph_pk)
+    val tempTag = lsString(R.string.ref_graph_temp)
     val powerLabel = when {
         currentWattage > 0.1f && minActiveWatt != null && maxWatt >= 0.5f && (maxWatt - minActiveWatt) >= 1.5f ->
-            String.format(Locale.US, "PWR %.1fW (%.0f–%.0f)", currentWattage, minActiveWatt, maxWatt)
+            String.format(Locale.US, "%s %.1fW (%.0f–%.0f)", pwrTag, currentWattage, minActiveWatt, maxWatt)
         currentWattage > 0.1f && maxWatt >= currentWattage + 0.8f && maxWatt >= 0.5f ->
-            String.format(Locale.US, "PWR %.1fW (PK %.0f)", currentWattage, maxWatt)
-        currentWattage > 0.1f -> String.format(Locale.US, "PWR %.1fW", currentWattage)
+            String.format(Locale.US, "%s %.1fW (%s %.0f)", pwrTag, currentWattage, pkTag, maxWatt)
+        currentWattage > 0.1f -> String.format(Locale.US, "%s %.1fW", pwrTag, currentWattage)
         maxWatt >= 0.5f && minActiveWatt != null && (maxWatt - minActiveWatt) >= 1.5f ->
-            String.format(Locale.US, "PWR 0W (%.0f–%.0f)", minActiveWatt, maxWatt)
-        maxWatt >= 0.5f -> String.format(Locale.US, "PWR 0W (PK %.0f)", maxWatt)
-        else -> "PWR 0.0W"
+            String.format(Locale.US, "%s 0W (%.0f–%.0f)", pwrTag, minActiveWatt, maxWatt)
+        maxWatt >= 0.5f -> String.format(Locale.US, "%s 0W (%s %.0f)", pwrTag, pkTag, maxWatt)
+        else -> "$pwrTag 0.0W"
     }
 
     val tempLabel = if (abs(maxTemp - minTemp) >= 0.6f) {
         val tMinStr = String.format(Locale.US, "%.0f", if (isFahrenheit) minTemp * 9f / 5f + 32f else minTemp)
         val tMaxStr = String.format(Locale.US, "%.0f", if (isFahrenheit) maxTemp * 9f / 5f + 32f else maxTemp)
-        "TEMP ${formatTemp(currentTempC)} ($tMinStr–$tMaxStr)"
+        "$tempTag ${formatTemp(currentTempC)} ($tMinStr–$tMaxStr)"
     } else {
-        "TEMP ${formatTemp(currentTempC)}"
+        "$tempTag ${formatTemp(currentTempC)}"
     }
 
     Row(
@@ -769,7 +793,7 @@ private fun RefuelingGraphBottomLegend(
                 .padding(horizontal = 6.dp, vertical = 2.dp)
         ) {
             Text(
-                text = spanBadge,
+                text = resolveRefuelingSpanBadge(spanBadge),
                 fontSize = 9.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,

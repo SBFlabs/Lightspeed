@@ -8,15 +8,10 @@ import android.content.SharedPreferences
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -24,14 +19,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.sbf.lightspeed.LightspeedAccessibilityService
-import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedNotificationListener
 import com.sbf.lightspeed.system.LightspeedPreferences
@@ -40,23 +30,30 @@ import com.sbf.lightspeed.system.ShizukuGate
 import com.sbf.lightspeed.system.lsString
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.launch
 
 object CentralCommandTabNavigator {
     val jumpChannel = Channel<Int>(Channel.CONFLATED)
     val pendingJumpTab = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
+    val flightDeckChannel = Channel<Unit>(Channel.CONFLATED)
+    val trackpadShowcaseChannel = Channel<Unit>(Channel.CONFLATED)
+    val expandLabsTrackpadTick = kotlinx.coroutines.flow.MutableStateFlow(0)
 
     fun triggerJump(targetTab: Int) {
         jumpChannel.trySend(targetTab)
         pendingJumpTab.value = targetTab
     }
+
+    fun triggerFlightDeck() {
+        flightDeckChannel.trySend(Unit)
+    }
+
+    fun triggerTrackpadShowcase() {
+        trackpadShowcaseChannel.trySend(Unit)
+    }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CentralCommandMatrixFields(
     context: Context,
@@ -65,7 +62,8 @@ fun CentralCommandMatrixFields(
     toggleAllTrigger: Int = 0,
     jumpTargetTab: Int = -1,
     jumpTargetSection: String? = null,
-    onRefreshNeeded: () -> Unit = {}
+    onRefreshNeeded: () -> Unit = {},
+    onWindowStateChanged: (activeTab: Int, isBlueprintActive: Boolean) -> Unit = { _, _ -> }
 ) {
     val lsColors = LightspeedStyle.colors
     val state = rememberCentralCommandState(
@@ -78,7 +76,54 @@ fun CentralCommandMatrixFields(
     val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
     val uiAlreadyWarm = remember { CentralCommandWarmupCoordinator.isUiWarmed }
 
-    val scope = rememberCoroutineScope()
+    LaunchedEffect(
+        state.pagerState.currentPage,
+        state.blueprintTabTargetState.value,
+        state.popoverTabTargetState.value
+    ) {
+        onWindowStateChanged(
+            state.pagerState.currentPage,
+            state.blueprintTabTargetState.value != null || state.popoverTabTargetState.value != null
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        CentralCommandTabNavigator.trackpadShowcaseChannel.receiveAsFlow().collect {
+            val leftEnabled = prefs.getBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_LEFT_ENABLED, false)
+            val rightEnabled = prefs.getBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_RIGHT_ENABLED, false)
+            if (leftEnabled || rightEnabled) {
+                val targetTab = if (rightEnabled || !leftEnabled) 2 else 0
+                val flankKey = if (targetTab == 0) "left" else "right"
+                prefs.edit()
+                    .putBoolean("pref_accordion_trackpad_$flankKey", true)
+                    .putBoolean("pref_sub_trackpad_geo_$flankKey", true)
+                    .apply()
+                if (targetTab == 0) {
+                    state.isLeftTrackpadGeoExpandedState.value = true
+                } else {
+                    state.isTrackpadGeoExpandedState.value = true
+                }
+                CentralCommandTabNavigator.triggerJump(targetTab)
+            } else {
+                state.pagerState.animateScrollToPage(1)
+                state.isExperimentalLabsExpandedState.value = true
+                prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, true).apply()
+                CentralCommandTabNavigator.expandLabsTrackpadTick.value =
+                    CentralCommandTabNavigator.expandLabsTrackpadTick.value + 1
+                kotlinx.coroutines.delay(180L)
+                val labsIdx = state.listState1.layoutInfo.visibleItemsInfo.firstOrNull { it.key == "experimental_labs" }?.index
+                if (labsIdx != null) {
+                    state.listState1.animateScrollToItem(labsIdx)
+                } else {
+                    val order = HudStripTabOrderHelper.resolveOrder(state.sectionOrder1StrState.value, prefs)
+                    val pos = order.indexOf("experimental_labs")
+                    if (pos >= 0) {
+                        state.listState1.animateScrollToItem((pos + 1).coerceAtMost((state.listState1.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)))
+                    }
+                }
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         CentralCommandTabNavigator.jumpChannel.receiveAsFlow().collect { target ->
@@ -87,9 +132,34 @@ fun CentralCommandMatrixFields(
                 kotlinx.coroutines.delay(220L)
                 val listState = if (target == 0) state.listState0 else if (target == 2) state.listState2 else null
                 if (listState != null) {
+                    val isLeft = target == 0
+                    val prefix = if (isLeft) "left_" else ""
+                    val trackpadKey = "${prefix}trackpad"
+                    val flankKey = if (isLeft) "left" else "right"
+                    val expState = if (isLeft) state.isLeftTrackpadExpandedState else state.isTrackpadExpandedState
+                    if (!expState.value) {
+                        state.toggleSection(target, trackpadKey, false) { expState.value = it }
+                        prefs.edit().putBoolean("pref_accordion_trackpad_$flankKey", expState.value).apply()
+                    }
                     val total = listState.layoutInfo.totalItemsCount
                     if (total > 0) {
-                        listState.animateScrollToItem((total - 1).coerceAtLeast(0))
+                        val visibleMatch = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == trackpadKey }?.index
+                        val targetIndex = if (visibleMatch != null) {
+                            visibleMatch
+                        } else {
+                            val isUnified = if (isLeft) state.isLeftFlankUnifiedState.value else state.isRightFlankUnifiedState.value
+                            val defOrder = buildList {
+                                add("${prefix}center")
+                                if (isUnified) add("${prefix}unified") else { add("${prefix}top"); add("${prefix}bottom") }
+                                if (com.sbf.lightspeed.system.bot.LightspeedBotContract.isLabsEnabled(prefs)) add(trackpadKey)
+                            }
+                            val raw = if (isLeft) state.sectionOrder0StrState.value else state.sectionOrder2StrState.value
+                            val order = raw.split(",").map { it.trim() }.filter { it in defOrder }.distinct().let { it + (defOrder - it.toSet()) }
+                            val pos = order.indexOf(trackpadKey)
+                            val unifyIdx = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == "${prefix}unify_flank_actions" }?.index ?: 1
+                            if (pos >= 0) (unifyIdx + 1 + pos).coerceIn(0, total - 1) else (total - 1).coerceAtLeast(0)
+                        }
+                        listState.animateScrollToItem(targetIndex)
                     }
                 }
             }
@@ -124,7 +194,10 @@ fun CentralCommandMatrixFields(
                 state.isRefuelingExpandedState.value = true
             }
             "backup", "config_vault", "vault" -> state.isConfigVaultExpandedState.value = true
-            "system_overrides", "scrubbers", "display_wellness", "wellness", "smart_pixels", "eye_care", "airlock", "sonic_deck", "space_pods", "pods" -> state.isSystemOverridesExpandedState.value = true
+            "airlock", "astrogation_airlock" -> state.isAstrogationAirlockExpandedState.value = true
+            "sonic_deck" -> state.isSonicDeckExpandedState.value = true
+            "vista_deck", "display_wellness", "wellness", "smart_pixels", "eye_care", "telemetry_hud", "overdrive" -> state.isVistaDeckExpandedState.value = true
+            "system_overrides", "scrubbers", "space_pods", "pods" -> state.isSystemOverridesExpandedState.value = true
             "experimental_labs", "labs", "experimental", "core_cooling" -> state.isExperimentalLabsExpandedState.value = true
             "power", "power_button" -> {
                 state.isExperimentalLabsExpandedState.value = true
@@ -219,12 +292,12 @@ fun CentralCommandMatrixFields(
             )
             val trackpadLeftActive = inFocus && page == 0 &&
                 prefs.getBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_LEFT_ENABLED, false) &&
-                prefs.getBoolean("pref_accordion_trackpad_left", false) &&
-                prefs.getBoolean("pref_sub_trackpad_geo_left", false)
+                state.isLeftTrackpadExpandedState.value &&
+                state.isLeftTrackpadGeoExpandedState.value
             val trackpadRightActive = inFocus && page == 2 &&
                 prefs.getBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_RIGHT_ENABLED, false) &&
-                prefs.getBoolean("pref_accordion_trackpad_right", false) &&
-                prefs.getBoolean("pref_sub_trackpad_geo_right", false)
+                state.isTrackpadExpandedState.value &&
+                state.isTrackpadGeoExpandedState.value
 
             val anyRail = state.isHorizonRailGeomExpandedState.value || state.isHorizonRailColorExpandedState.value || state.isHorizonRailTextExpandedState.value
             val notchActive = inFocus && page == 1 && state.isTelemetryExpandedState.value && state.isNotchCalibExpandedState.value
@@ -388,24 +461,30 @@ fun CentralCommandMatrixFields(
                 }
             }
         }
-
-        var mediaNeedsAccess by remember {
-            mutableStateOf(false)
-        }
-        DisposableEffect(lifecycleOwner, prefs) {
-            fun recompute() {
-                mediaNeedsAccess = try {
+        var mediaNeedsAccess by remember { mutableStateOf(false) }
+        var mediaAccessCheckTick by remember { mutableIntStateOf(0) }
+        LaunchedEffect(mediaAccessCheckTick) {
+            mediaNeedsAccess = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try {
                     val hasMedia = prefs.all.values.any { it is String && it.startsWith("system:media_") }
-                    val granted = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")?.contains(context.packageName) == true || LightspeedNotificationListener.instance != null
+                    val granted = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                        ?.contains(context.packageName) == true || LightspeedNotificationListener.instance != null
                     hasMedia && !granted
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     false
                 }
             }
-            recompute()
-            val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> recompute() }
+        }
+        DisposableEffect(lifecycleOwner, prefs) {
+            val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                if (key == null || key.startsWith("pref_macro_action_") || key.startsWith("pref_key_")) {
+                    mediaAccessCheckTick++
+                }
+            }
             val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) recompute()
+                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                    mediaAccessCheckTick++
+                }
             }
             prefs.registerOnSharedPreferenceChangeListener(prefListener)
             lifecycleOwner.lifecycle.addObserver(observer)
@@ -434,73 +513,22 @@ fun CentralCommandMatrixFields(
             }
         }
 
-        // Balanced, Optically Centered 3-Tab Navigator
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(lsColors.textPrimary.copy(alpha = 0.06f))
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // Keep physical Left Deflector | HUD Strip | Right Deflector tab order & horizontal swipe
+        // anchored to physical LTR coordinates even when RTL / Left-Handed Layout is active.
+        val activeLayoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr
         ) {
-            val tabTitles = listOf(
-                LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_LEFT, currentLanguageMode),
-                LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_CENTER, currentLanguageMode),
-                LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_RIGHT, currentLanguageMode)
-            )
-            tabTitles.forEachIndexed { index, tabTitle ->
-                val isSelected = state.pagerState.currentPage == index
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
-                        .combinedClickable(
-                            onClick = {
-                                if (isSelected) {
-                                    LightspeedHapticEngine.heavyClick(context)
-                                    state.popoverTabTargetState.value = index
-                                } else {
-                                    scope.launch { state.pagerState.animateScrollToPage(index) }
-                                }
-                            },
-                            onLongClick = {
-                                LightspeedHapticEngine.heavyClick(context)
-                                state.popoverTabTargetState.value = index
-                            }
-                        )
-                        .padding(vertical = 7.dp, horizontal = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = tabTitle,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 11.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else lsColors.textPrimary.copy(alpha = 0.75f),
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                        if (isSelected) {
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 14.dp, height = 2.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f))
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        // Balanced, Optically Centered 3-Tab Navigator
+        CentralCommandTabBar(
+            context = context,
+            pagerState = state.pagerState,
+            languageMode = currentLanguageMode,
+            onOpenPopover = { state.popoverTabTargetState.value = it }
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
 
         var beyondTabCount by remember { mutableIntStateOf(if (uiAlreadyWarm) 2 else 0) }
         LaunchedEffect(uiAlreadyWarm) {
@@ -509,11 +537,25 @@ fun CentralCommandMatrixFields(
                 beyondTabCount = 2
             }
         }
+        val onApplyCustomPinned0 = remember(state) {
+            { if (state.tabMode0State.value == "custom_pinned") state.applyTabMode(0, "custom_pinned") }
+        }
+        val onApplyCustomPinned1 = remember(state) {
+            { if (state.tabMode1State.value == "custom_pinned") state.applyTabMode(1, "custom_pinned") }
+        }
+        val onApplyCustomPinned2 = remember(state) {
+            { if (state.tabMode2State.value == "custom_pinned") state.applyTabMode(2, "custom_pinned") }
+        }
         HorizontalPager(
             state = state.pagerState,
             modifier = Modifier.weight(1f).fillMaxWidth(),
-            beyondViewportPageCount = beyondTabCount
+            pageSpacing = 12.dp,
+            beyondViewportPageCount = beyondTabCount,
+            key = { it }
         ) { pageIndex ->
+            CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalLayoutDirection provides activeLayoutDirection
+            ) {
             when (pageIndex) {
                 0 -> {
                     LeftDeflectorTabContent(
@@ -535,6 +577,9 @@ fun CentralCommandMatrixFields(
                         isLeftUnifiedGeoExpandedState = state.isLeftUnifiedGeoExpandedState,
                         isLeftUnifiedGesturesExpandedState = state.isLeftUnifiedGesturesExpandedState,
                         isLeftUnifiedScrubExpandedState = state.isLeftUnifiedScrubExpandedState,
+                        isLeftTrackpadExpandedState = state.isLeftTrackpadExpandedState,
+                        isLeftTrackpadGeoExpandedState = state.isLeftTrackpadGeoExpandedState,
+                        isLeftTrackpadPhysicsExpandedState = state.isLeftTrackpadPhysicsExpandedState,
                         listState0 = state.listState0,
                         onRefreshNeeded = onRefreshNeeded,
                         pinnedSection0State = state.pinnedSection0State,
@@ -544,10 +589,11 @@ fun CentralCommandMatrixFields(
                         showUnifyInfoDialogState = state.showUnifyInfoDialogState,
                         showUnifyTemplateDialogForLeftState = state.showUnifyTemplateDialogForLeftState,
                         toggleSection = state.toggleSection,
-                        tokenLabelCache = state.tokenLabelCache
+                        toggleSubSection = state.toggleSubSection,
+                        tokenLabelCache = state.tokenLabelCache,
+                        onApplyCustomPinned = onApplyCustomPinned0
                     )
                 }
-
                 1 -> {
                     HudStripTabContent(
                         blueprintTabTargetState = state.blueprintTabTargetState,
@@ -573,6 +619,9 @@ fun CentralCommandMatrixFields(
                         isSubPowerExpandedState = state.isSubPowerExpandedState,
                         isSubVolumeExpandedState = state.isSubVolumeExpandedState,
                         isSyntheticGravityExpandedState = state.isSyntheticGravityExpandedState,
+                        isAstrogationAirlockExpandedState = state.isAstrogationAirlockExpandedState,
+                        isSonicDeckExpandedState = state.isSonicDeckExpandedState,
+                        isVistaDeckExpandedState = state.isVistaDeckExpandedState,
                         isTacticalHardwareExpandedState = state.isTacticalHardwareExpandedState,
                         isTelemetryExpandedState = state.isTelemetryExpandedState,
                         listState1 = state.listState1,
@@ -591,10 +640,10 @@ fun CentralCommandMatrixFields(
                         sectionTitles1 = state.sectionTitles1,
                         thresholdCrossedFlashState = state.thresholdCrossedFlashState,
                         toggleSection = state.toggleSection,
-                        tokenLabelCache = state.tokenLabelCache
+                        tokenLabelCache = state.tokenLabelCache,
+                        onApplyCustomPinned = onApplyCustomPinned1
                     )
                 }
-
                 2 -> {
                     RightDeflectorTabContent(
                         blueprintTabTargetState = state.blueprintTabTargetState,
@@ -616,6 +665,9 @@ fun CentralCommandMatrixFields(
                         isTopGeoExpandedState = state.isTopGeoExpandedState,
                         isTopGesturesExpandedState = state.isTopGesturesExpandedState,
                         isTopScrubExpandedState = state.isTopScrubExpandedState,
+                        isTrackpadExpandedState = state.isTrackpadExpandedState,
+                        isTrackpadGeoExpandedState = state.isTrackpadGeoExpandedState,
+                        isTrackpadPhysicsExpandedState = state.isTrackpadPhysicsExpandedState,
                         listState2 = state.listState2,
                         onRefreshNeeded = onRefreshNeeded,
                         pinnedSection2State = state.pinnedSection2State,
@@ -625,12 +677,16 @@ fun CentralCommandMatrixFields(
                         showUnifyInfoDialogState = state.showUnifyInfoDialogState,
                         showUnifyTemplateDialogForRightState = state.showUnifyTemplateDialogForRightState,
                         toggleSection = state.toggleSection,
-                        tokenLabelCache = state.tokenLabelCache
+                        toggleSubSection = state.toggleSubSection,
+                        tokenLabelCache = state.tokenLabelCache,
+                        onApplyCustomPinned = onApplyCustomPinned2
                     )
                 }
             }
             }
-
+        }
+        }
+        }
         // Central Command Modal Dialogs Deck
         CentralCommandDialogDeck(
             context = context,
@@ -667,7 +723,7 @@ fun CentralCommandMatrixFields(
                 0 -> state.tabMode0State.value
                 1 -> state.tabMode1State.value
                 2 -> state.tabMode2State.value
-                else -> "sticky"
+                else -> "custom_pinned"
             }
             val currentPinned = when (popoverTarget) {
                 0 -> state.pinnedSection0State.value
@@ -689,20 +745,7 @@ fun CentralCommandMatrixFields(
                 pinnedSectionId = currentPinned,
                 sectionTitles = secTitles,
                 onSelectMode = { newMode: String ->
-                    when (popoverTarget) {
-                        0 -> {
-                            state.tabMode0State.value = newMode
-                            prefs.edit().putString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_0, newMode).apply()
-                        }
-                        1 -> {
-                            state.tabMode1State.value = newMode
-                            prefs.edit().putString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_1, newMode).apply()
-                        }
-                        2 -> {
-                            state.tabMode2State.value = newMode
-                            prefs.edit().putString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_2, newMode).apply()
-                        }
-                    }
+                    state.applyTabMode(popoverTarget, newMode)
                     if (newMode == "custom_pinned" && (currentPinned == null || currentPinned == "none" || currentPinned.isEmpty())) {
                         state.blueprintTabTargetState.value = popoverTarget
                     }

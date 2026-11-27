@@ -18,6 +18,8 @@ object LightspeedBackupEngine {
     private const val TAG = "LightspeedBackup"
     const val BACKUP_VERSION = 2
 
+    private val MANUAL_OVERRIDE_ALIAS_REGEX = Regex("^(space_pod_[0-9]+|custom_list_[A-Za-z0-9_\\-]+|folder_widget_[0-9]+)$")
+
     private val TRANSIENT_KEYS = setOf(
         LightspeedPreferences.KEY_LAST_ACTIVE_SET_INDEX,
         LightspeedPreferences.KEY_LAST_ACTIVE_SET_INDEX_LEFT,
@@ -34,6 +36,7 @@ object LightspeedBackupEngine {
         "pref_active_infinity_code",
         "pref_infinity_failed_attempts",
         "pref_infinity_lockout_timestamp",
+        "pref_infinity_last_version_code",
         LightspeedPreferences.KEY_STEALTH_CLOAK_TOKEN,
         LightspeedPreferences.KEY_CLOAK_SHIZUKU_TOGGLE_TOKEN,
         LightspeedPreferences.KEY_ALLOW_EXTERNAL_AUTOMATION,
@@ -209,8 +212,13 @@ object LightspeedBackupEngine {
             var importedCount = 0
             val keys = settingsObject.keys()
             while (keys.hasNext()) {
-                val key = keys.next()
-                if (key == "app" || key == "packageName" || key == "backupVersion" || key == "exportedAt" || key == "exportedAtFormatted" || key == "device" || key == "types" || isExcludedKey(key)) {
+                val rawKey = keys.next()
+                val key = if (rawKey == "pref_omniscient_audio_dock_enabled") {
+                    LightspeedPreferences.KEY_SONIC_DECK_ENABLED
+                } else {
+                    rawKey
+                }
+                if (rawKey == "app" || rawKey == "packageName" || rawKey == "backupVersion" || rawKey == "exportedAt" || rawKey == "exportedAtFormatted" || rawKey == "device" || rawKey == "types" || isExcludedKey(key)) {
                     continue
                 }
 
@@ -219,11 +227,11 @@ object LightspeedBackupEngine {
                     continue
                 }
 
-                if (settingsObject.isNull(key)) {
+                if (settingsObject.isNull(rawKey)) {
                     continue
                 }
 
-                val value = settingsObject.get(key)
+                val value = settingsObject.get(rawKey)
                 if (key == LightspeedPreferences.KEY_PERIMETER_PROTECTED_SERVICES || key == LightspeedPreferences.KEY_PINNED_ACCESSIBILITY_SERVICES || key == LightspeedPreferences.KEY_CLOAKED_ACCESSIBILITY_SERVICES) {
                     val validSet = mutableSetOf<String>()
                     if (value is JSONArray) {
@@ -303,13 +311,43 @@ object LightspeedBackupEngine {
                     continue
                 }
                 if (isActionTokenKey(key)) {
+                    if (value is JSONArray) {
+                        val validSet = mutableSetOf<String>()
+                        for (i in 0 until value.length()) {
+                            val item = value.optString(i, "").trim()
+                            if (item.isNotEmpty() && isValidSingleActionToken(item)) {
+                                validSet.add(item)
+                            }
+                        }
+                        editor.putStringSet(key, validSet)
+                        importedCount++
+                        continue
+                    }
                     val valueStr = value.toString()
+                    if (isCsvActionTokenKey(key) && value is String) {
+                        if (valueStr.length > 65_536 || valueStr.any { it.code < 32 && it != '\t' } || valueStr.contains('`') || valueStr.contains("\$(")) {
+                            Log.w(TAG, "Rejecting invalid CSV action token value for key: $key")
+                            continue
+                        }
+                        val filteredCsv = if (valueStr.isBlank()) {
+                            ""
+                        } else {
+                            valueStr.split(",")
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() && isValidSingleActionToken(it) }
+                                .joinToString(",")
+                        }
+                        editor.putString(key, filteredCsv)
+                        importedCount++
+                        continue
+                    }
                     if (!isValidActionTokenValue(key, valueStr)) {
                         Log.w(TAG, "Rejecting invalid action token value for key: $key")
                         continue
                     }
                 }
-                val declaredType = typesObject?.optString(key)
+                val declaredType = typesObject?.optString(rawKey)?.takeIf { it.isNotEmpty() }
+                    ?: typesObject?.optString(key)
 
                 if (!declaredType.isNullOrEmpty()) {
                     when (declaredType) {
@@ -629,11 +667,21 @@ object LightspeedBackupEngine {
     private fun isValidSingleActionToken(token: String): Boolean {
         val trimmed = token.trim()
         if (trimmed.isEmpty() || trimmed == "none") return true
+        if (trimmed.length > 4096) return false
+        if (trimmed.any { it.code < 32 && it != '\t' }) return false
+        if (trimmed.contains('`') || trimmed.contains("\$(")) return false
 
         if (trimmed.startsWith("app:")) {
             val pkg = trimmed.removePrefix("app:")
             if (!ShellArgGuard.isPackage(pkg)) return false
-        } else if (trimmed.startsWith("shortcut:") || trimmed.startsWith("custom:")) {
+        } else if (
+            trimmed.startsWith("shortcut:") ||
+            trimmed.startsWith("custom:") ||
+            trimmed.startsWith("caller;") ||
+            trimmed.contains(";b64uri=") ||
+            trimmed.contains("b64uri=") ||
+            trimmed.contains(";label=")
+        ) {
             val body = trimmed.substringAfter(":")
             val pkg = if (body.contains("pkg=")) {
                 body.substringAfter("pkg=").substringBefore(";")
@@ -650,15 +698,31 @@ object LightspeedBackupEngine {
             } else ""
 
             if (act.isNotEmpty() && !ShellArgGuard.isClassName(act)) return false
-        } else if (!trimmed.startsWith("system:") && !trimmed.startsWith("bot:") && !trimmed.startsWith("#Intent;") && !trimmed.startsWith("intent:")) {
-            if (!ShellArgGuard.isPackage(trimmed)) return false
+        } else if (
+            !trimmed.startsWith("system:") &&
+            !trimmed.startsWith("action:") &&
+            !trimmed.startsWith("bot:") &&
+            !trimmed.startsWith("#Intent;") &&
+            !trimmed.startsWith("intent:") &&
+            !trimmed.startsWith("widget:") &&
+            !trimmed.startsWith("app_widget:") &&
+            !trimmed.startsWith("folder:") &&
+            !MANUAL_OVERRIDE_ALIAS_REGEX.matches(trimmed)
+        ) {
+            val validPlain = if (trimmed.contains("/")) {
+                ShellArgGuard.isComponent(trimmed)
+            } else {
+                ShellArgGuard.isPackage(trimmed)
+            }
+            if (!validPlain) return false
         }
         return true
     }
 
     private fun isValidActionTokenValue(key: String, valueStr: String): Boolean {
         if (valueStr.any { it.code < 32 && it != '\t' }) return false
-        if (valueStr.length > 2000) return false
+        val maxLen = if (isCsvActionTokenKey(key)) 65_536 else 4096
+        if (valueStr.length > maxLen) return false
         if (valueStr.contains('`') || valueStr.contains("\$(")) return false
 
         if (isCsvActionTokenKey(key)) {

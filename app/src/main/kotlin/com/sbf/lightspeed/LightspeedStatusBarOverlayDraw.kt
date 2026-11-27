@@ -128,26 +128,55 @@ internal fun LightspeedStatusBarOverlay.drawScrubHud(
 ) {
     val navState = com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState
     val transientHud = currentTransientHudState
-    val hasActiveHud = (navState != null && navState.isActive) || transientHud != null
+    val isNavActive = navState != null && navState.isActive
+    val hasActiveHud = isNavActive || transientHud != null
     if (!hasActiveHud) return
 
+    val activeStyle = if (isNavActive) {
+        prefs.getString(
+            com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_STYLE_DEFAULT,
+            com.sbf.lightspeed.system.LightspeedPreferences.DEFAULT_HUD_STYLE
+        )
+    } else {
+        transientHud?.style
+    }
+    val isFramelessShade = com.sbf.lightspeed.system.LightspeedHudRenderer.isFramelessShadeStyle(activeStyle)
+
     // Gate Frame-0 rendering while takeScreenshot() is actively capturing (~15-25ms)
-    // so the HUD never flashes unblurred for a split-second and never captures itself.
-    if (com.sbf.lightspeed.settings.CentralCommandBackdropBlur.isHudCapturing &&
+    // for screenshot-blurred card HUDs so they never flash unblurred or capture themselves.
+    if (!isFramelessShade &&
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.isHudCapturing &&
         !com.sbf.lightspeed.settings.CentralCommandBackdropBlur.hasHudBackdrop()
     ) {
         return
     }
 
-    if (navState != null && navState.isActive) {
+    val baseAlpha = if (isNavActive && hudAlpha <= 0f) 1f else if (!isFramelessShade && hudAlpha <= 0f) 1f else hudAlpha
+    val cProgress = scrubContinuumProgress.coerceIn(0f, 1f)
+    val morphScale = 1f + 0.055f * cProgress
+    val morphFade = 1f - 0.45f * ((cProgress - 0.65f).coerceAtLeast(0f) / 0.35f)
+    val effectiveAlpha = (baseAlpha * morphFade).coerceIn(0f, 1f)
+    if (effectiveAlpha <= 0.01f) return
+
+    val topY = (renderCache.thicknessDp * d) + (8f * d)
+    val hudCenterY = topY + (72f * d)
+    val layerAlphaInt = (effectiveAlpha * 255f).toInt().coerceIn(0, 255)
+    val saveCount = if (layerAlphaInt < 254) {
+        canvas.saveLayerAlpha(0f, 0f, screenW, height.toFloat().coerceAtLeast(260f * d), layerAlphaInt)
+    } else {
+        canvas.save()
+    }
+    if (morphScale > 1.001f) {
+        canvas.scale(morphScale, morphScale, screenW / 2f, hudCenterY)
+    }
+
+    if (isNavActive && navState != null) {
         val hudColorMode = com.sbf.lightspeed.system.LightspeedPreferences.resolveHudColorMode(prefs, actionToken = "system:gear_nav")
         val useCentralTheme = hudColorMode != com.sbf.lightspeed.system.LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
         val gearHudStyle = prefs.getString(
             com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_STYLE_DEFAULT,
             com.sbf.lightspeed.system.LightspeedPreferences.DEFAULT_HUD_STYLE
         ) ?: "canopy_droppod"
-        val topY = (renderCache.thicknessDp * d) + (8f * d)
-        val hudCenterY = topY + (72f * d)
         LightspeedHudRenderer.renderHud(
             canvas = canvas,
             style = gearHudStyle,
@@ -167,8 +196,6 @@ internal fun LightspeedStatusBarOverlay.drawScrubHud(
         val hudColorMode = transientHud.colorMode
             ?: com.sbf.lightspeed.system.LightspeedPreferences.resolveHudColorMode(prefs)
         val useCentralTheme = hudColorMode != com.sbf.lightspeed.system.LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
-        val topY = (renderCache.thicknessDp * d) + (8f * d)
-        val hudCenterY = topY + (72f * d)
         LightspeedHudRenderer.renderHud(
             canvas = canvas,
             style = transientHud.style,
@@ -185,4 +212,32 @@ internal fun LightspeedStatusBarOverlay.drawScrubHud(
             colorMode = hudColorMode
         )
     }
+
+    val targetDeck = scrubContinuumTargetDeck
+    if (cProgress > 0.12f && targetDeck != null) {
+        val barW = 148f * d
+        val barH = 4f * d
+        val barLeft = (screenW - barW) * 0.5f
+        val barTop = topY + (108f * d)
+        tempSensorRect.set(barLeft, barTop, barLeft + barW, barTop + barH)
+        hudFillPaint.color = Color.argb(120, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+        canvas.drawRoundRect(tempSensorRect, barH * 0.5f, barH * 0.5f, hudFillPaint)
+
+        tempSensorRect.set(barLeft, barTop, barLeft + (barW * cProgress), barTop + barH)
+        debugPaint.style = Paint.Style.FILL
+        debugPaint.color = Color.argb(235, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+        canvas.drawRoundRect(tempSensorRect, barH * 0.5f, barH * 0.5f, debugPaint)
+
+        hudTextPaint.textSize = 9.5f * d
+        if (isFramelessShade) {
+            hudTextPaint.style = Paint.Style.STROKE
+            hudTextPaint.strokeWidth = 2.8f * d
+            hudTextPaint.color = Color.argb((230f * cProgress).toInt().coerceIn(80, 235), 0, 0, 0)
+            canvas.drawText("PULL :: $targetDeck DECK", screenW * 0.5f, barTop + (16f * d), hudTextPaint)
+            hudTextPaint.style = Paint.Style.FILL
+        }
+        hudTextPaint.color = Color.argb((210f * cProgress).toInt().coerceIn(80, 235), 255, 255, 255)
+        canvas.drawText("PULL :: $targetDeck DECK", screenW * 0.5f, barTop + (16f * d), hudTextPaint)
+    }
+    canvas.restoreToCount(saveCount)
 }

@@ -107,6 +107,14 @@ fun StyleLabPreviewDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        val dialogView = androidx.compose.ui.platform.LocalView.current
+        val dialogWindow = (dialogView.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        androidx.compose.runtime.DisposableEffect(dialogWindow) {
+            CentralCommandBackdropBlur.registerHostWindow(dialogWindow)
+            onDispose {
+                CentralCommandBackdropBlur.unregisterHostWindow(dialogWindow)
+            }
+        }
         CompositionLocalProvider(LocalDensity provides activeDensity) {
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -220,7 +228,7 @@ fun StyleLabPreviewDialog(
                                 } else {
                                     DeckThemeManager.setStyle(context, preset.styleId)
                                     LightspeedHapticEngine.tick(context)
-                                    Toast.makeText(context, "Theme applied: ${preset.displayName}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, lsString(R.string.slab_toast_theme_applied, preset.localizedName()), Toast.LENGTH_SHORT).show()
                                 }
                             },
                             onLongClick = {
@@ -261,7 +269,7 @@ private fun StyleLabTileCard(
 ) {
     val lsColors = LightspeedStyle.colors
     val primaryColor = MaterialTheme.colorScheme.primary
-    val titleText = "${index + 1} ${preset.displayName}"
+    val titleText = "${index + 1} ${preset.localizedName()}"
     val captionText = captionForStyle(preset.styleId)
 
     Card(

@@ -247,6 +247,7 @@ internal fun WhatsNewActionRow(
     context: Context,
     isUnlocked: Boolean,
     isUpdateBanner: Boolean,
+    hideUnlockCta: Boolean = false,
     onDismiss: () -> Unit,
     onBeforeAction: () -> Unit,
     onOpenInfinityUnlock: () -> Unit
@@ -256,25 +257,27 @@ internal fun WhatsNewActionRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Button(
-            onClick = {
-                onBeforeAction()
-                onOpenInfinityUnlock()
-            },
-            modifier = Modifier.weight(0.95f),
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 9.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.08f)),
-            border = BorderStroke(0.8.dp, lsColors.accentGold.copy(alpha = 0.40f))
-        ) {
-            Text(
-                text = "Lightspeed ∞",
-                color = lsColors.accentGold.copy(alpha = 0.92f),
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 12.5.sp,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
-            )
+        if (!isUnlocked && !hideUnlockCta) {
+            Button(
+                onClick = {
+                    onBeforeAction()
+                    onOpenInfinityUnlock()
+                },
+                modifier = Modifier.weight(0.95f),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 9.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = lsColors.accentGold.copy(alpha = 0.14f)),
+                border = BorderStroke(0.9.dp, lsColors.accentGold.copy(alpha = 0.48f))
+            ) {
+                Text(
+                    text = lsString(R.string.fc_inf_footer_locked),
+                    color = lsColors.accentGold,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
         Button(

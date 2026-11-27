@@ -49,10 +49,7 @@ class MainActivity : ComponentActivity() {
         com.sbf.lightspeed.settings.CentralCommandBackdropBlur.registerHostWindow(window)
         com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
 
-        // 1. Ensure core defaults are initialized on clean installs
-        com.sbf.lightspeed.system.LightspeedPreferences.initializeDefaults(this)
-
-        // 2. Request Notification permission on Android 13+
+        // 1. Request Notification permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)

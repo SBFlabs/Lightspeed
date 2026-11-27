@@ -3,7 +3,7 @@
 import re, sys, glob
 import xml.etree.ElementTree as ET
 R='app/src/main/res/'
-locs={'en':'values','pt':'values-pt-rBR','es':'values-es'}
+locs={'en':'values','pt':'values-pt-rBR','es':'values-es','ar':'values-ar'}
 SPEC=re.compile(r'%(?:(\d+)\$)?[-#+0,(]*\d*(?:\.\d+)?([sSdfcxXeEgGbB])')
 def specs(t):
     t=t.replace('%%','')
@@ -23,7 +23,7 @@ for k,d in locs.items():
 bad=0
 for n,t in data['en'].items():
     se=sorted(specs(t))
-    for k in('pt','es'):
+    for k in('pt','es','ar'):
         if n in data[k]:
             sk=sorted(specs(data[k][n]))
             if sk!=se: print(f'MISMATCH {k} {n}: en={se} {k}={sk}'); bad+=1
@@ -41,7 +41,7 @@ for f in glob.glob('app/src/main/**/*.kt',recursive=True):
                 if c in'([{': depth+=1
                 elif c in')]}': depth-=1
                 elif c==',' and depth==0: argc+=1
-        for k in('en','pt','es'):
+        for k in('en','pt','es','ar'):
             if name in data[k]:
                 need=len({p for p,_ in specs(data[k][name])})
                 if need!=argc:
